@@ -132,9 +132,12 @@ export function UserNavbar() {
         {isLoggedIn && <Link to="/history" className={`nav-link ${activePage === 'history' ? 'active' : ''}`}>Lịch sử</Link>}
       </div>
 
-      <div className="nav-actions">
+      <div className="nav-actions" style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
         {!isLoggedIn ? (
-          <Link to="/login" className="btn btn-gold">Bắt đầu ngay</Link>
+          <>
+            <Link to="/login" className="btn btn-outline" style={{ textDecoration: 'none' }}>Đăng nhập</Link>
+            <Link to="/register" className="btn btn-gold" style={{ textDecoration: 'none' }}>Đăng ký</Link>
+          </>
         ) : (
           <>
             <Link to="/notifications" style={{ position: 'relative', color: 'var(--gold)', display: 'inline-flex', alignItems: 'center' }}>
@@ -281,7 +284,7 @@ export function UserNavbar() {
                       onMouseEnter={(event) => { event.currentTarget.style.background = 'rgba(239, 68, 68, 0.08)'; }}
                       onMouseLeave={onItemLeave}
                     >
-                      <LogOut size={16} />
+                      <LogOut size={15} />
                       Đăng xuất
                     </button>
                   </div>

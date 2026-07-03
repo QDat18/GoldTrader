@@ -25,7 +25,19 @@ export default function Login() {
     });
 
     if (error) {
-      setError(error.message === 'Invalid login credentials' ? 'Email hoặc mật khẩu không đúng.' : error.message);
+      let friendlyMessage = 'Đã xảy ra lỗi khi đăng nhập. Vui lòng thử lại.';
+      if (error.message.includes('Invalid login credentials') || error.message.includes('invalid_credentials')) {
+        friendlyMessage = 'Email hoặc mật khẩu không chính xác. Vui lòng kiểm tra lại.';
+      } else if (error.message.includes('Email not confirmed') || error.message.includes('email_not_confirmed')) {
+        friendlyMessage = 'Tài khoản chưa được xác thực email. Vui lòng kiểm tra hộp thư để kích hoạt.';
+      } else if (error.message.includes('User not found') || error.message.includes('user_not_found')) {
+        friendlyMessage = 'Tài khoản không tồn tại trên hệ thống.';
+      } else if (error.message.includes('Too many requests') || error.status === 429) {
+        friendlyMessage = 'Yêu cầu quá nhiều lần. Vui lòng đợi một lát rồi thử lại.';
+      } else {
+        friendlyMessage = error.message;
+      }
+      setError(friendlyMessage);
       setLoading(false);
       return;
     }
@@ -77,6 +89,59 @@ export default function Login() {
     setLoading(false);
   };
 
+  const handleTokenLogin = async (e) => {
+    e.preventDefault();
+    if (!inputAccessToken) return;
+    setError('');
+    setLoading(true);
+
+    try {
+      const { data, error } = await supabase.auth.setSession({
+        access_token: inputAccessToken,
+        refresh_token: inputRefreshToken || ''
+      });
+
+      if (error) {
+        setError('Token xác thực không hợp lệ hoặc đã hết hạn. Vui lòng thử lại.');
+        setLoading(false);
+        return;
+      }
+
+      // Success login -> Fetch user details from public.user_profiles
+      const { data: dbUser, error: dbError } = await supabase
+        .from('user_profiles')
+        .select('*')
+        .eq('auth_user_id', data.user.id)
+        .single();
+
+      if (dbUser) {
+        setCurrentUser({
+          name: dbUser.full_name,
+          phone: dbUser.phone,
+          email: data.user.email,
+          cccd: dbUser.id_card_number,
+          role: dbUser.role || 'guest',
+          kycStep: dbUser.kyc_status === 'VERIFIED' ? 3 : 2,
+          kycStatus: dbUser.kyc_status?.toLowerCase() || 'pending'
+        });
+      } else {
+        setCurrentUser({
+          name: data.user.user_metadata?.full_name || 'Người dùng mới',
+          phone: data.user.user_metadata?.phone || '',
+          email: data.user.email,
+          cccd: '',
+          role: data.user.user_metadata?.role || 'guest',
+          kycStep: 2,
+          kycStatus: 'pending'
+        });
+      }
+      navigate('/dashboard');
+    } catch (dbErr) {
+      console.error("Lỗi khi tải thông tin người dùng từ DB:", dbErr);
+      setError('Token không hợp lệ hoặc đã hết hạn.');
+    }
+    setLoading(false);
+  };
   return (
     <>
       <div className="nav-bar">
