@@ -340,6 +340,16 @@ const useStore = create((set, get) => ({
         currentUser: { ...state.currentUser, kycStatus: 'rejected', kycStep: 2 }
       };
     }),
+
+  markAllNotificationsRead: () =>
+    set((state) => ({
+      notifications: state.notifications.map(n => ({ ...n, unread: false }))
+    })),
+
+  deleteNotification: (id) =>
+    set((state) => ({
+      notifications: state.notifications.filter(n => n.id !== id)
+    })),
 }));
 
 export default useStore;

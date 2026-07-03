@@ -11,6 +11,7 @@ import Profile from './pages/Profile';
 import Admin from './pages/Admin';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import Notifications from './pages/Notifications';
 import { supabase } from './supabaseClient';
 import useStore from './store/useStore';
 
@@ -125,7 +126,7 @@ function App() {
           <Route path="/history" element={<History />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/order" element={<Placeholder title="Order Details" />} />
-          <Route path="/notifications" element={<Placeholder title="Notifications" />} />
+          <Route path="/notifications" element={<Notifications />} />
         </Route>
 
         {/* Auth Routes */}
