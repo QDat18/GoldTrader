@@ -19,22 +19,6 @@ export default function Login() {
   const handleLogin = async (e) => {
     e.preventDefault();
     setError('');
-    
-    // Check if it's a mock admin bypass for testing (like in the old code)
-    if (email === 'admin@goldchain.vn' && password === 'admin') {
-      setCurrentUser({
-        name: 'Quản trị viên',
-        phone: '0900 000 000',
-        email: 'admin@goldchain.vn',
-        cccd: '111222333444',
-        role: 'admin',
-        kycStep: 3,
-        kycStatus: 'verified'
-      });
-      navigate('/admin');
-      return;
-    }
-
     setLoading(true);
     
     // Connect to Supabase Auth
@@ -44,24 +28,19 @@ export default function Login() {
     });
 
     if (error) {
-      // Dev Bypass: Cho phép bypass nếu tài khoản chưa được tạo thật trên Supabase
-      if (error.message.includes('Invalid login credentials') || error.status === 400 || error.message.includes('User not found')) {
-        console.warn("Bypassed Supabase Auth for Dev Demo.");
-        setCurrentUser({
-          name: 'Nguyễn Văn An',
-          phone: '0912 345 678',
-          email: email || 'an.nguyen@goldchain.vn',
-          cccd: '001234567890',
-          role: 'user',
-          kycStep: 2,
-          kycStatus: 'pending'
-        });
-        navigate('/dashboard');
-        setLoading(false);
-        return;
+      let friendlyMessage = 'Đã xảy ra lỗi khi đăng nhập. Vui lòng thử lại.';
+      if (error.message.includes('Invalid login credentials') || error.message.includes('invalid_credentials')) {
+        friendlyMessage = 'Email hoặc mật khẩu không chính xác. Vui lòng kiểm tra lại.';
+      } else if (error.message.includes('Email not confirmed') || error.message.includes('email_not_confirmed')) {
+        friendlyMessage = 'Tài khoản chưa được xác thực email. Vui lòng kiểm tra hộp thư để kích hoạt.';
+      } else if (error.message.includes('User not found') || error.message.includes('user_not_found')) {
+        friendlyMessage = 'Tài khoản không tồn tại trên hệ thống.';
+      } else if (error.message.includes('Too many requests') || error.status === 429) {
+        friendlyMessage = 'Yêu cầu quá nhiều lần. Vui lòng đợi một lát rồi thử lại.';
+      } else {
+        friendlyMessage = error.message;
       }
-      
-      setError(error.message);
+      setError(friendlyMessage);
       setLoading(false);
       return;
     }
@@ -126,7 +105,7 @@ export default function Login() {
       });
 
       if (error) {
-        setError(error.message);
+        setError('Token xác thực không hợp lệ hoặc đã hết hạn. Vui lòng thử lại.');
         setLoading(false);
         return;
       }

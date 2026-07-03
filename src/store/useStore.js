@@ -79,22 +79,19 @@ const useStore = create((set, get) => ({
     })),
 
   logout: () =>
-    set((state) => {
-      localStorage.removeItem('goldchain_mock_session');
-      return {
-        currentUser: {
-          name: '',
-          phone: '',
-          email: '',
-          cccd: '',
-          role: 'guest',
-          kycStep: 1,
-          kycStatus: 'pending'
-        },
-        walletBalance: 0,
-        goldBalances: { sjc: 0, pnj: 0, doji: 0 }
-      };
-    }),
+    set((state) => ({
+      currentUser: {
+        name: '',
+        phone: '',
+        email: '',
+        cccd: '',
+        role: 'guest',
+        kycStep: 1,
+        kycStatus: 'pending'
+      },
+      walletBalance: 0,
+      goldBalances: { sjc: 0, pnj: 0, doji: 0 }
+    })),
 
   // We will port the full buyGold and sellGold logic later
   // buyGold: (goldType, quantity, price) => { ... },

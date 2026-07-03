@@ -89,62 +89,62 @@ export function UserNavbar() {
                     position: 'absolute',
                     top: 'calc(100% + 8px)',
                     right: 0,
-                    width: '200px',
-                    background: 'rgba(255, 255, 255, 0.95)',
-                    backdropFilter: 'blur(10px)',
-                    border: '1px solid rgba(226, 232, 240, 0.8)',
+                    width: '210px',
+                    background: 'rgba(20, 20, 20, 0.98)',
+                    backdropFilter: 'blur(16px)',
+                    border: '1px solid rgba(255, 255, 255, 0.1)',
                     borderRadius: '12px',
-                    boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)',
+                    boxShadow: '0 10px 30px -5px rgba(0, 0, 0, 0.5), 0 8px 16px -6px rgba(0, 0, 0, 0.5)',
                     padding: '8px',
                     display: 'flex',
                     flexDirection: 'column',
                     gap: '4px',
                     zIndex: 1000
                   }}>
-                    <div style={{ padding: '8px 12px', borderBottom: '1px solid var(--gray-100)', marginBottom: '4px' }}>
-                      <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-main)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user.name}</div>
-                      <div style={{ fontSize: '11px', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user.email}</div>
+                    <div style={{ padding: '8px 12px', borderBottom: '1px solid rgba(255, 255, 255, 0.08)', marginBottom: '6px' }}>
+                      <div style={{ fontSize: '13.5px', fontWeight: 600, color: '#ffffff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontFamily: 'inherit' }}>{user.name}</div>
+                      <div style={{ fontSize: '11px', color: '#a1a1aa', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginTop: '2px', fontFamily: 'inherit' }}>{user.email}</div>
                     </div>
                     
                     <button 
                       onClick={() => { setDropdownOpen(false); alert(`Thông tin cá nhân:\nHọ tên: ${user.name}\nSĐT: ${user.phone}\nEmail: ${user.email}\nCCCD: ${user.cccd || 'Chưa cập nhật'}`); }}
-                      style={{ display: 'flex', alignItems: 'center', gap: '10px', width: '100%', padding: '10px 12px', border: 'none', background: 'transparent', borderRadius: '8px', cursor: 'pointer', textAlign: 'left', fontSize: '13px', color: 'var(--text-main)', transition: 'background 0.2s' }}
-                      onMouseEnter={(e) => e.currentTarget.style.background = 'var(--gray-50)'}
-                      onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                      style={{ display: 'flex', alignItems: 'center', gap: '10px', width: '100%', padding: '10px 12px', border: 'none', background: 'transparent', borderRadius: '8px', cursor: 'pointer', textAlign: 'left', fontSize: '13px', color: '#e4e4e7', transition: 'all 0.2s', fontFamily: 'inherit' }}
+                      onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255, 255, 255, 0.08)'; e.currentTarget.style.color = '#ffffff'; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#e4e4e7'; }}
                     >
-                      <User size={16} style={{ color: 'var(--gold)' }} />
+                      <User size={15} style={{ color: 'var(--gold)' }} />
                       Thông tin cá nhân
                     </button>
 
                     <button 
                       onClick={() => { setDropdownOpen(false); navigate('/history'); }}
-                      style={{ display: 'flex', alignItems: 'center', gap: '10px', width: '100%', padding: '10px 12px', border: 'none', background: 'transparent', borderRadius: '8px', cursor: 'pointer', textAlign: 'left', fontSize: '13px', color: 'var(--text-main)', transition: 'background 0.2s' }}
-                      onMouseEnter={(e) => e.currentTarget.style.background = 'var(--gray-50)'}
-                      onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                      style={{ display: 'flex', alignItems: 'center', gap: '10px', width: '100%', padding: '10px 12px', border: 'none', background: 'transparent', borderRadius: '8px', cursor: 'pointer', textAlign: 'left', fontSize: '13px', color: '#e4e4e7', transition: 'all 0.2s', fontFamily: 'inherit' }}
+                      onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255, 255, 255, 0.08)'; e.currentTarget.style.color = '#ffffff'; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#e4e4e7'; }}
                     >
-                      <History size={16} style={{ color: 'var(--gold)' }} />
+                      <History size={15} style={{ color: 'var(--gold)' }} />
                       Lịch sử giao dịch
                     </button>
 
                     <button 
                       onClick={() => { setDropdownOpen(false); handleDeposit(); }}
-                      style={{ display: 'flex', alignItems: 'center', gap: '10px', width: '100%', padding: '10px 12px', border: 'none', background: 'transparent', borderRadius: '8px', cursor: 'pointer', textAlign: 'left', fontSize: '13px', color: 'var(--text-main)', transition: 'background 0.2s' }}
-                      onMouseEnter={(e) => e.currentTarget.style.background = 'var(--gray-50)'}
-                      onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                      style={{ display: 'flex', alignItems: 'center', gap: '10px', width: '100%', padding: '10px 12px', border: 'none', background: 'transparent', borderRadius: '8px', cursor: 'pointer', textAlign: 'left', fontSize: '13px', color: '#e4e4e7', transition: 'all 0.2s', fontFamily: 'inherit' }}
+                      onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255, 255, 255, 0.08)'; e.currentTarget.style.color = '#ffffff'; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#e4e4e7'; }}
                     >
-                      <PlusCircle size={16} style={{ color: 'var(--gold)' }} />
+                      <PlusCircle size={15} style={{ color: 'var(--gold)' }} />
                       Nạp tiền
                     </button>
 
-                    <div style={{ height: '1px', background: 'var(--gray-100)', margin: '4px 0' }} />
+                    <div style={{ height: '1px', background: 'rgba(255, 255, 255, 0.08)', margin: '4px 0' }} />
 
                     <button 
                       onClick={async () => { setDropdownOpen(false); await supabase.auth.signOut(); logout(); navigate('/login'); }}
-                      style={{ display: 'flex', alignItems: 'center', gap: '10px', width: '100%', padding: '10px 12px', border: 'none', background: 'transparent', borderRadius: '8px', cursor: 'pointer', textAlign: 'left', fontSize: '13px', color: 'var(--ruby)', transition: 'background 0.2s' }}
-                      onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.05)'}
-                      onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                      style={{ display: 'flex', alignItems: 'center', gap: '10px', width: '100%', padding: '10px 12px', border: 'none', background: 'transparent', borderRadius: '8px', cursor: 'pointer', textAlign: 'left', fontSize: '13px', color: '#f87171', transition: 'all 0.2s', fontFamily: 'inherit' }}
+                      onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)'; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
                     >
-                      <LogOut size={16} />
+                      <LogOut size={15} />
                       Đăng xuất
                     </button>
                   </div>

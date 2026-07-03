@@ -4,7 +4,7 @@ Tệp tin này lưu trữ các yêu cầu công việc hiện tại, danh sách 
 ---
 
 ## 📌 NHIỆM VỤ HIỆN TẠI (CURRENT TASK)
-- Thay thế dropdown phân vai trò thành menu dropdown cá nhân chuyên nghiệp (gồm Thông tin cá nhân, Lịch sử giao dịch, Nạp tiền, Đăng xuất).
+- Tối ưu hóa màu sắc (Dark Mode), độ tương phản cao và font chữ đồng bộ cho menu dropdown cá nhân trên thanh điều hướng.
 
 ---
 
@@ -20,13 +20,16 @@ Tệp tin này lưu trữ các yêu cầu công việc hiện tại, danh sách 
 - [x] **Task 9:** Chuyển đổi mã nguồn frontend từ `insert` sang `upsert` để tương thích an toàn với Trigger đồng bộ tự động database.
 - [x] **Task 10:** Triển khai bộ quản lý phiên (Session Management) trong [App.jsx](file:///d:/Mon%20Hoc/GoldTrader-master/src/App.jsx) để khôi phục trạng thái đăng nhập khi làm mới trang.
 - [x] **Task 11:** Hỗ trợ cơ chế thiết lập phiên đăng nhập nhanh (setSession) bằng Access Token thông qua URL tham số (`access_token`) và Form dán mã trực tiếp trong [Login.jsx](file:///d:/Mon%20Hoc/GoldTrader-master/src/pages/Login.jsx).
-- [x] **Task 12:** Khắc phục lỗi mất phiên đăng nhập khi F5 đối với tài khoản thử nghiệm Mock Dev/Admin bằng cách lưu trữ phiên giả làm vào LocalStorage (`goldchain_mock_session`).
+- [x] **Task 12:** Khắc phục lỗi mất phiên đăng nhập khi F5 đối với tài khoản thử nghiệm Mock Dev/Admin bằng cách lưu trữ phiên giả lập vào LocalStorage (`goldchain_mock_session`).
 - [x] **Task 13:** Khắc phục lỗi xung đột giao diện: Sửa đổi [Navbar.jsx](file:///d:/Mon%20Hoc/GoldTrader-master/src/components/Navbar.jsx) để kiểm tra đăng nhập bằng email (thay vì role 'guest'), hiển thị đúng danh mục chức năng và hỗ trợ đăng xuất tích hợp Supabase.
 - [x] **Task 14:** Thay đổi dropdown vai trò thành menu dropdown cá nhân chuyên nghiệp (gồm Thông tin cá nhân, Lịch sử giao dịch, Nạp tiền, Đăng xuất) trong [Navbar.jsx](file:///d:/Mon%20Hoc/GoldTrader-master/src/components/Navbar.jsx).
-- [ ] **Task 15:** Triển khai tiếp các component còn thiếu trong React SPA (Trade, DCA, History, Admin...).
+- [x] **Task 15:** Dọn dẹp hoàn toàn cơ chế hardcode tài khoản (mock admin, dev bypass) và mock session trong [Login.jsx](file:///d:/Mon%20Hoc/GoldTrader-master/src/pages/Login.jsx), [App.jsx](file:///d:/Mon%20Hoc/GoldTrader-master/src/App.jsx), [useStore.js](file:///d:/Mon%20Hoc/GoldTrader-master/src/store/useStore.js).
+- [x] **Task 16:** Cải thiện và dịch các thông báo lỗi đăng nhập (Sai mật khẩu, tài khoản không tồn tại, email chưa xác nhận) sang tiếng Việt tường minh trong [Login.jsx](file:///d:/Mon%20Hoc/GoldTrader-master/src/pages/Login.jsx).
+- [x] **Task 17:** Tối ưu hóa màu nền tối (Dark Glassmorphism), sửa lỗi hiển thị chữ màu trắng trên nền sáng và đồng bộ font chữ hệ thống của menu dropdown cá nhân trong [Navbar.jsx](file:///d:/Mon%20Hoc/GoldTrader-master/src/components/Navbar.jsx).
+- [ ] **Task 18:** Triển khai tiếp các component còn thiếu trong React SPA (Trade, DCA, History, Admin...).
 
 ---
 
 ## 📈 TIẾN ĐỘ THỰC HIỆN (PROGRESS)
-- **Trạng thái:** Hoàn thành thay đổi dropdown thành menu cá nhân chuyên nghiệp. Toàn bộ hệ thống xác thực và điều hướng hoạt động hoàn hảo.
-- **Cập nhật lần cuối:** 2026-07-03 15:04.
+- **Trạng thái:** Hoàn thành tối ưu hóa màu sắc và độ tương phản của menu cá nhân, mang lại trải nghiệm premium đồng bộ.
+- **Cập nhật lần cuối:** 2026-07-03 23:04.

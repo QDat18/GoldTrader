@@ -46,18 +46,6 @@ function App() {
         }
       }
 
-      // Kiểm tra xem có phiên Mock Dev lưu trong LocalStorage không trước khi gọi getSession
-      const mockSession = localStorage.getItem('goldchain_mock_session');
-      if (mockSession) {
-        try {
-          const parsedUser = JSON.parse(mockSession);
-          setCurrentUser(parsedUser);
-          return;
-        } catch (e) {
-          localStorage.removeItem('goldchain_mock_session');
-        }
-      }
-
       const { data: { session } } = await supabase.auth.getSession();
       if (session?.user) {
         await fetchAndSetUser(session.user);
@@ -107,14 +95,9 @@ function App() {
     // 3. Lắng nghe thay đổi trạng thái Auth hệ thống (Đăng nhập, đăng xuất, hết hạn token...)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (session?.user) {
-        // Có session thực, xóa session giả lập
-        localStorage.removeItem('goldchain_mock_session');
         await fetchAndSetUser(session.user);
       } else {
-        // Chỉ đăng xuất nếu không có Mock Dev Session trong LocalStorage
-        if (!localStorage.getItem('goldchain_mock_session')) {
-          logout();
-        }
+        logout();
       }
     });
 
