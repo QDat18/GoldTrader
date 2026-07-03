@@ -143,7 +143,7 @@ export default function History() {
         </div>
 
         {/* Stats */}
-        <div className="grid-4" style={{ marginBottom: '32px', gap: '16px' }}>
+        <div className="grid-3" style={{ marginBottom: '32px', gap: '16px' }}>
           <div className="card" style={{ borderRadius: '24px', background: 'rgba(20,20,20,0.6)', border: '1px solid rgba(255,255,255,0.05)', padding: '24px' }}>
             <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600, letterSpacing: '1px' }}>TỔNG GIAO DỊCH</div>
             <div style={{ fontSize: '24px', fontWeight: 600, color: 'var(--text-main)', marginTop: '8px' }}>{totalTransactions}</div>
@@ -155,10 +155,6 @@ export default function History() {
           <div className="card" style={{ borderRadius: '24px', background: 'rgba(20,20,20,0.6)', border: '1px solid rgba(255,255,255,0.05)', padding: '24px' }}>
             <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600, letterSpacing: '1px' }}>TỔNG BÁN RA</div>
             <div style={{ fontSize: '24px', fontWeight: 600, color: 'var(--text-main)', marginTop: '8px' }}>₫{totalSell.toLocaleString('vi-VN')}</div>
-          </div>
-          <div className="card" style={{ borderRadius: '24px', background: 'linear-gradient(135deg, rgba(16,185,129,0.1) 0%, rgba(20,20,20,0.8) 100%)', border: '1px solid rgba(16,185,129,0.2)', padding: '24px' }}>
-            <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600, letterSpacing: '1px' }}>REALIZED PNL</div>
-            <div style={{ fontSize: '24px', fontWeight: 600, color: 'var(--emerald)', marginTop: '8px' }}>+₫{realizedPnl.toLocaleString('vi-VN')}</div>
           </div>
         </div>
 
@@ -174,7 +170,6 @@ export default function History() {
                   <th style={{ padding: '16px 24px', textAlign: 'right', fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>Số lượng</th>
                   <th style={{ padding: '16px 24px', textAlign: 'right', fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>Đơn giá</th>
                   <th style={{ padding: '16px 24px', textAlign: 'right', fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>Tổng tiền</th>
-                  <th style={{ padding: '16px 24px', textAlign: 'right', fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>Lãi/Lỗ</th>
                   <th style={{ padding: '16px 24px', textAlign: 'left', fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>Thời gian</th>
                   <th style={{ padding: '16px 24px', textAlign: 'left', fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>Trạng thái</th>
                 </tr>
@@ -200,13 +195,6 @@ export default function History() {
                       <td style={{ padding: '16px 24px', textAlign: 'right', fontSize: '14px' }}>{txn.quantity.toFixed(4)} chỉ</td>
                       <td style={{ padding: '16px 24px', textAlign: 'right', fontSize: '14px', color: 'var(--text-muted)' }}>₫{txn.price.toLocaleString('vi-VN')}</td>
                       <td style={{ padding: '16px 24px', textAlign: 'right', fontSize: '14px', fontWeight: 500 }}>₫{txn.total.toLocaleString('vi-VN')}</td>
-                      <td style={{ padding: '16px 24px', textAlign: 'right', fontSize: '14px' }}>
-                        {txn.type === 'sell' ? (
-                          <span style={{ color: 'var(--emerald)', fontWeight: 500 }}>{txn.pnl || '+0'}</span>
-                        ) : (
-                          <span style={{ color: 'rgba(255,255,255,0.2)' }}>—</span>
-                        )}
-                      </td>
                       <td style={{ padding: '16px 24px', fontSize: '13px', color: 'var(--text-muted)' }}>{txn.time}</td>
                       <td style={{ padding: '16px 24px' }}>
                         <span style={{ fontSize: '11px', padding: '4px 8px', borderRadius: '4px', background: 'rgba(16, 185, 129, 0.1)', color: 'var(--emerald)', fontWeight: 600 }}>{txn.status}</span>

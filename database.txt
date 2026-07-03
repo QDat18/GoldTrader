@@ -407,3 +407,137 @@ CREATE TABLE auth.webauthn_challenges (
 
 
 schema financial_ledgers:
+-- WARNING: This schema is for context only and is not meant to be run.
+-- Table order and constraints may not be valid for execution.
+
+CREATE TABLE financial_ledgers.gold_price_snapshots (
+  id bigint NOT NULL DEFAULT nextval('financial_ledgers.gold_price_snapshots_id_seq'::regclass),
+  gold_type character varying NOT NULL,
+  source character varying NOT NULL,
+  buy_price_vnd numeric NOT NULL,
+  sell_price_vnd numeric NOT NULL,
+  spread_vnd numeric NOT NULL,
+  recorded_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT gold_price_snapshots_pkey PRIMARY KEY (id)
+);
+CREATE TABLE financial_ledgers.orders (
+  id character varying NOT NULL,
+  user_id uuid NOT NULL,
+  gold_type character varying NOT NULL,
+  order_type character varying NOT NULL CHECK (order_type::text = ANY (ARRAY['BUY_ONLINE'::character varying, 'SELL_ONLINE'::character varying, 'WITHDRAW_PHYSICAL'::character varying]::text[])),
+  quantity_grams numeric NOT NULL CHECK (quantity_grams > 0::numeric),
+  unit_price_vnd numeric NOT NULL CHECK (unit_price_vnd >= 0::numeric),
+  total_amount_vnd numeric NOT NULL CHECK (total_amount_vnd >= 0::numeric),
+  fee_vnd numeric NOT NULL DEFAULT 0,
+  payment_status character varying NOT NULL DEFAULT 'PENDING'::character varying CHECK (payment_status::text = ANY (ARRAY['PENDING'::character varying, 'PAID'::character varying, 'FAILED'::character varying, 'REFUNDED'::character varying]::text[])),
+  order_status character varying NOT NULL DEFAULT 'WAITING_PICKUP'::character varying CHECK (order_status::text = ANY (ARRAY['WAITING_PICKUP'::character varying, 'COMPLETED'::character varying, 'CANCELLED'::character varying]::text[])),
+  secure_token character varying NOT NULL UNIQUE,
+  totp_secret character varying,
+  pdf_hash character varying NOT NULL,
+  token_expires_at timestamp with time zone,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  completed_at timestamp with time zone,
+  CONSTRAINT orders_pkey PRIMARY KEY (id),
+  CONSTRAINT orders_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.user_profiles(id)
+);
+CREATE TABLE financial_ledgers.dca_executions (
+  id character varying NOT NULL,
+  plan_id integer NOT NULL,
+  user_id uuid NOT NULL,
+  gold_type character varying NOT NULL,
+  amount_vnd numeric NOT NULL CHECK (amount_vnd > 0::numeric),
+  quantity_grams numeric,
+  unit_price_vnd numeric,
+  status character varying NOT NULL CHECK (status::text = ANY (ARRAY['SUCCESS'::character varying, 'FAILED'::character varying, 'RETRYING'::character varying]::text[])),
+  failure_reason text,
+  linked_tx_id character varying,
+  executed_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT dca_executions_pkey PRIMARY KEY (id),
+  CONSTRAINT dca_executions_plan_id_fkey FOREIGN KEY (plan_id) REFERENCES public.dca_plans(id),
+  CONSTRAINT dca_executions_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.user_profiles(id),
+  CONSTRAINT fk_linked_tx FOREIGN KEY (linked_tx_id) REFERENCES financial_ledgers.gold_transactions(id)
+);
+CREATE TABLE financial_ledgers.gold_transactions (
+  id character varying NOT NULL,
+  user_id uuid NOT NULL,
+  wallet_id integer NOT NULL,
+  tx_type character varying NOT NULL CHECK (tx_type::text = ANY (ARRAY['BUY'::character varying, 'SELL'::character varying, 'DCA'::character varying, 'FEE'::character varying, 'REVERSAL'::character varying]::text[])),
+  gold_type character varying NOT NULL,
+  quantity_grams numeric NOT NULL,
+  unit_price_vnd numeric NOT NULL,
+  total_amount_vnd numeric NOT NULL,
+  fee_vnd numeric NOT NULL DEFAULT 0,
+  wallet_balance_after numeric NOT NULL CHECK (wallet_balance_after >= 0::numeric),
+  price_snapshot_id bigint,
+  order_id character varying,
+  dca_execution_id character varying,
+  reversal_of_tx_id character varying,
+  status character varying NOT NULL CHECK (status::text = ANY (ARRAY['SUCCESS'::character varying, 'FAILED'::character varying, 'REVERSED'::character varying]::text[])),
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT gold_transactions_pkey PRIMARY KEY (id),
+  CONSTRAINT gold_transactions_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.user_profiles(id),
+  CONSTRAINT gold_transactions_wallet_id_fkey FOREIGN KEY (wallet_id) REFERENCES public.gold_wallets(id),
+  CONSTRAINT gold_transactions_price_snapshot_id_fkey FOREIGN KEY (price_snapshot_id) REFERENCES financial_ledgers.gold_price_snapshots(id),
+  CONSTRAINT gold_transactions_order_id_fkey FOREIGN KEY (order_id) REFERENCES financial_ledgers.orders(id),
+  CONSTRAINT gold_transactions_dca_execution_id_fkey FOREIGN KEY (dca_execution_id) REFERENCES financial_ledgers.dca_executions(id),
+  CONSTRAINT fk_reversal_tx FOREIGN KEY (reversal_of_tx_id) REFERENCES financial_ledgers.gold_transactions(id)
+);
+CREATE TABLE financial_ledgers.gold_lots (
+  id bigint NOT NULL DEFAULT nextval('financial_ledgers.gold_lots_id_seq'::regclass),
+  user_id uuid NOT NULL,
+  wallet_id integer NOT NULL,
+  transaction_id character varying NOT NULL,
+  gold_type character varying NOT NULL,
+  quantity_grams numeric NOT NULL CHECK (quantity_grams > 0::numeric),
+  quantity_remaining_grams numeric NOT NULL CHECK (quantity_remaining_grams >= 0::numeric),
+  cost_price_vnd numeric NOT NULL CHECK (cost_price_vnd >= 0::numeric),
+  fee_allocated_vnd numeric NOT NULL DEFAULT 0,
+  source_type character varying NOT NULL CHECK (source_type::text = ANY (ARRAY['MANUAL_BUY'::character varying, 'DCA'::character varying, 'DEPOSIT'::character varying]::text[])),
+  purchased_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT gold_lots_pkey PRIMARY KEY (id),
+  CONSTRAINT gold_lots_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.user_profiles(id),
+  CONSTRAINT gold_lots_wallet_id_fkey FOREIGN KEY (wallet_id) REFERENCES public.gold_wallets(id),
+  CONSTRAINT gold_lots_transaction_id_fkey FOREIGN KEY (transaction_id) REFERENCES financial_ledgers.gold_transactions(id)
+);
+CREATE TABLE financial_ledgers.lot_consumptions (
+  id bigint NOT NULL DEFAULT nextval('financial_ledgers.lot_consumptions_id_seq'::regclass),
+  lot_id bigint NOT NULL,
+  sell_tx_id character varying NOT NULL,
+  quantity_consumed_grams numeric NOT NULL CHECK (quantity_consumed_grams > 0::numeric),
+  cost_basis_vnd numeric NOT NULL CHECK (cost_basis_vnd >= 0::numeric),
+  sell_price_vnd numeric NOT NULL CHECK (sell_price_vnd >= 0::numeric),
+  realized_pnl_vnd numeric NOT NULL,
+  consumed_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT lot_consumptions_pkey PRIMARY KEY (id),
+  CONSTRAINT lot_consumptions_lot_id_fkey FOREIGN KEY (lot_id) REFERENCES financial_ledgers.gold_lots(id),
+  CONSTRAINT lot_consumptions_sell_tx_id_fkey FOREIGN KEY (sell_tx_id) REFERENCES financial_ledgers.gold_transactions(id)
+);
+CREATE TABLE financial_ledgers.hedge_positions (
+  id character varying NOT NULL,
+  order_id character varying NOT NULL,
+  gold_type character varying NOT NULL,
+  quantity_grams numeric NOT NULL CHECK (quantity_grams > 0::numeric),
+  hedge_price_vnd numeric NOT NULL CHECK (hedge_price_vnd >= 0::numeric),
+  counterparty character varying NOT NULL,
+  direction character varying NOT NULL CHECK (direction::text = ANY (ARRAY['BUY'::character varying, 'SELL'::character varying]::text[])),
+  status character varying NOT NULL DEFAULT 'OPEN'::character varying CHECK (status::text = ANY (ARRAY['OPEN'::character varying, 'CLOSED'::character varying, 'CANCELLED'::character varying]::text[])),
+  pnl_vnd numeric,
+  opened_at timestamp with time zone NOT NULL DEFAULT now(),
+  closed_at timestamp with time zone,
+  CONSTRAINT hedge_positions_pkey PRIMARY KEY (id),
+  CONSTRAINT hedge_positions_order_id_fkey FOREIGN KEY (order_id) REFERENCES financial_ledgers.orders(id)
+);
+CREATE TABLE financial_ledgers.blockchain_proofs (
+  id bigint NOT NULL DEFAULT nextval('financial_ledgers.blockchain_proofs_id_seq'::regclass),
+  reference_type character varying NOT NULL CHECK (reference_type::text = ANY (ARRAY['ORDER'::character varying, 'TRANSACTION'::character varying, 'STORAGE_CONTRACT'::character varying]::text[])),
+  reference_id character varying NOT NULL,
+  network character varying NOT NULL,
+  contract_address character varying NOT NULL,
+  tx_hash character varying NOT NULL UNIQUE,
+  token_id character varying,
+  pdf_sha256 character varying NOT NULL,
+  status character varying NOT NULL DEFAULT 'PENDING'::character varying CHECK (status::text = ANY (ARRAY['PENDING'::character varying, 'CONFIRMED'::character varying, 'FAILED'::character varying]::text[])),
+  block_number bigint,
+  confirmed_at timestamp with time zone,
+  CONSTRAINT blockchain_proofs_pkey PRIMARY KEY (id)
+);
