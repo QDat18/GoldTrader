@@ -1,18 +1,21 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import useStore from '../store/useStore';
-import { Bell, ChevronDown, LogOut } from 'lucide-react';
+import { Bell, ChevronDown, LogOut, User, History, PlusCircle } from 'lucide-react';
+import { supabase } from '../supabaseClient';
 
 export function UserNavbar() {
   const location = useLocation();
   const navigate = useNavigate();
   const activePage = location.pathname.substring(1) || 'home';
   
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+
   const user = useStore((state) => state.currentUser);
   const walletBalance = useStore((state) => state.walletBalance);
   const notifications = useStore((state) => state.notifications);
-  const switchUserRole = useStore((state) => state.switchUserRole);
   const depositMoney = useStore((state) => state.depositMoney);
+  const logout = useStore((state) => state.logout);
   
   const walletStr = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(walletBalance);
   const unreadCount = notifications.filter(n => n.unread).length;
@@ -30,16 +33,6 @@ export function UserNavbar() {
     }
   };
 
-  const handleRoleChange = (e) => {
-    const newRole = e.target.value;
-    switchUserRole(newRole);
-    if (newRole === 'admin') {
-      navigate('/admin');
-    } else {
-      navigate('/dashboard');
-    }
-  };
-
   return (
     <div className="nav-bar">
       <Link to="/" className="logo">
@@ -49,15 +42,15 @@ export function UserNavbar() {
       
       <div className="nav-links">
         <Link to="/" className={`nav-link ${activePage === 'home' || activePage === '' ? 'active' : ''}`}>Trang chủ</Link>
-        {user.role !== 'guest' && <Link to="/dashboard" className={`nav-link ${activePage === 'dashboard' ? 'active' : ''}`}>Tổng quan</Link>}
+        {user.email && <Link to="/dashboard" className={`nav-link ${activePage === 'dashboard' ? 'active' : ''}`}>Tổng quan</Link>}
         <Link to="/trade" className={`nav-link ${activePage === 'trade' ? 'active' : ''}`}>Giao dịch</Link>
-        {user.role !== 'guest' && <Link to="/dca" className={`nav-link ${activePage === 'dca' ? 'active' : ''}`}>Tích lũy DCA</Link>}
-        {user.role !== 'guest' && <Link to="/history" className={`nav-link ${activePage === 'history' ? 'active' : ''}`}>Lịch sử</Link>}
+        {user.email && <Link to="/dca" className={`nav-link ${activePage === 'dca' ? 'active' : ''}`}>Tích lũy DCA</Link>}
+        {user.email && <Link to="/history" className={`nav-link ${activePage === 'history' ? 'active' : ''}`}>Lịch sử</Link>}
         {user.role === 'admin' && <Link to="/admin" className="nav-link" style={{color: 'var(--ruby)'}}>Admin Panel</Link>}
       </div>
 
       <div className="nav-actions">
-        {user.role === 'guest' ? (
+        {!user.email ? (
           <>
             <Link to="/register" className="btn btn-gold">Bắt đầu ngay</Link>
           </>
@@ -74,20 +67,89 @@ export function UserNavbar() {
             
             <button className="btn btn-gold" onClick={handleDeposit}>+ Nạp tiền</button>
             
-            <div style={{display:'flex', alignItems:'center', gap:'8px', background:'var(--bg-main)', padding:'4px 12px', borderRadius:'20px', border:'var(--border-silver)'}}>
-              <div style={{width: 24, height: 24, borderRadius:'50%', background:'var(--gold-gradient)', display:'flex', alignItems:'center', justifyContent:'center', color:'var(--bg-main)', fontSize: 12, fontWeight:'bold'}}>
-                {user.name.split(' ').map(n => n[0]).join('')}
-              </div>
-              <select 
-                value={user.role} 
-                onChange={handleRoleChange}
-                style={{background: 'transparent', color: 'var(--text-main)', border: 'none', outline: 'none', fontSize: '13px', cursor: 'pointer', appearance: 'none', paddingRight: '12px'}}
+            <div style={{ position: 'relative' }}>
+              <div 
+                onClick={() => setDropdownOpen(!dropdownOpen)}
+                style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--bg-main)', padding: '6px 16px', borderRadius: '20px', border: '1px solid var(--border-silver)', cursor: 'pointer', userSelect: 'none' }}
               >
-                <option value="user" style={{background: 'var(--bg-card)'}}>Vai trò: Thành viên</option>
-                <option value="admin" style={{background: 'var(--bg-card)'}}>Vai trò: Admin</option>
-                <option value="guest" style={{background: 'var(--bg-card)'}}>Đăng xuất</option>
-              </select>
-              <ChevronDown size={14} style={{marginLeft: '-10px', color: 'var(--text-muted)', pointerEvents:'none'}} />
+                <div style={{ width: 24, height: 24, borderRadius: '50%', background: 'var(--gold-gradient)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--bg-main)', fontSize: 12, fontWeight: 'bold' }}>
+                  {user.name ? user.name.split(' ').map(n => n[0]).join('') : 'U'}
+                </div>
+                <span style={{ fontSize: '13px', color: 'var(--text-main)', fontWeight: 500 }}>{user.name || 'Tài khoản'}</span>
+                <ChevronDown size={14} style={{ color: 'var(--text-muted)', transform: dropdownOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }} />
+              </div>
+
+              {dropdownOpen && (
+                <>
+                  <div 
+                    onClick={() => setDropdownOpen(false)}
+                    style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 999 }}
+                  />
+                  <div style={{
+                    position: 'absolute',
+                    top: 'calc(100% + 8px)',
+                    right: 0,
+                    width: '200px',
+                    background: 'rgba(255, 255, 255, 0.95)',
+                    backdropFilter: 'blur(10px)',
+                    border: '1px solid rgba(226, 232, 240, 0.8)',
+                    borderRadius: '12px',
+                    boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)',
+                    padding: '8px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '4px',
+                    zIndex: 1000
+                  }}>
+                    <div style={{ padding: '8px 12px', borderBottom: '1px solid var(--gray-100)', marginBottom: '4px' }}>
+                      <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-main)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user.name}</div>
+                      <div style={{ fontSize: '11px', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user.email}</div>
+                    </div>
+                    
+                    <button 
+                      onClick={() => { setDropdownOpen(false); alert(`Thông tin cá nhân:\nHọ tên: ${user.name}\nSĐT: ${user.phone}\nEmail: ${user.email}\nCCCD: ${user.cccd || 'Chưa cập nhật'}`); }}
+                      style={{ display: 'flex', alignItems: 'center', gap: '10px', width: '100%', padding: '10px 12px', border: 'none', background: 'transparent', borderRadius: '8px', cursor: 'pointer', textAlign: 'left', fontSize: '13px', color: 'var(--text-main)', transition: 'background 0.2s' }}
+                      onMouseEnter={(e) => e.currentTarget.style.background = 'var(--gray-50)'}
+                      onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                    >
+                      <User size={16} style={{ color: 'var(--gold)' }} />
+                      Thông tin cá nhân
+                    </button>
+
+                    <button 
+                      onClick={() => { setDropdownOpen(false); navigate('/history'); }}
+                      style={{ display: 'flex', alignItems: 'center', gap: '10px', width: '100%', padding: '10px 12px', border: 'none', background: 'transparent', borderRadius: '8px', cursor: 'pointer', textAlign: 'left', fontSize: '13px', color: 'var(--text-main)', transition: 'background 0.2s' }}
+                      onMouseEnter={(e) => e.currentTarget.style.background = 'var(--gray-50)'}
+                      onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                    >
+                      <History size={16} style={{ color: 'var(--gold)' }} />
+                      Lịch sử giao dịch
+                    </button>
+
+                    <button 
+                      onClick={() => { setDropdownOpen(false); handleDeposit(); }}
+                      style={{ display: 'flex', alignItems: 'center', gap: '10px', width: '100%', padding: '10px 12px', border: 'none', background: 'transparent', borderRadius: '8px', cursor: 'pointer', textAlign: 'left', fontSize: '13px', color: 'var(--text-main)', transition: 'background 0.2s' }}
+                      onMouseEnter={(e) => e.currentTarget.style.background = 'var(--gray-50)'}
+                      onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                    >
+                      <PlusCircle size={16} style={{ color: 'var(--gold)' }} />
+                      Nạp tiền
+                    </button>
+
+                    <div style={{ height: '1px', background: 'var(--gray-100)', margin: '4px 0' }} />
+
+                    <button 
+                      onClick={async () => { setDropdownOpen(false); await supabase.auth.signOut(); logout(); navigate('/login'); }}
+                      style={{ display: 'flex', alignItems: 'center', gap: '10px', width: '100%', padding: '10px 12px', border: 'none', background: 'transparent', borderRadius: '8px', cursor: 'pointer', textAlign: 'left', fontSize: '13px', color: 'var(--ruby)', transition: 'background 0.2s' }}
+                      onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.05)'}
+                      onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                    >
+                      <LogOut size={16} />
+                      Đăng xuất
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
           </>
         )}

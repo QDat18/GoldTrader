@@ -4,17 +4,29 @@ Tệp tin này lưu trữ các yêu cầu công việc hiện tại, danh sách 
 ---
 
 ## 📌 NHIỆM VỤ HIỆN TẠI (CURRENT TASK)
-*(Nội dung yêu cầu cụ thể sẽ được cập nhật tại đây khi bắt đầu phiên làm việc mới)*
+- Thay thế dropdown phân vai trò thành menu dropdown cá nhân chuyên nghiệp (gồm Thông tin cá nhân, Lịch sử giao dịch, Nạp tiền, Đăng xuất).
 
 ---
 
 ## 📝 DANH SÁCH CẦN LÀM (TODO LIST)
-- [ ] **Task 1:** Đọc hiểu tài liệu [TongKet.md](file:///d:/Mon%20Hoc/GoldTrader-master/TongKet.md) và [workflow.md](file:///d:/Mon%20Hoc/GoldTrader-master/workflow.md).
-- [ ] **Task 2:** Xác định cấu trúc bảng dữ liệu trong [database.txt](file:///d:/Mon%20Hoc/GoldTrader-master/database.txt).
-- [ ] **Task 3:** Triển khai các component còn thiếu trong React SPA (Trade, DCA, History, Admin...).
+- [x] **Task 1:** Đọc hiểu tài liệu [TongKet.md](file:///d:/Mon%20Hoc/GoldTrader-master/TongKet.md) và [workflow.md](file:///d:/Mon%20Hoc/GoldTrader-master/workflow.md).
+- [x] **Task 2:** Xác định cấu trúc bảng dữ liệu trong [database.txt](file:///d:/Mon%20Hoc/GoldTrader-master/database.txt) (Ràng buộc `id_card_number` bắt buộc).
+- [x] **Task 3:** Hoàn thiện luồng Đăng ký & eKYC 2 bước trong [Register.jsx](file:///d:/Mon%20Hoc/GoldTrader-master/src/pages/Register.jsx) (Đã nhập số CCCD, tải lên 2 mặt ảnh và bỏ qua quét khuôn mặt).
+- [x] **Task 4:** Giả lập gửi mã OTP và hardcode mã xác thực thành `123456` ở Bước 1.
+- [x] **Task 5:** Hoàn thiện luồng Đăng nhập trong [Login.jsx](file:///d:/Mon%20Hoc/GoldTrader-master/src/pages/Login.jsx) đồng bộ thông tin hồ sơ và lưu trạng thái vào Zustand Store.
+- [x] **Task 6:** Cấu hình mặc định vai trò của người dùng mới khi đăng ký là `guest` (Khách) trong [Register.jsx](file:///d:/Mon%20Hoc/GoldTrader-master/src/pages/Register.jsx).
+- [x] **Task 7:** Đồng bộ hóa tên bảng và các cột khớp với schema `user_profiles` thực tế trong [database.txt](file:///d:/Mon%20Hoc/GoldTrader-master/database.txt).
+- [x] **Task 8:** Đồng bộ hóa cột `role` mới tạo ở bảng `public.user_profiles` vào code Đăng ký & Đăng nhập và tệp [database.txt](file:///d:/Mon%20Hoc/GoldTrader-master/database.txt).
+- [x] **Task 9:** Chuyển đổi mã nguồn frontend từ `insert` sang `upsert` để tương thích an toàn với Trigger đồng bộ tự động database.
+- [x] **Task 10:** Triển khai bộ quản lý phiên (Session Management) trong [App.jsx](file:///d:/Mon%20Hoc/GoldTrader-master/src/App.jsx) để khôi phục trạng thái đăng nhập khi làm mới trang.
+- [x] **Task 11:** Hỗ trợ cơ chế thiết lập phiên đăng nhập nhanh (setSession) bằng Access Token thông qua URL tham số (`access_token`) và Form dán mã trực tiếp trong [Login.jsx](file:///d:/Mon%20Hoc/GoldTrader-master/src/pages/Login.jsx).
+- [x] **Task 12:** Khắc phục lỗi mất phiên đăng nhập khi F5 đối với tài khoản thử nghiệm Mock Dev/Admin bằng cách lưu trữ phiên giả làm vào LocalStorage (`goldchain_mock_session`).
+- [x] **Task 13:** Khắc phục lỗi xung đột giao diện: Sửa đổi [Navbar.jsx](file:///d:/Mon%20Hoc/GoldTrader-master/src/components/Navbar.jsx) để kiểm tra đăng nhập bằng email (thay vì role 'guest'), hiển thị đúng danh mục chức năng và hỗ trợ đăng xuất tích hợp Supabase.
+- [x] **Task 14:** Thay đổi dropdown vai trò thành menu dropdown cá nhân chuyên nghiệp (gồm Thông tin cá nhân, Lịch sử giao dịch, Nạp tiền, Đăng xuất) trong [Navbar.jsx](file:///d:/Mon%20Hoc/GoldTrader-master/src/components/Navbar.jsx).
+- [ ] **Task 15:** Triển khai tiếp các component còn thiếu trong React SPA (Trade, DCA, History, Admin...).
 
 ---
 
 ## 📈 TIẾN ĐỘ THỰC HIỆN (PROGRESS)
-- **Trạng thái:** Sẵn sàng cho nhiệm vụ tiếp theo.
-- **Cập nhật lần cuối:** 2026-07-03 14:15.
+- **Trạng thái:** Hoàn thành thay đổi dropdown thành menu cá nhân chuyên nghiệp. Toàn bộ hệ thống xác thực và điều hướng hoạt động hoàn hảo.
+- **Cập nhật lần cuối:** 2026-07-03 15:04.

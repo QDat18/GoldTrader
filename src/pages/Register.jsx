@@ -16,6 +16,8 @@ export default function Register() {
   const [confirmPassword, setConfirmPassword] = useState('');
   
   // KYC State
+  const [userId, setUserId] = useState('');
+  const [cccdNumber, setCccdNumber] = useState('');
   const [cccdFront, setCccdFront] = useState(null);
   const [cccdBack, setCccdBack] = useState(null);
   
@@ -39,22 +41,11 @@ export default function Register() {
     setError('');
     setLoading(true);
 
-    // Bước 1: Gửi mã OTP 6 số qua email thực tế
-    const { data, error: sendError } = await supabase.auth.signInWithOtp({
-      email,
-      options: {
-        shouldCreateUser: true
-      }
-    });
-
-    setLoading(false);
-
-    if (sendError) {
-      setError(sendError.message);
-      return;
-    }
-
-    setOtpSent(true);
+    // Giả lập gửi OTP 6 số thành công sang email (OTP mặc định: 123456)
+    setTimeout(() => {
+      setLoading(false);
+      setOtpSent(true);
+    }, 500);
   };
 
   const handleVerifyOtp = async () => {
@@ -62,21 +53,15 @@ export default function Register() {
     setError('');
     setLoading(true);
 
-    // Bước 2: Xác thực mã OTP thực với Supabase
-    const { data, error: verifyError } = await supabase.auth.verifyOtp({
-      email,
-      token: otp,
-      type: 'email'
-    });
-
-    setLoading(false);
-
-    if (verifyError) {
-      setError('Mã xác thực không hợp lệ hoặc đã hết hạn.');
+    // Hardcode xác minh mã 123456
+    if (otp === '123456') {
+      setOtpVerified(true);
+      setLoading(false);
       return;
     }
 
-    setOtpVerified(true);
+    setLoading(false);
+    setError('Mã xác thực không hợp lệ. Vui lòng nhập mã 123456.');
   };
 
   const handleRegister = async (e) => {
@@ -96,85 +81,96 @@ export default function Register() {
     setFieldErrors(errs);
     if (Object.keys(errs).length > 0) return;
 
-    if (!otpVerified) {
-      // Cho phép bypass nếu đang ở môi trường dev test
-      if (otp !== '123456') {
-        setError('Vui lòng xác thực email trước khi đăng ký.');
-        return;
-      }
+    if (!otpVerified && otp !== '123456') {
+      setError('Vui lòng xác thực email bằng mã 123456 trước khi đăng ký.');
+      return;
     }
 
     setLoading(true);
 
-    // Bước 3: Cập nhật mật khẩu chính thức và thông tin metadata cho user
-    const { error: updateError } = await supabase.auth.updateUser({
+    // Tạo tài khoản trực tiếp qua Supabase Auth signUp
+    const { data, error: signUpError } = await supabase.auth.signUp({
+      email: email,
       password: password,
-      data: {
-        full_name: name,
-        phone: phone,
+      options: {
+        data: {
+          full_name: name,
+          phone: phone,
+          kyc_status: 'pending',
+          role: 'guest'
+        }
       }
     });
 
-    if (updateError) {
-      setError(updateError.message);
+    if (signUpError) {
+      setError(signUpError.message);
       setLoading(false);
       return;
     }
 
+    // Lưu User ID nhận được vào state để sử dụng cho bước tiếp theo
+    if (data?.user) {
+      setUserId(data.user.id);
+    }
     setLoading(false);
-    setStep(2); // Move to Step 2 instead of showing success
+    setStep(2); // Di chuyển đến bước 2 (KYC)
   };
 
   const handleStep2Submit = (e) => {
     e.preventDefault();
+    if (!cccdNumber || cccdNumber.length < 9) {
+      setError('Vui lòng nhập số CCCD/Hộ chiếu hợp lệ (từ 9 đến 12 số).');
+      return;
+    }
     if (!cccdFront || !cccdBack) {
       setError('Vui lòng tải lên đầy đủ 2 mặt CCCD.');
       return;
     }
     setError('');
     setLoading(true);
-    // Simulate upload delay
-    setTimeout(() => {
-      setLoading(false);
-      setStep(3);
-    }, 1500);
-  };
-
-  const handleStep3Submit = async () => {
-    setLoading(true);
-    // Simulate face scan verification delay
+    // Simulate upload delay and save data
     setTimeout(async () => {
-      // 1. Update metadata in Auth
-      await supabase.auth.updateUser({
-        data: { kyc_status: 'pending' }
-      });
-      
-      // 2. Lưu thông tin vào schema public
-      const { data: authData } = await supabase.auth.getUser();
-      if (authData?.user) {
-        const { error: dbError } = await supabase.from('users').insert({
-          id: authData.user.id,
-          email: email,
+      try {
+        const currentUserId = userId || (await supabase.auth.getUser()).data?.user?.id;
+        
+        if (!currentUserId) {
+          throw new Error('Không tìm thấy phiên đăng ký người dùng.');
+        }
+
+        // 1. Cập nhật siêu dữ liệu KYC trong Auth nếu phiên đăng nhập đã tồn tại
+        try {
+          await supabase.auth.updateUser({
+            data: { kyc_status: 'pending' }
+          });
+        } catch (e) {
+          console.warn("Chưa đăng nhập phiên, bỏ qua cập nhật metadata");
+        }
+        
+        // 2. Lưu thông tin vào bảng user_profiles ở public schema (Dùng upsert hỗ trợ cả TH có hoặc không có trigger)
+        const { error: dbError } = await supabase.from('user_profiles').upsert({
+          auth_user_id: currentUserId,
           full_name: name,
           phone: phone,
-          kyc_status: 'pending',
-          role: 'user'
-        });
+          id_card_number: cccdNumber,
+          kyc_status: 'PENDING',
+          role: 'guest'
+        }, { onConflict: 'auth_user_id' });
         
         if (dbError) {
           console.error("Lỗi khi lưu vào public schema:", dbError);
-          // Ghi chú cho dev: Nếu bảng của bạn tên khác (VD: 'profiles', 'KhachHang'),
-          // hãy sửa 'users' thành tên bảng tương ứng ở dòng trên.
         }
+        
+        setLoading(false);
+        setSuccess(true);
+        
+        setTimeout(() => {
+          navigate('/login');
+        }, 3500);
+      } catch (err) {
+        setError(err.message || 'Có lỗi xảy ra trong quá trình đăng ký.');
+        setLoading(false);
       }
-      
-      setLoading(false);
-      setSuccess(true);
-      
-      setTimeout(() => {
-        navigate('/login');
-      }, 3500);
-    }, 2500);
+    }, 2000);
   };
 
   return (
@@ -200,19 +196,16 @@ export default function Register() {
         )}
 
         <div style={{ marginBottom: '32px' }}>
-          <div className="tag" style={{ marginBottom: '12px' }}>BƯỚC {step}/3</div>
-          <div className="h2">{step === 1 ? 'Tạo tài khoản' : (step === 2 ? 'Xác minh danh tính (eKYC)' : 'Xác thực khuôn mặt')}</div>
+          <div className="tag" style={{ marginBottom: '12px' }}>BƯỚC {step}/2</div>
+          <div className="h2">{step === 1 ? 'Tạo tài khoản' : 'Xác minh danh tính (eKYC)'}</div>
           <p className="body-sm" style={{ marginTop: '8px' }}>
-            {step === 1 && 'Hoàn tất đăng ký và xác minh danh tính để bắt đầu giao dịch.'}
-            {step === 2 && 'Vui lòng cung cấp hình ảnh CCCD hoặc Hộ chiếu hợp lệ.'}
-            {step === 3 && 'Hệ thống cần quét khuôn mặt để đối chiếu với giấy tờ tùy thân của bạn.'}
+            {step === 1 ? 'Hoàn tất đăng ký thông tin tài khoản cơ bản.' : 'Vui lòng cung cấp số CCCD và hình ảnh 2 mặt giấy tờ.'}
           </p>
         </div>
         
         <div style={{ display: 'flex', gap: 0, marginBottom: '32px' }}>
           <div style={{ flex: 1, padding: '12px 0', borderBottom: step >= 1 ? '2px solid var(--gold)' : '1px solid var(--border-silver)', textAlign: 'center', fontSize: '13px', fontWeight: step >= 1 ? 600 : 400, color: step >= 1 ? 'var(--gold)' : 'var(--text-muted)' }}>1. Thông tin cơ bản</div>
-          <div style={{ flex: 1, padding: '12px 0', borderBottom: step >= 2 ? '2px solid var(--gold)' : '1px solid var(--border-silver)', textAlign: 'center', fontSize: '13px', fontWeight: step >= 2 ? 600 : 400, color: step >= 2 ? 'var(--gold)' : 'var(--text-muted)' }}>2. Tải lên CCCD</div>
-          <div style={{ flex: 1, padding: '12px 0', borderBottom: step >= 3 ? '2px solid var(--gold)' : '1px solid var(--border-silver)', textAlign: 'center', fontSize: '13px', fontWeight: step >= 3 ? 600 : 400, color: step >= 3 ? 'var(--gold)' : 'var(--text-muted)' }}>3. Nhận diện</div>
+          <div style={{ flex: 1, padding: '12px 0', borderBottom: step >= 2 ? '2px solid var(--gold)' : '1px solid var(--border-silver)', textAlign: 'center', fontSize: '13px', fontWeight: step >= 2 ? 600 : 400, color: step >= 2 ? 'var(--gold)' : 'var(--text-muted)' }}>2. Xác minh danh tính</div>
         </div>
         
         {success ? (
@@ -360,13 +353,25 @@ export default function Register() {
               {loading ? 'Đang xử lý...' : 'Tiếp tục: Tải lên CCCD'}
             </button>
           </form>
-        ) : step === 2 ? (
+        ) : (
           <form className="neo-card" onSubmit={handleStep2Submit}>
+            <div className="form-group" style={{ marginBottom: '20px' }}>
+              <label className="form-label" style={{ display: 'block', marginBottom: '8px', fontSize: '13px', color: 'var(--text-muted)' }}>Số CCCD / Hộ chiếu</label>
+              <input 
+                className="form-input" 
+                placeholder="Nhập 9 - 12 số CCCD / Hộ chiếu" 
+                value={cccdNumber}
+                onChange={(e) => setCccdNumber(e.target.value.replace(/[^0-9]/g, ''))}
+                maxLength={12}
+                required 
+              />
+            </div>
+
             <div style={{ background: 'var(--bg-main)', border: '1px dashed var(--border-silver)', borderRadius: '12px', padding: '32px', textAlign: 'center', marginBottom: '16px', position: 'relative', cursor: 'pointer' }} onClick={() => setCccdFront('uploaded')}>
               {cccdFront ? (
                  <div style={{ color: 'var(--emerald)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
                    <Check size={32} />
-                   <span style={{ fontWeight: 600 }}>Đã tải lên mặt trước</span>
+                   <span style={{ fontWeight: 600 }}>Đã tải lên mặt trước CCCD</span>
                  </div>
               ) : (
                  <div style={{ color: 'var(--text-muted)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
@@ -383,7 +388,7 @@ export default function Register() {
               {cccdBack ? (
                  <div style={{ color: 'var(--emerald)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
                    <Check size={32} />
-                   <span style={{ fontWeight: 600 }}>Đã tải lên mặt sau</span>
+                   <span style={{ fontWeight: 600 }}>Đã tải lên mặt sau CCCD</span>
                  </div>
               ) : (
                  <div style={{ color: 'var(--text-muted)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
@@ -402,32 +407,10 @@ export default function Register() {
                </div>
             )}
 
-            <button type="submit" className="btn-gold btn" style={{ width: '100%', padding: '14px', fontSize: '15px' }} disabled={loading || !cccdFront || !cccdBack}>
-              {loading ? 'Đang xử lý...' : 'Tiếp tục: Xác thực khuôn mặt'}
+            <button type="submit" className="btn-gold btn" style={{ width: '100%', padding: '14px', fontSize: '15px' }} disabled={loading || !cccdFront || !cccdBack || cccdNumber.length < 9}>
+              {loading ? 'Đang đăng ký & tải hồ sơ...' : 'Hoàn tất đăng ký & KYC'}
             </button>
           </form>
-        ) : (
-          <div className="neo-card" style={{ textAlign: 'center' }}>
-            <div style={{ width: '200px', height: '200px', borderRadius: '50%', border: '4px solid var(--gold)', margin: '0 auto 32px', position: 'relative', overflow: 'hidden', background: 'var(--bg-main)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-               <Camera size={64} color="var(--text-muted)" style={{ opacity: 0.2 }} />
-               <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '4px', background: 'var(--emerald)', boxShadow: '0 0 20px var(--emerald)', animation: 'scan 2s infinite ease-in-out' }}></div>
-            </div>
-            
-            <style>{`
-              @keyframes scan {
-                0% { top: 0; }
-                50% { top: 100%; }
-                100% { top: 0; }
-              }
-            `}</style>
-
-            <h3 className="h3" style={{ marginBottom: '12px' }}>Đưa khuôn mặt vào trong khung hình</h3>
-            <p className="body-sm" style={{ marginBottom: '32px' }}>Vui lòng giữ điện thoại ngang tầm mắt, đảm bảo đủ ánh sáng và không đeo kính râm hay khẩu trang.</p>
-
-            <button onClick={handleStep3Submit} className="btn-gold btn" style={{ width: '100%', padding: '14px', fontSize: '15px' }} disabled={loading}>
-              {loading ? 'Đang phân tích AI...' : 'Bắt đầu quét'}
-            </button>
-          </div>
         )}
 
 

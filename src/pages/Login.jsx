@@ -9,9 +9,12 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showTokenLogin, setShowTokenLogin] = useState(false);
+  const [inputAccessToken, setInputAccessToken] = useState('');
+  const [inputRefreshToken, setInputRefreshToken] = useState('');
   
   const navigate = useNavigate();
-  const switchUserRole = useStore(state => state.switchUserRole);
+  const setCurrentUser = useStore(state => state.setCurrentUser);
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -19,7 +22,15 @@ export default function Login() {
     
     // Check if it's a mock admin bypass for testing (like in the old code)
     if (email === 'admin@goldchain.vn' && password === 'admin') {
-      switchUserRole('admin');
+      setCurrentUser({
+        name: 'Quản trị viên',
+        phone: '0900 000 000',
+        email: 'admin@goldchain.vn',
+        cccd: '111222333444',
+        role: 'admin',
+        kycStep: 3,
+        kycStatus: 'verified'
+      });
       navigate('/admin');
       return;
     }
@@ -33,12 +44,18 @@ export default function Login() {
     });
 
     if (error) {
-      // Dev Bypass: Nếu bạn bị dính lỗi 429 lúc đăng ký, account không được tạo thật trên Supabase. 
-      // Do đó lúc login sẽ bị lỗi 400 (Invalid login credentials).
-      // Để dễ demo, ta cho phép bypass nếu gặp lỗi này (chỉ trong dev).
-      if (error.message.includes('Invalid login credentials') || error.status === 400) {
-        console.warn("Bypassed Supabase Auth for Dev Demo. Account might not exist in backend due to rate limit.");
-        switchUserRole('user');
+      // Dev Bypass: Cho phép bypass nếu tài khoản chưa được tạo thật trên Supabase
+      if (error.message.includes('Invalid login credentials') || error.status === 400 || error.message.includes('User not found')) {
+        console.warn("Bypassed Supabase Auth for Dev Demo.");
+        setCurrentUser({
+          name: 'Nguyễn Văn An',
+          phone: '0912 345 678',
+          email: email || 'an.nguyen@goldchain.vn',
+          cccd: '001234567890',
+          role: 'user',
+          kycStep: 2,
+          kycStatus: 'pending'
+        });
         navigate('/dashboard');
         setLoading(false);
         return;
@@ -49,11 +66,104 @@ export default function Login() {
       return;
     }
 
-    // Success login
-    // Depending on your Supabase users table, we might need to fetch the role
-    // For now, we default to 'user'
-    switchUserRole('user');
+    // Success login -> Fetch user details from public.user_profiles
+    try {
+      const { data: dbUser, error: dbError } = await supabase
+        .from('user_profiles')
+        .select('*')
+        .eq('auth_user_id', data.user.id)
+        .single();
+
+      if (dbUser) {
+        setCurrentUser({
+          name: dbUser.full_name,
+          phone: dbUser.phone,
+          email: data.user.email,
+          cccd: dbUser.id_card_number,
+          role: dbUser.role || 'guest',
+          kycStep: dbUser.kyc_status === 'VERIFIED' ? 3 : 2,
+          kycStatus: dbUser.kyc_status?.toLowerCase() || 'pending'
+        });
+      } else {
+        // Fallback metadata
+        setCurrentUser({
+          name: data.user.user_metadata?.full_name || 'Người dùng mới',
+          phone: data.user.user_metadata?.phone || '',
+          email: data.user.email,
+          cccd: '',
+          role: data.user.user_metadata?.role || 'guest',
+          kycStep: 2,
+          kycStatus: 'pending'
+        });
+      }
+    } catch (dbErr) {
+      console.error("Lỗi khi tải thông tin người dùng từ DB:", dbErr);
+      setCurrentUser({
+        name: data.user.user_metadata?.full_name || 'Người dùng mới',
+        phone: data.user.user_metadata?.phone || '',
+        email: data.user.email,
+        cccd: '',
+        role: data.user.user_metadata?.role || 'guest',
+        kycStep: 2,
+        kycStatus: 'pending'
+      });
+    }
+
     navigate('/dashboard');
+    setLoading(false);
+  };
+
+  const handleTokenLogin = async (e) => {
+    e.preventDefault();
+    if (!inputAccessToken) return;
+    setError('');
+    setLoading(true);
+
+    try {
+      const { data, error } = await supabase.auth.setSession({
+        access_token: inputAccessToken,
+        refresh_token: inputRefreshToken || ''
+      });
+
+      if (error) {
+        setError(error.message);
+        setLoading(false);
+        return;
+      }
+
+      // Success login -> Fetch user details from public.user_profiles
+      const { data: dbUser, error: dbError } = await supabase
+        .from('user_profiles')
+        .select('*')
+        .eq('auth_user_id', data.user.id)
+        .single();
+
+      if (dbUser) {
+        setCurrentUser({
+          name: dbUser.full_name,
+          phone: dbUser.phone,
+          email: data.user.email,
+          cccd: dbUser.id_card_number,
+          role: dbUser.role || 'guest',
+          kycStep: dbUser.kyc_status === 'VERIFIED' ? 3 : 2,
+          kycStatus: dbUser.kyc_status?.toLowerCase() || 'pending'
+        });
+      } else {
+        setCurrentUser({
+          name: data.user.user_metadata?.full_name || 'Người dùng mới',
+          phone: data.user.user_metadata?.phone || '',
+          email: data.user.email,
+          cccd: '',
+          role: data.user.user_metadata?.role || 'guest',
+          kycStep: 2,
+          kycStatus: 'pending'
+        });
+      }
+      navigate('/dashboard');
+    } catch (dbErr) {
+      console.error("Lỗi khi tải thông tin người dùng từ DB:", dbErr);
+      setError('Token không hợp lệ hoặc đã hết hạn.');
+    }
     setLoading(false);
   };
 
@@ -133,6 +243,44 @@ export default function Login() {
             <button type="button" className="btn" style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '10px' }}>
               <i className="ti ti-brand-google" style={{ fontSize: '16px' }}></i> Đăng nhập với Google
             </button>
+
+            <div style={{ textAlign: 'center', marginTop: '16px' }}>
+              <span 
+                onClick={() => setShowTokenLogin(!showTokenLogin)} 
+                style={{ fontSize: '12px', color: 'var(--gold)', cursor: 'pointer', textDecoration: 'underline' }}
+              >
+                {showTokenLogin ? 'Ẩn đăng nhập bằng Token' : 'Đăng nhập nhanh bằng Access Token (Dev)'}
+              </span>
+            </div>
+
+            {showTokenLogin && (
+              <div style={{ marginTop: '16px', background: 'var(--gray-50)', padding: '16px', border: '1px solid var(--gray-200)', borderRadius: '8px', textAlign: 'left' }}>
+                <div className="form-group" style={{ marginBottom: '12px' }}>
+                  <label className="form-label" style={{ fontSize: '11px', color: 'var(--gray-500)' }}>Access Token</label>
+                  <textarea 
+                    className="form-input" 
+                    placeholder="Dán access_token vào đây..." 
+                    value={inputAccessToken}
+                    onChange={(e) => setInputAccessToken(e.target.value)}
+                    style={{ fontSize: '12px', height: '60px', resize: 'vertical' }}
+                    required
+                  />
+                </div>
+                <div className="form-group" style={{ marginBottom: '16px' }}>
+                  <label className="form-label" style={{ fontSize: '11px', color: 'var(--gray-500)' }}>Refresh Token (Tùy chọn)</label>
+                  <input 
+                    className="form-input" 
+                    placeholder="Nhập refresh_token" 
+                    value={inputRefreshToken}
+                    onChange={(e) => setInputRefreshToken(e.target.value)}
+                    style={{ fontSize: '12px' }}
+                  />
+                </div>
+                <button type="button" onClick={handleTokenLogin} className="btn-gold btn" style={{ width: '100%', padding: '8px', fontSize: '13px' }} disabled={loading || !inputAccessToken}>
+                  {loading ? 'Đang xác thực...' : 'Đăng nhập bằng Token'}
+                </button>
+              </div>
+            )}
           </form>
 
           {error && (
