@@ -4,6 +4,11 @@ import UserLayout from './layouts/UserLayout';
 import BlankLayout from './layouts/BlankLayout';
 import Home from './pages/Home';
 import Dashboard from './pages/Dashboard';
+import Trade from './pages/Trade';
+import Dca from './pages/Dca';
+import History from './pages/History';
+import Profile from './pages/Profile';
+import Admin from './pages/Admin';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import { supabase } from './supabaseClient';
@@ -18,6 +23,7 @@ const Placeholder = ({ title }) => (
 );
 
 function App() {
+  const currentUser = useStore(state => state.currentUser);
   const setCurrentUser = useStore(state => state.setCurrentUser);
   const logout = useStore(state => state.logout);
 
@@ -46,18 +52,6 @@ function App() {
         }
       }
 
-      // Kiểm tra xem có phiên Mock Dev lưu trong LocalStorage không trước khi gọi getSession
-      const mockSession = localStorage.getItem('goldchain_mock_session');
-      if (mockSession) {
-        try {
-          const parsedUser = JSON.parse(mockSession);
-          setCurrentUser(parsedUser);
-          return;
-        } catch (e) {
-          localStorage.removeItem('goldchain_mock_session');
-        }
-      }
-
       const { data: { session } } = await supabase.auth.getSession();
       if (session?.user) {
         await fetchAndSetUser(session.user);
@@ -81,7 +75,7 @@ function App() {
             phone: dbUser.phone,
             email: authUser.email,
             cccd: dbUser.id_card_number,
-            role: dbUser.role || 'guest',
+            role: (authUser.email === 'admin@goldchain.vn') ? 'admin' : (dbUser.role || 'guest'),
             kycStep: dbUser.kyc_status === 'VERIFIED' ? 3 : 2,
             kycStatus: dbUser.kyc_status?.toLowerCase() || 'pending'
           });
@@ -92,7 +86,7 @@ function App() {
             phone: authUser.user_metadata?.phone || '',
             email: authUser.email,
             cccd: '',
-            role: authUser.user_metadata?.role || 'guest',
+            role: (authUser.email === 'admin@goldchain.vn') ? 'admin' : (authUser.user_metadata?.role || 'guest'),
             kycStep: 2,
             kycStatus: 'pending'
           });
@@ -107,14 +101,9 @@ function App() {
     // 3. Lắng nghe thay đổi trạng thái Auth hệ thống (Đăng nhập, đăng xuất, hết hạn token...)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (session?.user) {
-        // Có session thực, xóa session giả lập
-        localStorage.removeItem('goldchain_mock_session');
         await fetchAndSetUser(session.user);
       } else {
-        // Chỉ đăng xuất nếu không có Mock Dev Session trong LocalStorage
-        if (!localStorage.getItem('goldchain_mock_session')) {
-          logout();
-        }
+        logout();
       }
     });
 
@@ -131,9 +120,10 @@ function App() {
           
           {/* User Routes */}
           <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/trade" element={<Placeholder title="Trade (Buy/Sell)" />} />
-          <Route path="/dca" element={<Placeholder title="DCA Plans" />} />
-          <Route path="/history" element={<Placeholder title="Transaction History" />} />
+          <Route path="/trade" element={<Trade />} />
+          <Route path="/dca" element={<Dca />} />
+          <Route path="/history" element={<History />} />
+          <Route path="/profile" element={<Profile />} />
           <Route path="/order" element={<Placeholder title="Order Details" />} />
           <Route path="/notifications" element={<Placeholder title="Notifications" />} />
         </Route>
@@ -145,8 +135,10 @@ function App() {
         </Route>
 
         {/* Admin Routes */}
-        <Route path="/admin" element={<Placeholder title="Admin Dashboard" />} />
-        <Route path="/inventory" element={<Placeholder title="Inventory Management" />} />
+        <Route element={<UserLayout />}>
+          <Route path="/admin" element={currentUser.role === 'admin' ? <Admin /> : <Navigate to="/" />} />
+          <Route path="/inventory" element={<Placeholder title="Inventory Management" />} />
+        </Route>
         
         {/* Fallback */}
         <Route path="*" element={<Navigate to="/" replace />} />
