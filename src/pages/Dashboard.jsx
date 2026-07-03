@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import useStore from '../store/useStore';
+import { Clock, AlertTriangle, ShieldCheck, TrendingUp, TrendingDown, Wallet, Activity } from 'lucide-react';
 
 export default function Dashboard() {
   const user = useStore(state => state.currentUser);
@@ -9,152 +10,162 @@ export default function Dashboard() {
   const wallet = useStore(state => state.walletBalance);
   const transactions = useStore(state => state.transactions);
 
-  // Calculate real-time portfolio values
   const sjcValue = balances.sjc * prices.sjc.sell;
   const pnjValue = balances.pnj * prices.pnj.sell;
   const dojiValue = balances.doji * prices.doji.sell;
   const totalGoldValue = sjcValue + pnjValue + dojiValue;
-  const totalInvested = 60000000; // Mock total invested
-  const pnlVal = totalGoldValue - totalInvested;
-  const pnlPercent = (pnlVal / totalInvested) * 100;
-  const pnlSign = pnlVal >= 0 ? '+' : '';
+  
+  // Real calculation would rely on average purchase price * quantity
+  // For now, if no gold, totalInvested is 0. 
+  const totalInvested = 0; 
+  const pnlVal = totalInvested > 0 ? totalGoldValue - totalInvested : 0;
+  const pnlPercent = totalInvested > 0 ? (pnlVal / totalInvested) * 100 : 0;
+  const pnlSign = pnlVal > 0 ? '+' : '';
   const pnlClass = pnlVal >= 0 ? 'price-up' : 'price-dn';
 
   // Get last 3 transactions
   const recentTxns = transactions.slice(0, 3);
 
   return (
-    <div style={{ padding: '24px' }}>
+    <div style={{ padding: '32px 24px', maxWidth: '1200px', margin: '0 auto' }}>
       {/* KYC Banner */}
       {user.kycStatus === 'pending' && (
-        <div style={{ background: 'var(--gold-pale)', border: '0.5px solid var(--gold)', padding: '14px', marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div>
-            <div style={{ fontSize: '13px', color: '#7A5A10', fontWeight: 500 }}>
-              <i className="ti ti-clock" style={{ fontSize: '15px', verticalAlign: '-2px', marginRight: '6px' }}></i>
-              Hồ sơ KYC đang chờ phê duyệt
-            </div>
-            <div style={{ fontSize: '12px', color: '#7A5A10', marginTop: '4px' }}>
-              Yêu cầu xác thực tài khoản của bạn đang được Admin xem xét. Bạn có thể sang Admin Panel để tự duyệt nhanh.
+        <div className="neo-card" style={{ padding: '16px 20px', marginBottom: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(212, 175, 55, 0.05)', borderColor: 'rgba(212, 175, 55, 0.3)' }}>
+          <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+            <Clock color="var(--gold)" size={24} />
+            <div>
+              <div style={{ fontSize: '14px', color: 'var(--gold)', fontWeight: 600 }}>Hồ sơ KYC đang chờ phê duyệt</div>
+              <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '4px' }}>Yêu cầu xác thực tài khoản của bạn đang được Admin xem xét.</div>
             </div>
           </div>
-          <Link to="/admin" className="btn btn-sm btn-gold" style={{ textDecoration: 'none' }}>Tới duyệt KYC</Link>
+          <Link to="/admin" className="btn btn-gold" style={{ textDecoration: 'none', padding: '8px 16px' }}>Tới duyệt KYC (Dev)</Link>
         </div>
       )}
       
       {user.kycStatus === 'rejected' && (
-        <div style={{ background: 'var(--red-bg)', border: '0.5px solid var(--red)', padding: '14px', marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div>
-            <div style={{ fontSize: '13px', color: 'var(--red)', fontWeight: 500 }}>
-              <i className="ti ti-alert-triangle" style={{ fontSize: '15px', verticalAlign: '-2px', marginRight: '6px' }}></i>
-              Hồ sơ KYC bị từ chối
-            </div>
-            <div style={{ fontSize: '12px', color: 'var(--red)', marginTop: '4px' }}>
-              CCCD bị mờ hoặc không hợp lệ. Vui lòng cung cấp lại thông tin để tiếp tục giao dịch.
+        <div className="neo-card" style={{ padding: '16px 20px', marginBottom: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(239, 68, 68, 0.1)', borderColor: 'rgba(239, 68, 68, 0.3)' }}>
+          <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+            <AlertTriangle color="var(--ruby)" size={24} />
+            <div>
+              <div style={{ fontSize: '14px', color: 'var(--ruby)', fontWeight: 600 }}>Hồ sơ KYC bị từ chối</div>
+              <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '4px' }}>CCCD bị mờ hoặc không hợp lệ. Vui lòng cung cấp lại thông tin.</div>
             </div>
           </div>
-          <Link to="/register" className="btn btn-sm btn-danger" style={{ textDecoration: 'none' }}>Cập nhật KYC</Link>
+          <Link to="/register" className="btn btn-red" style={{ textDecoration: 'none', padding: '8px 16px' }}>Cập nhật KYC</Link>
         </div>
       )}
 
       {user.kycStatus === 'verified' && (
-        <div style={{ background: 'var(--green-bg)', border: '0.5px solid var(--green)', padding: '14px', marginBottom: '20px' }}>
-          <div style={{ fontSize: '13px', color: 'var(--green)', fontWeight: 500 }}>
-            <i className="ti ti-shield-check" style={{ fontSize: '15px', verticalAlign: '-2px', marginRight: '6px' }}></i>
-            Tài khoản đã xác minh (KYC Verified)
-          </div>
-          <div style={{ fontSize: '12px', color: 'var(--green)', marginTop: '4px' }}>
-            Tài khoản của bạn đã được xác minh toàn diện. Bạn đã được phép rút vàng thật tại quầy O2O.
+        <div className="neo-card" style={{ padding: '16px 20px', marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '12px', background: 'rgba(16, 185, 129, 0.1)', borderColor: 'rgba(16, 185, 129, 0.3)' }}>
+          <ShieldCheck color="var(--emerald)" size={24} />
+          <div>
+            <div style={{ fontSize: '14px', color: 'var(--emerald)', fontWeight: 600 }}>Tài khoản đã xác minh (KYC Verified)</div>
+            <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '4px' }}>Tài khoản của bạn đã được xác minh toàn diện. Bạn đã được phép rút vàng thật tại quầy O2O.</div>
           </div>
         </div>
       )}
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
         <div className="h2">Tổng quan danh mục</div>
-        <div className="body-sm">Cập nhật: Vừa xong</div>
+        <div className="body-sm" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+           <Activity size={14} color="var(--emerald)" /> Cập nhật: Vừa xong
+        </div>
       </div>
       
-      <div className="wallet-balance">
-        <div className="label" style={{ color: 'var(--gray-400)', marginBottom: '6px' }}>TỔNG GIÁ TRỊ VÀNG HIỆN TẠI</div>
-        <div style={{ fontSize: '32px', fontWeight: 500, color: 'var(--gold)' }}>₫{totalGoldValue.toLocaleString('vi-VN')}</div>
-        <div style={{ display: 'flex', gap: '20px', marginTop: '12px' }}>
+      <div className="neo-card" style={{ marginBottom: '24px', padding: '32px' }}>
+        <div className="body-sm" style={{ color: 'var(--text-muted)', marginBottom: '8px', fontWeight: 600, letterSpacing: '1px', textTransform: 'uppercase' }}>Tổng giá trị vàng hiện tại</div>
+        <div style={{ fontSize: '48px', fontWeight: 600, color: 'var(--gold)', lineHeight: 1, marginBottom: '24px' }}>₫{totalGoldValue.toLocaleString('vi-VN')}</div>
+        
+        <div style={{ display: 'flex', gap: '40px', borderTop: '1px solid var(--border-silver)', paddingTop: '24px' }}>
           <div>
-            <div className="label" style={{ color: 'var(--gray-400)' }}>TỔNG ĐẦU TƯ</div>
-            <div style={{ fontSize: '14px', color: 'var(--white)', marginTop: '2px' }}>₫{totalInvested.toLocaleString('vi-VN')}</div>
+            <div className="body-sm" style={{ textTransform: 'uppercase', letterSpacing: '1px', fontSize: '12px' }}>Tổng đầu tư</div>
+            <div style={{ fontSize: '18px', color: 'var(--text-main)', marginTop: '4px', fontWeight: 500 }}>₫{totalInvested.toLocaleString('vi-VN')}</div>
           </div>
           <div>
-            <div className="label" style={{ color: 'var(--gray-400)' }}>LÃI / LỖ</div>
-            <div style={{ fontSize: '14px', marginTop: '2px' }} className={pnlClass}>
-              {pnlSign}₫{pnlVal.toLocaleString('vi-VN')} ({pnlSign}{pnlPercent.toFixed(2)}%)
+            <div className="body-sm" style={{ textTransform: 'uppercase', letterSpacing: '1px', fontSize: '12px' }}>Lãi / Lỗ</div>
+            <div style={{ fontSize: '18px', marginTop: '4px', fontWeight: 500, color: pnlVal >= 0 ? 'var(--emerald)' : 'var(--ruby)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              {pnlVal >= 0 ? <TrendingUp size={18} /> : <TrendingDown size={18} />}
+              {pnlSign}₫{Math.abs(pnlVal).toLocaleString('vi-VN')} ({pnlSign}{Math.abs(pnlPercent).toFixed(2)}%)
             </div>
           </div>
           <div>
-            <div className="label" style={{ color: 'var(--gray-400)' }}>SỐ DƯ VÍ</div>
-            <div style={{ fontSize: '14px', color: 'var(--white)', marginTop: '2px' }}>₫{wallet.toLocaleString('vi-VN')}</div>
+            <div className="body-sm" style={{ textTransform: 'uppercase', letterSpacing: '1px', fontSize: '12px' }}>Số dư ví VNĐ</div>
+            <div style={{ fontSize: '18px', color: 'var(--text-main)', marginTop: '4px', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Wallet size={18} color="var(--gold)" /> ₫{wallet.toLocaleString('vi-VN')}
+            </div>
           </div>
         </div>
       </div>
 
-      <div className="grid-4" style={{ marginBottom: '16px' }}>
-        <div className="stat-card">
-          <div className="stat-label">SJC 1 CHỈ</div>
-          <div className="stat-value">{balances.sjc.toFixed(2)} chỉ</div>
-          <div className="stat-sub price-up">+12.4% so với giá vốn</div>
+      <div className="grid-4" style={{ marginBottom: '24px', gap: '16px' }}>
+        <div className="neo-card" style={{ padding: '24px' }}>
+          <div className="body-sm" style={{ fontWeight: 600 }}>SJC 1 CHỈ</div>
+          <div style={{ fontSize: '24px', fontWeight: 600, color: 'var(--text-main)', marginTop: '8px' }}>{balances.sjc.toFixed(2)} chỉ</div>
+          <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '8px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+            {balances.sjc > 0 ? <><TrendingUp size={14} color="var(--emerald)" /> <span style={{ color: 'var(--emerald)' }}>+0.0% so với giá vốn</span></> : 'Chưa có số dư'}
+          </div>
         </div>
-        <div className="stat-card">
-          <div className="stat-label">PNJ 9999</div>
-          <div className="stat-value">{balances.pnj.toFixed(2)} chỉ</div>
-          <div className="stat-sub price-up">+8.7% so với giá vốn</div>
+        <div className="neo-card" style={{ padding: '24px' }}>
+          <div className="body-sm" style={{ fontWeight: 600 }}>PNJ 9999</div>
+          <div style={{ fontSize: '24px', fontWeight: 600, color: 'var(--text-main)', marginTop: '8px' }}>{balances.pnj.toFixed(2)} chỉ</div>
+          <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '8px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+            {balances.pnj > 0 ? <><TrendingUp size={14} color="var(--emerald)" /> <span style={{ color: 'var(--emerald)' }}>+0.0% so với giá vốn</span></> : 'Chưa có số dư'}
+          </div>
         </div>
-        <div className="stat-card">
-          <div className="stat-label">DOJI 999.9</div>
-          <div className="stat-value">{balances.doji.toFixed(2)} chỉ</div>
-          <div className="stat-sub" style={{ color: 'var(--gray-400)' }}>Chưa có số dư</div>
+        <div className="neo-card" style={{ padding: '24px' }}>
+          <div className="body-sm" style={{ fontWeight: 600 }}>DOJI 999.9</div>
+          <div style={{ fontSize: '24px', fontWeight: 600, color: 'var(--text-main)', marginTop: '8px' }}>{balances.doji.toFixed(2)} chỉ</div>
+          <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '8px' }}>Chưa có số dư</div>
         </div>
-        <div className="stat-card">
-          <div className="stat-label">Giá vốn TB (SJC)</div>
-          <div className="stat-value" style={{ fontSize: '16px' }}>₫7.780.000</div>
-          <div className="stat-sub" style={{ color: 'var(--gray-400)' }}>Giá hiện tại: ₫{prices.sjc.sell.toLocaleString('vi-VN')}</div>
+        <div className="neo-card" style={{ padding: '24px', background: 'var(--bg-card)' }}>
+          <div className="body-sm" style={{ fontWeight: 600 }}>Giá vốn TB (SJC)</div>
+          <div style={{ fontSize: '24px', fontWeight: 600, color: 'var(--text-main)', marginTop: '8px' }}>₫0</div>
+          <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '8px' }}>Giá hiện tại: ₫{prices.sjc.sell.toLocaleString('vi-VN')}</div>
         </div>
       </div>
 
-      <div className="grid-2">
-        <div className="card">
-          <div className="h3" style={{ marginBottom: '12px' }}>Biến động giá trị danh mục (30 ngày)</div>
-          <div className="chart-placeholder" style={{ height: '200px' }}>[ Biểu đồ Line Chart — Giá trị ví theo thời gian ]</div>
+      <div className="grid-2" style={{ gap: '16px' }}>
+        <div className="neo-card" style={{ padding: '24px' }}>
+          <div className="h3" style={{ marginBottom: '16px' }}>Biến động giá trị danh mục (30 ngày)</div>
+          <div style={{ height: '250px', background: 'var(--bg-main)', borderRadius: '12px', border: '1px dashed var(--border-silver)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>
+            [ Biểu đồ Line Chart — Giá trị ví theo thời gian ]
+          </div>
         </div>
-        <div className="card">
-          <div className="h3" style={{ marginBottom: '12px' }}>Giao dịch gần nhất</div>
-          <table className="table">
-            <thead>
-              <tr>
-                <th>Loại</th>
-                <th>Vàng</th>
-                <th>Số lượng</th>
-                <th>Giá trị</th>
-                <th>Thời gian</th>
-              </tr>
-            </thead>
-            <tbody>
-              {recentTxns.length > 0 ? recentTxns.map((txn, index) => (
-                <tr key={index}>
-                  <td>
-                    {txn.type === 'buy' ? <span className="badge badge-green">Mua</span> :
-                     txn.type === 'dca' ? <span className="badge badge-gold">DCA</span> :
-                     <span className="badge badge-red">Bán</span>}
-                  </td>
-                  <td>{txn.goldTypeName}</td>
-                  <td>{txn.quantity.toFixed(2)} chỉ</td>
-                  <td>₫{txn.total.toLocaleString('vi-VN')}</td>
-                  <td className="body-sm">{txn.time}</td>
+        <div className="neo-card" style={{ padding: '24px' }}>
+          <div className="h3" style={{ marginBottom: '16px' }}>Giao dịch gần nhất</div>
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead>
+                <tr style={{ borderBottom: '1px solid var(--border-silver)', color: 'var(--text-muted)', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '1px' }}>
+                  <th style={{ padding: '12px 8px', textAlign: 'left', fontWeight: 500 }}>Loại</th>
+                  <th style={{ padding: '12px 8px', textAlign: 'left', fontWeight: 500 }}>Vàng</th>
+                  <th style={{ padding: '12px 8px', textAlign: 'left', fontWeight: 500 }}>Số lượng</th>
+                  <th style={{ padding: '12px 8px', textAlign: 'left', fontWeight: 500 }}>Giá trị</th>
+                  <th style={{ padding: '12px 8px', textAlign: 'right', fontWeight: 500 }}>Thời gian</th>
                 </tr>
-              )) : (
-                <tr>
-                  <td colSpan="5" style={{ textAlign: 'center', color: 'var(--gray-400)' }}>Chưa có giao dịch nào</td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-          <Link to="/history" className="btn" style={{ width: '100%', marginTop: '12px', fontSize: '13px', textDecoration: 'none' }}>
+              </thead>
+              <tbody>
+                {recentTxns.length > 0 ? recentTxns.map((txn, index) => (
+                  <tr key={index} style={{ borderBottom: '1px solid var(--border-silver)' }}>
+                    <td style={{ padding: '16px 8px' }}>
+                      {txn.type === 'buy' ? <span style={{ background: 'rgba(16, 185, 129, 0.1)', color: 'var(--emerald)', padding: '4px 10px', borderRadius: '4px', fontSize: '12px', fontWeight: 600 }}>Mua</span> :
+                       txn.type === 'dca' ? <span style={{ background: 'rgba(212, 175, 55, 0.1)', color: 'var(--gold)', padding: '4px 10px', borderRadius: '4px', fontSize: '12px', fontWeight: 600 }}>DCA</span> :
+                       <span style={{ background: 'rgba(239, 68, 68, 0.1)', color: 'var(--ruby)', padding: '4px 10px', borderRadius: '4px', fontSize: '12px', fontWeight: 600 }}>Bán</span>}
+                    </td>
+                    <td style={{ padding: '16px 8px', fontWeight: 500 }}>{txn.goldTypeName}</td>
+                    <td style={{ padding: '16px 8px' }}>{txn.quantity.toFixed(2)} chỉ</td>
+                    <td style={{ padding: '16px 8px' }}>₫{txn.total.toLocaleString('vi-VN')}</td>
+                    <td style={{ padding: '16px 8px', textAlign: 'right', color: 'var(--text-muted)', fontSize: '13px' }}>{txn.time}</td>
+                  </tr>
+                )) : (
+                  <tr>
+                    <td colSpan="5" style={{ padding: '32px', textAlign: 'center', color: 'var(--text-muted)' }}>Chưa có giao dịch nào</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+          <Link to="/history" className="btn btn-outline" style={{ width: '100%', marginTop: '20px', textDecoration: 'none', justifyContent: 'center' }}>
             Xem toàn bộ lịch sử
           </Link>
         </div>

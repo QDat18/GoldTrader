@@ -144,10 +144,29 @@ export default function Register() {
     setLoading(true);
     // Simulate face scan verification delay
     setTimeout(async () => {
-      // Update metadata in Supabase to mark KYC as pending/verified
+      // 1. Update metadata in Auth
       await supabase.auth.updateUser({
         data: { kyc_status: 'pending' }
       });
+      
+      // 2. Lưu thông tin vào schema public
+      const { data: authData } = await supabase.auth.getUser();
+      if (authData?.user) {
+        const { error: dbError } = await supabase.from('users').insert({
+          id: authData.user.id,
+          email: email,
+          full_name: name,
+          phone: phone,
+          kyc_status: 'pending',
+          role: 'user'
+        });
+        
+        if (dbError) {
+          console.error("Lỗi khi lưu vào public schema:", dbError);
+          // Ghi chú cho dev: Nếu bảng của bạn tên khác (VD: 'profiles', 'KhachHang'),
+          // hãy sửa 'users' thành tên bảng tương ứng ở dòng trên.
+        }
+      }
       
       setLoading(false);
       setSuccess(true);
@@ -246,6 +265,7 @@ export default function Register() {
                     style={{ width: '100%', borderColor: otpVerified ? 'var(--emerald)' : (fieldErrors.email ? 'var(--ruby)' : 'var(--border-silver)') }}
                     placeholder="email@example.com" 
                     type="email" 
+                    autoComplete="username"
                     value={email}
                     onChange={(e) => { setEmail(e.target.value); setOtpSent(false); setOtpVerified(false); setFieldErrors(prev => ({...prev, email: null})); }}
                     disabled={otpVerified}
