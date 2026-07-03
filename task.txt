@@ -1,0 +1,20 @@
+# DANH SÁCH NHIỆM VỤ DỰ ÁN GOLDCHAIN (TASK LIST)
+Tệp tin này lưu trữ các yêu cầu công việc hiện tại, danh sách việc cần làm (Todo list) và tiến độ phát triển dự án.
+
+---
+
+## 📌 NHIỆM VỤ HIỆN TẠI (CURRENT TASK)
+*(Nội dung yêu cầu cụ thể sẽ được cập nhật tại đây khi bắt đầu phiên làm việc mới)*
+
+---
+
+## 📝 DANH SÁCH CẦN LÀM (TODO LIST)
+- [ ] **Task 1:** Đọc hiểu tài liệu [TongKet.md](file:///d:/Mon%20Hoc/GoldTrader-master/TongKet.md) và [workflow.md](file:///d:/Mon%20Hoc/GoldTrader-master/workflow.md).
+- [ ] **Task 2:** Xác định cấu trúc bảng dữ liệu trong [database.txt](file:///d:/Mon%20Hoc/GoldTrader-master/database.txt).
+- [ ] **Task 3:** Triển khai các component còn thiếu trong React SPA (Trade, DCA, History, Admin...).
+
+---
+
+## 📈 TIẾN ĐỘ THỰC HIỆN (PROGRESS)
+- **Trạng thái:** Sẵn sàng cho nhiệm vụ tiếp theo.
+- **Cập nhật lần cuối:** 2026-07-03 14:15.
