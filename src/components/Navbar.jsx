@@ -83,7 +83,7 @@ export function UserNavbar() {
                 onChange={handleRoleChange}
                 style={{background: 'transparent', color: 'var(--text-main)', border: 'none', outline: 'none', fontSize: '13px', cursor: 'pointer', appearance: 'none', paddingRight: '12px'}}
               >
-                <option value="user" style={{background: 'var(--bg-card)'}}>Vai trò: Khách</option>
+                <option value="user" style={{background: 'var(--bg-card)'}}>Vai trò: Thành viên</option>
                 <option value="admin" style={{background: 'var(--bg-card)'}}>Vai trò: Admin</option>
                 <option value="guest" style={{background: 'var(--bg-card)'}}>Đăng xuất</option>
               </select>
