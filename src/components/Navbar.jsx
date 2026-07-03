@@ -49,10 +49,11 @@ export function UserNavbar() {
         {user.role === 'admin' && <Link to="/admin" className="nav-link" style={{color: 'var(--ruby)'}}>Admin Panel</Link>}
       </div>
 
-      <div className="nav-actions">
+      <div className="nav-actions" style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
         {!user.email ? (
           <>
-            <Link to="/register" className="btn btn-gold">Bắt đầu ngay</Link>
+            <Link to="/login" className="btn btn-outline" style={{ textDecoration: 'none' }}>Đăng nhập</Link>
+            <Link to="/register" className="btn btn-gold" style={{ textDecoration: 'none' }}>Đăng ký</Link>
           </>
         ) : (
           <>
