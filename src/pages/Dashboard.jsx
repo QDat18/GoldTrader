@@ -10,11 +10,13 @@ export default function Dashboard() {
   const wallet = useStore(state => state.walletBalance);
   const transactions = useStore(state => state.transactions);
 
-  // Tính giá trị quy đổi vàng ra tiền mặt theo giá Cửa hàng mua vào hiện tại (prices.xxx.buy)
-  const sjcValue = balances.sjc * (prices.sjc?.buy || 8700000);
-  const pnjValue = balances.pnj * (prices.pnj?.buy || 7870000);
-  const dojiValue = balances.doji * (prices.doji?.buy || 8700000);
-  const totalGoldValue = sjcValue + pnjValue + dojiValue;
+  // Tính giá trị quy đổi vàng ra tiền mặt theo giá Cửa hàng mua vào hiện tại
+  const priceKeys = Object.keys(prices);
+  const avgBuyPrice = priceKeys.length > 0 
+    ? priceKeys.reduce((sum, k) => sum + (prices[k]?.buy || 0), 0) / priceKeys.length 
+    : 148000000;
+  const totalGoldQty = (balances.sjc || 0) + (balances.pnj || 0) + (balances.doji || 0);
+  const totalGoldValue = totalGoldQty * avgBuyPrice;
 
   const totalAssetsValue = wallet + totalGoldValue;
 
@@ -76,7 +78,7 @@ export default function Dashboard() {
           <div>
             <div className="body-sm" style={{ color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px', fontSize: '12px' }}>Tổng khối lượng sở hữu</div>
             <div style={{ fontSize: '18px', color: '#fff', marginTop: '4px', fontWeight: 600 }}>
-              {(balances.sjc + balances.pnj + balances.doji).toFixed(3)} chỉ
+              {totalGoldQty.toFixed(3)} chỉ
             </div>
           </div>
         </div>

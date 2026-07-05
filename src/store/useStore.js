@@ -24,96 +24,7 @@ const initialState = {
     pnj: 0.0,
     doji: 0.0,
   },
-  goldPrices: {
-    sjc: {
-      name: "SJC 1 Chỉ",
-      buy: 8700000,
-      sell: 8750000,
-      diff: 50000,
-      change: "▲ +0.34%",
-      up: true,
-    },
-    pnj: {
-      name: "PNJ 9999",
-      buy: 7870000,
-      sell: 7920000,
-      diff: 50000,
-      change: "▼ -0.12%",
-      up: false,
-    },
-    doji: {
-      name: "DOJI 999.9",
-      buy: 8580000,
-      sell: 8630000,
-      diff: 50000,
-      change: "▲ +0.22%",
-      up: true,
-    },
-    sjc_1l: {
-      name: "SJC 1 Lượng",
-      buy: 87000000,
-      sell: 87500000,
-      diff: 500000,
-      change: "▲ +0.00%",
-      up: true,
-    },
-    sjc_1c: {
-      name: "SJC 1 Chỉ",
-      buy: 8700000,
-      sell: 8750000,
-      diff: 50000,
-      change: "▲ +0.00%",
-      up: true,
-    },
-    sjc_nhan: {
-      name: "Nhẫn SJC 99.99",
-      buy: 7870000,
-      sell: 7920000,
-      diff: 50000,
-      change: "▲ +0.00%",
-      up: true,
-    },
-    sjc_trangsuc: {
-      name: "Nữ trang SJC 99.99%",
-      buy: 7600000,
-      sell: 7750000,
-      diff: 150000,
-      change: "▲ +0.00%",
-      up: true,
-    },
-    doji_hn: {
-      name: "DOJI Hà Nội",
-      buy: 8580000,
-      sell: 8630000,
-      diff: 50000,
-      change: "▲ +0.00%",
-      up: true,
-    },
-    doji_hcm: {
-      name: "DOJI TP.HCM",
-      buy: 8580000,
-      sell: 8630000,
-      diff: 50000,
-      change: "▲ +0.00%",
-      up: true,
-    },
-    pnj_hn: {
-      name: "PNJ Hà Nội",
-      buy: 7870000,
-      sell: 7920000,
-      diff: 50000,
-      change: "▲ +0.00%",
-      up: true,
-    },
-    pnj_hcm: {
-      name: "PNJ TP.HCM",
-      buy: 7870000,
-      sell: 7920000,
-      diff: 50000,
-      change: "▲ +0.00%",
-      up: true,
-    },
-  },
+  goldPrices: {}, // Dynamic: Tự động nạp từ Database
   orders: [],
   transactions: [
     {
@@ -446,44 +357,26 @@ const useStore = create((set, get) => ({
         .from("gold_price_snapshots")
         .select("*")
         .order("recorded_at", { ascending: false })
-        .limit(100);
+        .limit(200);
 
       if (error) throw error;
 
       if (data && data.length > 0) {
-        // Nhóm các bản ghi theo nguồn và loại vàng để tính toán lịch sử tăng giảm
+        // Nhóm các bản ghi theo source (type_code) để tính toán biến động
         const snapshotsGrouped = {};
         data.forEach(row => {
-          const key = `${row.source}_${row.gold_type}`;
+          const key = row.source; // type_code từ vang.today (VD: SJL1L10, DOHNL...)
           if (!snapshotsGrouped[key]) {
             snapshotsGrouped[key] = [];
           }
           snapshotsGrouped[key].push(row);
         });
 
-        // Hàm tiện ích tính toán chênh lệch giá và cập nhật trạng thái tăng/giảm
-        const getGoldStatus = (source, goldTypeKeyword, defaultPrices) => {
-          const key = Object.keys(snapshotsGrouped).find(
-            k => {
-              const lowerK = k.toLowerCase();
-              if (!lowerK.startsWith(`${source}_`)) return false;
-              if (goldTypeKeyword === "1c") {
-                return lowerK.includes("1c") || lowerK.includes("1 chỉ");
-              }
-              if (goldTypeKeyword === "nhan") {
-                return lowerK.includes("nhẫn") || lowerK.includes("nhan");
-              }
-              if (goldTypeKeyword === "trang") {
-                return lowerK.includes("nữ trang") || lowerK.includes("nu trang") || lowerK.includes("trang sức") || lowerK.includes("trang suc");
-              }
-              return lowerK.includes(goldTypeKeyword);
-            }
-          );
-          if (!key) return defaultPrices;
-
-          const list = snapshotsGrouped[key];
-          const latest = list[0];
-          const previous = list[1]; // Bản ghi cào trước đó liền kề
+        // Tự động xây dựng Dynamic goldPrices từ dữ liệu DB
+        const nextPrices = {};
+        for (const [sourceCode, records] of Object.entries(snapshotsGrouped)) {
+          const latest = records[0];
+          const previous = records[1];
 
           const buy = Number(latest.buy_price_vnd);
           const sell = Number(latest.sell_price_vnd);
@@ -506,38 +399,18 @@ const useStore = create((set, get) => ({
             }
           }
 
-          return {
-            ...defaultPrices,
+          nextPrices[sourceCode] = {
+            name: latest.gold_type, // Tên hiển thị tiếng Việt (từ worker đã dịch sẵn)
             buy,
             sell,
             diff,
             change,
-            up
+            up,
+            sourceCode, // Mã gốc vang.today (VD: SJL1L10) để truy vấn lịch sử
           };
-        };
+        }
 
-        set((state) => {
-          const nextPrices = { ...state.goldPrices };
-
-          // Cập nhật giá chi tiết
-          nextPrices.sjc_1l = getGoldStatus("sjc", "1l", nextPrices.sjc_1l);
-          nextPrices.sjc_1c = getGoldStatus("sjc", "1c", nextPrices.sjc_1c);
-          nextPrices.sjc_nhan = getGoldStatus("sjc", "nhan", nextPrices.sjc_nhan);
-          nextPrices.sjc_trangsuc = getGoldStatus("sjc", "trang", nextPrices.sjc_trangsuc);
-
-          nextPrices.doji_hn = getGoldStatus("doji", "hn", nextPrices.doji_hn);
-          nextPrices.doji_hcm = getGoldStatus("doji", "hcm", nextPrices.doji_hcm);
-
-          nextPrices.pnj_hn = getGoldStatus("pnj", "hn", nextPrices.pnj_hn);
-          nextPrices.pnj_hcm = getGoldStatus("pnj", "hcm", nextPrices.pnj_hcm);
-
-          // Đồng bộ ngược lại các biến gốc để đảm bảo tính tương thích ngược
-          nextPrices.sjc = nextPrices.sjc_1c;
-          nextPrices.pnj = nextPrices.pnj_hn;
-          nextPrices.doji = nextPrices.doji_hn;
-
-          return { goldPrices: nextPrices };
-        });
+        set({ goldPrices: nextPrices });
       }
     } catch (err) {
       console.error("Lỗi khi tải giá vàng từ database:", err);

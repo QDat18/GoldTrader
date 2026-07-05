@@ -18,7 +18,7 @@ export default function Trade() {
   const fetchUserBalances = useStore((state) => state.fetchUserBalances);
 
   const [activeTab, setActiveTab] = useState('buy'); // 'buy', 'sell', 'withdraw'
-  const [selectedGoldKey, setSelectedGoldKey] = useState('sjc_1c');
+  const [selectedGoldKey, setSelectedGoldKey] = useState('');
   const [quantity, setQuantity] = useState('');
   const [amount, setAmount] = useState('');
   const [timeframe, setTimeframe] = useState('1D'); // '1H', '1D', '1W', '1M'
@@ -27,17 +27,8 @@ export default function Trade() {
   const [chartData, setChartData] = useState([]);
   const [visibleCount, setVisibleCount] = useState(24);
 
-  // Kho hàng vật lý của cửa hàng (B2C Vault Stock)
-  const [storeStock, setStoreStock] = useState({
-    sjc_1l: 85.0,        // lượng
-    sjc_1c: 245.0,       // chỉ
-    sjc_nhan: 180.0,     // chỉ
-    sjc_trangsuc: 320.0, // chỉ
-    doji_hn: 50.0,       // lượng
-    doji_hcm: 65.0,      // lượng
-    pnj_hn: 120.0,       // chỉ
-    pnj_hcm: 140.0,      // chỉ
-  });
+  // Kho hàng vật lý của cửa hàng - được sinh tự động cho tất cả loại vàng
+  const [storeStock, setStoreStock] = useState({});
 
   const timerRef = useRef(null);
 
@@ -60,11 +51,29 @@ export default function Trade() {
     };
   }, [fetchGoldPrices]);
 
+  // Auto-select key đầu tiên và khởi tạo kho hàng
+  useEffect(() => {
+    const keys = Object.keys(prices);
+    if (keys.length > 0 && !selectedGoldKey) {
+      setSelectedGoldKey(keys[0]);
+    }
+    // Khởi tạo kho hàng cho các loại vàng mới (nếu chưa có)
+    const newStock = { ...storeStock };
+    let changed = false;
+    keys.forEach(k => {
+      if (newStock[k] === undefined) {
+        newStock[k] = Math.floor(50 + Math.random() * 200); // Stock ngẫu nhiên 50-250
+        changed = true;
+      }
+    });
+    if (changed) setStoreStock(newStock);
+  }, [prices]);
+
   // 2. Tải lịch sử biến động giá vàng
   useEffect(() => {
     const fetchHistory = async () => {
       if (!prices[selectedGoldKey]) return;
-      const source = selectedGoldKey.split('_')[0];
+      const source = selectedGoldKey; // source giờ là type_code (VD: SJL1L10)
       const activeItem = prices[selectedGoldKey];
       
       let limit = 40;
@@ -160,14 +169,13 @@ export default function Trade() {
     setVisibleCount(chartData.length);
   }, [chartData]);
 
-  const activeItem = prices[selectedGoldKey] || { name: 'SJC 1 Chỉ', buy: 8700000, sell: 8750000, diff: 50000, change: '▲ +0.00%', up: true };
+  const activeItem = prices[selectedGoldKey] || { name: 'Đang tải...', buy: 0, sell: 0, diff: 0, change: '▲ +0.00%', up: true };
   const currentPrice = activeTab === 'sell' ? activeItem.buy : activeItem.sell;
 
   const getGoldBalance = () => {
-    if (selectedGoldKey.startsWith('sjc')) return goldBalances.sjc;
-    if (selectedGoldKey.startsWith('doji')) return goldBalances.doji;
-    if (selectedGoldKey.startsWith('pnj')) return goldBalances.pnj;
-    return 0;
+    // Tạm thời giữ tương thích ngược: với các loại vàng mới, trả về tổng số dư vàng chung
+    const totalGold = (goldBalances.sjc || 0) + (goldBalances.pnj || 0) + (goldBalances.doji || 0);
+    return totalGold;
   };
 
   const handleQuantityChange = (val) => {
@@ -245,10 +253,8 @@ export default function Trade() {
       
       if (userErr || !dbUser) throw new Error('Không tìm thấy thông tin hồ sơ của bạn.');
 
-      // Xác định loại vàng trong database
-      let goldType = 'sjc';
-      if (selectedGoldKey.startsWith('pnj')) goldType = 'pnj';
-      else if (selectedGoldKey.startsWith('doji')) goldType = 'doji';
+      // Sử dụng selectedGoldKey trực tiếp làm goldType (giờ là mã vang.today như SJL1L10)
+      let goldType = selectedGoldKey;
 
       // Lấy ví vàng của khách hàng trong CSDL
       const { data: wallets } = await supabase
@@ -281,7 +287,7 @@ export default function Trade() {
 
         // 1. Trừ Ví tiền VND cục bộ & cộng ví vàng
         depositMoney(-amountVal);
-        const sourceKey = selectedGoldKey.split('_')[0];
+        const sourceKey = selectedGoldKey;
         useStore.setState((state) => ({
           goldBalances: {
             ...state.goldBalances,
@@ -354,7 +360,7 @@ export default function Trade() {
         }
 
         // 1. Trừ Ví vàng cục bộ & cộng Ví VND
-        const sourceKey = selectedGoldKey.split('_')[0];
+        const sourceKey = selectedGoldKey;
         useStore.setState((state) => ({
           goldBalances: {
             ...state.goldBalances,
@@ -422,7 +428,7 @@ export default function Trade() {
         }
 
         // 1. Khấu trừ Ví vàng online tạm thời của khách (đóng băng để chuyển thành vàng thật)
-        const sourceKey = selectedGoldKey.split('_')[0];
+        const sourceKey = selectedGoldKey;
         useStore.setState((state) => ({
           goldBalances: {
             ...state.goldBalances,
@@ -577,7 +583,7 @@ export default function Trade() {
     );
   };
 
-  const goldListKeys = ['sjc_1l', 'sjc_1c', 'sjc_nhan', 'sjc_trangsuc', 'doji_hn', 'doji_hcm', 'pnj_hn', 'pnj_hcm'];
+  const goldListKeys = Object.keys(prices);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', padding: '16px' }}>
@@ -725,8 +731,8 @@ export default function Trade() {
               {goldListKeys.map((key) => {
                 const item = prices[key];
                 if (!item) return null;
-                const stockQty = storeStock[key];
-                const unit = (key.includes('1l') || key.includes('doji')) ? 'lượng' : 'chỉ';
+                const stockQty = storeStock[key] || 0;
+                const unit = 'lượng';
                 const isLow = stockQty < 60;
                 return (
                   <div key={key} style={{ padding: '10px 12px', background: selectedGoldKey === key ? 'rgba(212, 175, 55, 0.04)' : 'rgba(255,255,255,0.01)', border: selectedGoldKey === key ? '1px solid rgba(212, 175, 55, 0.2)' : '1px solid rgba(255,255,255,0.04)', borderRadius: '8px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
@@ -816,7 +822,7 @@ export default function Trade() {
             />
             <div className="form-hint" style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px' }}>
               {activeTab === 'buy'
-                ? `Kho cửa hàng còn: ${storeStock[selectedGoldKey]} ${selectedGoldKey.includes('1l') || selectedGoldKey.includes('doji') ? 'lượng' : 'chỉ'}`
+                ? `Kho cửa hàng còn: ${storeStock[selectedGoldKey] || 0} lượng`
                 : `Ví vàng tích lũy cá nhân: ${getGoldBalance().toFixed(3)} chỉ`}
             </div>
           </div>
