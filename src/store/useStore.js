@@ -1,4 +1,12 @@
 import { create } from "zustand";
+import { createClient } from "@supabase/supabase-js";
+import { supabase } from '../supabaseClient';
+
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || "";
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || "";
+const supabaseLedger = createClient(supabaseUrl, supabaseAnonKey, {
+  db: { schema: "financial_ledgers" }
+});
 
 // Initial state from the old vanilla store
 const initialState = {
@@ -42,6 +50,70 @@ const initialState = {
       change: "▲ +0.22%",
       up: true,
     },
+    sjc_1l: {
+      name: "SJC 1 Lượng",
+      buy: 87000000,
+      sell: 87500000,
+      diff: 500000,
+      change: "▲ +0.00%",
+      up: true,
+    },
+    sjc_1c: {
+      name: "SJC 1 Chỉ",
+      buy: 8700000,
+      sell: 8750000,
+      diff: 50000,
+      change: "▲ +0.00%",
+      up: true,
+    },
+    sjc_nhan: {
+      name: "Nhẫn SJC 99.99",
+      buy: 7870000,
+      sell: 7920000,
+      diff: 50000,
+      change: "▲ +0.00%",
+      up: true,
+    },
+    sjc_trangsuc: {
+      name: "Nữ trang SJC 99.99%",
+      buy: 7600000,
+      sell: 7750000,
+      diff: 150000,
+      change: "▲ +0.00%",
+      up: true,
+    },
+    doji_hn: {
+      name: "DOJI Hà Nội",
+      buy: 8580000,
+      sell: 8630000,
+      diff: 50000,
+      change: "▲ +0.00%",
+      up: true,
+    },
+    doji_hcm: {
+      name: "DOJI TP.HCM",
+      buy: 8580000,
+      sell: 8630000,
+      diff: 50000,
+      change: "▲ +0.00%",
+      up: true,
+    },
+    pnj_hn: {
+      name: "PNJ Hà Nội",
+      buy: 7870000,
+      sell: 7920000,
+      diff: 50000,
+      change: "▲ +0.00%",
+      up: true,
+    },
+    pnj_hcm: {
+      name: "PNJ TP.HCM",
+      buy: 7870000,
+      sell: 7920000,
+      diff: 50000,
+      change: "▲ +0.00%",
+      up: true,
+    },
   },
   orders: [],
   transactions: [
@@ -79,7 +151,35 @@ const initialState = {
       status: 'OK'
     }
   ],
-  notifications: [],
+  notifications: [
+    {
+      id: 1,
+      type: 'transaction',
+      title: 'Đơn hàng mua đang chờ nhận',
+      desc: 'Mua 1.500 chỉ SJC 1 Chỉ — Trị giá ₫13.125.000 đã thanh toán bằng ví. Chờ quét mã QR tại quầy để nhận vàng vật chất.',
+      time: '10:30 hôm nay',
+      unread: true,
+      date: 'Hôm nay, 10:30:15'
+    },
+    {
+      id: 2,
+      type: 'system',
+      title: 'Xác thực tài khoản (KYC)',
+      desc: 'Hồ sơ xác thực danh tính CCCD của bạn đã được gửi thành công và đang chờ xét duyệt.',
+      time: '09:15 hôm nay',
+      unread: true,
+      date: 'Hôm nay, 09:15:00'
+    },
+    {
+      id: 3,
+      type: 'system',
+      title: 'Chào mừng thành viên mới',
+      desc: 'Chào mừng bạn đến với GoldChain - Hệ thống mua bán và tích lũy vàng vật chất thế hệ mới.',
+      time: 'Hôm qua',
+      unread: false,
+      date: 'Hôm qua, 15:45:10'
+    }
+  ],
   dcaPlans: [],
   inventory: [],
   kycSubmissions: [],
@@ -256,7 +356,7 @@ const useStore = create((set, get) => ({
       quantity: quantity,
       price: price,
       total: totalRevenue,
-      pnl: '+₫' + Math.floor(totalRevenue * 0.05).toLocaleString('vi-VN'),
+      pnl: '—',
       time: `${String(timeNow.getHours()).padStart(2, '0')}:${String(timeNow.getMinutes()).padStart(2, '0')} hôm nay`,
       status: 'OK'
     };
@@ -350,6 +450,145 @@ const useStore = create((set, get) => ({
     set((state) => ({
       notifications: state.notifications.filter(n => n.id !== id)
     })),
+
+  fetchGoldPrices: async () => {
+    try {
+      const { data, error } = await supabaseLedger
+        .from("gold_price_snapshots")
+        .select("*")
+        .order("recorded_at", { ascending: false })
+        .limit(100);
+
+      if (error) throw error;
+
+      if (data && data.length > 0) {
+        // Nhóm các bản ghi theo nguồn và loại vàng để tính toán lịch sử tăng giảm
+        const snapshotsGrouped = {};
+        data.forEach(row => {
+          const key = `${row.source}_${row.gold_type}`;
+          if (!snapshotsGrouped[key]) {
+            snapshotsGrouped[key] = [];
+          }
+          snapshotsGrouped[key].push(row);
+        });
+
+        // Hàm tiện ích tính toán chênh lệch giá và cập nhật trạng thái tăng/giảm
+        const getGoldStatus = (source, goldTypeKeyword, defaultPrices) => {
+          const key = Object.keys(snapshotsGrouped).find(
+            k => {
+              const lowerK = k.toLowerCase();
+              if (!lowerK.startsWith(`${source}_`)) return false;
+              if (goldTypeKeyword === "1c") {
+                return lowerK.includes("1c") || lowerK.includes("1 chỉ");
+              }
+              if (goldTypeKeyword === "nhan") {
+                return lowerK.includes("nhẫn") || lowerK.includes("nhan");
+              }
+              if (goldTypeKeyword === "trang") {
+                return lowerK.includes("nữ trang") || lowerK.includes("nu trang") || lowerK.includes("trang sức") || lowerK.includes("trang suc");
+              }
+              return lowerK.includes(goldTypeKeyword);
+            }
+          );
+          if (!key) return defaultPrices;
+
+          const list = snapshotsGrouped[key];
+          const latest = list[0];
+          const previous = list[1]; // Bản ghi cào trước đó liền kề
+
+          const buy = Number(latest.buy_price_vnd);
+          const sell = Number(latest.sell_price_vnd);
+          const diff = Math.max(0, sell - buy);
+
+          let change = "▲ +0.00%";
+          let up = true;
+
+          if (previous) {
+            const prevSell = Number(previous.sell_price_vnd);
+            if (prevSell > 0) {
+              const changeVal = ((sell - prevSell) / prevSell) * 100;
+              if (changeVal >= 0) {
+                change = `▲ +${changeVal.toFixed(2)}%`;
+                up = true;
+              } else {
+                change = `▼ ${changeVal.toFixed(2)}%`;
+                up = false;
+              }
+            }
+          }
+
+          return {
+            ...defaultPrices,
+            buy,
+            sell,
+            diff,
+            change,
+            up
+          };
+        };
+
+        set((state) => {
+          const nextPrices = { ...state.goldPrices };
+
+          // Cập nhật giá chi tiết
+          nextPrices.sjc_1l = getGoldStatus("sjc", "1l", nextPrices.sjc_1l);
+          nextPrices.sjc_1c = getGoldStatus("sjc", "1c", nextPrices.sjc_1c);
+          nextPrices.sjc_nhan = getGoldStatus("sjc", "nhan", nextPrices.sjc_nhan);
+          nextPrices.sjc_trangsuc = getGoldStatus("sjc", "trang", nextPrices.sjc_trangsuc);
+
+          nextPrices.doji_hn = getGoldStatus("doji", "hn", nextPrices.doji_hn);
+          nextPrices.doji_hcm = getGoldStatus("doji", "hcm", nextPrices.doji_hcm);
+
+          nextPrices.pnj_hn = getGoldStatus("pnj", "hn", nextPrices.pnj_hn);
+          nextPrices.pnj_hcm = getGoldStatus("pnj", "hcm", nextPrices.pnj_hcm);
+
+          // Đồng bộ ngược lại các biến gốc để đảm bảo tính tương thích ngược
+          nextPrices.sjc = nextPrices.sjc_1c;
+          nextPrices.pnj = nextPrices.pnj_hn;
+          nextPrices.doji = nextPrices.doji_hn;
+
+          return { goldPrices: nextPrices };
+        });
+      }
+    } catch (err) {
+      console.error("Lỗi khi tải giá vàng từ database:", err);
+    }
+  },
+
+  fetchUserBalances: async (userId) => {
+    try {
+      const { data, error } = await supabase
+        .from('gold_wallets')
+        .select('*')
+        .eq('user_id', userId);
+      if (error) throw error;
+      if (data && data.length > 0) {
+        const balances = { sjc: 0, pnj: 0, doji: 0 };
+        data.forEach(w => {
+          const type = w.gold_type.toLowerCase();
+          if (type.includes('sjc')) balances.sjc = Number(w.quantity_grams) / 3.75;
+          else if (type.includes('pnj')) balances.pnj = Number(w.quantity_grams) / 3.75;
+          else if (type.includes('doji')) balances.doji = Number(w.quantity_grams) / 3.75;
+        });
+        set({ goldBalances: balances });
+      }
+    } catch (err) {
+      console.error("Lỗi khi tải số dư vàng của khách hàng:", err);
+    }
+  },
+
+  markAllNotificationsAsRead: () =>
+    set((state) => ({
+      notifications: state.notifications.map((n) => ({ ...n, unread: false }))
+    })),
+
+  markNotificationAsRead: (id) =>
+    set((state) => ({
+      notifications: state.notifications.map((n) => n.id === id ? { ...n, unread: false } : n)
+    })),
+
+  clearAllNotifications: () =>
+    set({ notifications: [] }),
 }));
 
 export default useStore;

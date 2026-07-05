@@ -86,18 +86,21 @@ export default function Home() {
             </span>
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            {['sjc', 'pnj', 'doji'].map((key) => {
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', maxHeight: '380px', overflowY: 'auto', paddingRight: '4px' }} className="custom-scrollbar">
+            {['sjc_1l', 'sjc_1c', 'sjc_nhan', 'sjc_trangsuc', 'doji_hn', 'doji_hcm', 'pnj_hn', 'pnj_hcm'].map((key) => {
               const item = prices[key];
+              if (!item) return null;
               return (
-                <div key={key} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px', background: 'rgba(255,255,255,0.03)', borderRadius: '12px', transition: '0.3s' }} className="hover-highlight">
+                <div key={key} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', background: 'rgba(255,255,255,0.02)', borderRadius: '10px', transition: '0.3s', border: '1px solid rgba(255,255,255,0.03)' }} className="hover-highlight">
                   <div>
-                    <div style={{ fontWeight: 'bold', fontSize: '16px', color: 'var(--text-main)' }}>{item.name}</div>
-                    <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>Cập nhật tức thời</div>
+                    <div style={{ fontWeight: '600', fontSize: '14px', color: 'var(--text-main)' }}>{item.name}</div>
+                    <div style={{ fontSize: '11px', color: item.up ? 'var(--emerald)' : 'var(--ruby)', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      {item.change}
+                    </div>
                   </div>
                   <div style={{ textAlign: 'right' }}>
-                    <div style={{ fontSize: '13px', color: 'var(--emerald)', marginBottom: '4px' }}>Mua: đ{item.sell.toLocaleString('vi-VN')}</div>
-                    <div style={{ fontSize: '13px', color: 'var(--ruby)' }}>Bán: đ{item.buy.toLocaleString('vi-VN')}</div>
+                    <div style={{ fontSize: '13px', color: 'var(--emerald)', fontWeight: '500' }}>Mua: ₫{item.sell.toLocaleString('vi-VN')}</div>
+                    <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '2px' }}>Bán: ₫{item.buy.toLocaleString('vi-VN')}</div>
                   </div>
                 </div>
               );

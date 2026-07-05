@@ -10,6 +10,7 @@ import History from './pages/History';
 import Profile from './pages/Profile';
 import Admin from './pages/Admin';
 import Login from './pages/Login';
+import Notifications from './pages/Notifications';
 import Register from './pages/Register';
 import Notifications from './pages/Notifications';
 import { supabase } from './supabaseClient';
@@ -27,6 +28,15 @@ function App() {
   const currentUser = useStore(state => state.currentUser);
   const setCurrentUser = useStore(state => state.setCurrentUser);
   const logout = useStore(state => state.logout);
+  const fetchGoldPrices = useStore(state => state.fetchGoldPrices);
+  const fetchUserBalances = useStore(state => state.fetchUserBalances);
+
+  useEffect(() => {
+    // Tải giá vàng ban đầu từ Supabase và cập nhật định kỳ mỗi 30 giây
+    fetchGoldPrices();
+    const interval = setInterval(fetchGoldPrices, 30000);
+    return () => clearInterval(interval);
+  }, [fetchGoldPrices]);
 
   useEffect(() => {
     // 1. Khởi tạo session ban đầu từ LocalStorage/Supabase
@@ -80,6 +90,23 @@ function App() {
             kycStep: dbUser.kyc_status === 'VERIFIED' ? 3 : 2,
             kycStatus: dbUser.kyc_status?.toLowerCase() || 'pending'
           });
+
+          // Kiểm tra và khởi tạo các ví vàng trong CSDL nếu chưa có
+          const { data: existingWallets, error: ewErr } = await supabase
+            .from('gold_wallets')
+            .select('*')
+            .eq('user_id', dbUser.id);
+          
+          if (!ewErr && (!existingWallets || existingWallets.length === 0)) {
+            await supabase.from('gold_wallets').insert([
+              { user_id: dbUser.id, gold_type: 'sjc', quantity_grams: 0.0 },
+              { user_id: dbUser.id, gold_type: 'pnj', quantity_grams: 0.0 },
+              { user_id: dbUser.id, gold_type: 'doji', quantity_grams: 0.0 }
+            ]);
+          }
+
+          // Đồng bộ số dư vàng của người dùng từ CSDL vào Zustand Store
+          await fetchUserBalances(dbUser.id);
         } else {
           // Fallback nếu chưa kịp tạo bản ghi ở user_profiles
           setCurrentUser({
@@ -117,7 +144,13 @@ function App() {
     <Router>
       <Routes>
         <Route element={<UserLayout />}>
-          <Route path="/" element={<Home />} />
+          <Route path="/" element={
+            currentUser.email ? (
+              currentUser.role === 'admin' ? <Navigate to="/admin" replace /> : <Navigate to="/dashboard" replace />
+            ) : (
+              <Home />
+            )
+          } />
           
           {/* User Routes */}
           <Route path="/dashboard" element={<Dashboard />} />
