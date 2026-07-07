@@ -62,6 +62,7 @@ export default function Admin() {
   const [newInvType, setNewInvType] = useState('sjc');
   const [newInvBrand, setNewInvBrand] = useState('SJC HCM');
   const [newInvWeight, setNewInvWeight] = useState('3.75'); // 3.75g = 1 chỉ
+  const [newInvQuantity, setNewInvQuantity] = useState(1);
   const [invFilterType, setInvFilterType] = useState('all');
   const [invFilterStatus, setInvFilterStatus] = useState('all');
   const [invSearchQuery, setInvSearchQuery] = useState('');
@@ -502,32 +503,44 @@ export default function Admin() {
   const handleAddInventory = async (e) => {
     e.preventDefault();
     const weightVal = parseFloat(newInvWeight);
+    const qty = parseInt(newInvQuantity, 10);
+
     if (isNaN(weightVal) || weightVal <= 0) {
-      alert('Trọng lượng thỏi vàng không hợp lệ.');
+      showToast('Trọng lượng thỏi vàng không hợp lệ.', 'error');
       return;
     }
 
-    const serial = `${newInvType.toUpperCase()}-2026-${Math.floor(100000 + Math.random() * 900000)}`;
+    if (isNaN(qty) || qty <= 0) {
+      showToast('Số lượng không hợp lệ.', 'error');
+      return;
+    }
 
     try {
-      const { error } = await supabase
-        .from('vault_inventory')
-        .insert({
+      const rowsToInsert = [];
+      for (let i = 0; i < qty; i++) {
+        const serial = `${newInvType.toUpperCase()}-2026-${Math.floor(100000 + Math.random() * 900000)}`;
+        rowsToInsert.push({
           gold_serial: serial,
           gold_type: newInvType,
           weight_grams: weightVal,
           bar_brand: newInvBrand,
           status: 'AVAILABLE'
         });
+      }
+
+      const { error } = await supabase
+        .from('vault_inventory')
+        .insert(rowsToInsert);
 
       if (error) throw error;
 
-      alert(`Nhập kho thành công thỏi vàng: ${serial}`);
+      showToast(`Nhập kho thành công ${qty} thỏi vàng!`, 'success');
       setShowAddInventory(false);
+      setNewInvQuantity(1); // reset
       fetchDbInventory();
     } catch (err) {
       console.error('Lỗi khi nhập kho:', err);
-      alert('Lỗi nhập kho: ' + err.message);
+      showToast('Lỗi nhập kho: ' + err.message, 'error');
     }
   };
 
@@ -1039,6 +1052,10 @@ export default function Admin() {
                   <label className="form-label">Trọng lượng (grams)</label>
                   <input className="form-input" type="number" step="0.01" value={newInvWeight} onChange={e => setNewInvWeight(e.target.value)} required />
                 </div>
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label">Số lượng</label>
+                  <input className="form-input" type="number" min="1" value={newInvQuantity} onChange={e => setNewInvQuantity(e.target.value)} required />
+                </div>
                 <div style={{ display: 'flex', gap: '10px' }}>
                   <button type="submit" className="btn btn-gold" style={{ flex: 1, padding: '12px', borderRadius: '99px', fontWeight: 600 }}>
                     Nhập kho
@@ -1054,14 +1071,14 @@ export default function Admin() {
             <div style={{ overflowX: 'auto' }}>
               <table className="table" style={{ width: '100%', fontSize: '13px' }}>
                 <thead>
-                  <tr>
-                    <th>Mã Serial</th>
-                    <th>Loại vàng</th>
-                    <th>Trọng lượng</th>
-                    <th>Thương hiệu đúc</th>
-                    <th>Trạng thái</th>
-                    <th>Hợp đồng/Đơn gán</th>
-                    <th>Ngày nhập</th>
+                  <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+                    <th style={{ textAlign: 'left', padding: '12px 8px', color: 'var(--text-muted)' }}>Mã Serial</th>
+                    <th style={{ textAlign: 'left', padding: '12px 8px', color: 'var(--text-muted)' }}>Loại vàng</th>
+                    <th style={{ textAlign: 'left', padding: '12px 8px', color: 'var(--text-muted)' }}>Trọng lượng</th>
+                    <th style={{ textAlign: 'left', padding: '12px 8px', color: 'var(--text-muted)' }}>Thương hiệu đúc</th>
+                    <th style={{ textAlign: 'left', padding: '12px 8px', color: 'var(--text-muted)' }}>Trạng thái</th>
+                    <th style={{ textAlign: 'left', padding: '12px 8px', color: 'var(--text-muted)' }}>Hợp đồng/Đơn gán</th>
+                    <th style={{ textAlign: 'left', padding: '12px 8px', color: 'var(--text-muted)' }}>Ngày nhập</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1076,16 +1093,18 @@ export default function Admin() {
                       else if (item.status === 'DISPATCHED') badgeClass = 'badge-gray';
 
                       return (
-                        <tr key={item.id}>
-                          <td style={{ fontFamily: 'monospace', fontWeight: 'bold' }}>{item.gold_serial}</td>
-                          <td>{item.gold_type.toUpperCase()}</td>
-                          <td>{item.weight_grams} g</td>
-                          <td>{item.bar_brand}</td>
-                          <td><span className={`badge ${badgeClass}`}>{item.status}</span></td>
-                          <td style={{ fontFamily: 'monospace', fontSize: '11px' }}>
+                        <tr key={item.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                          <td style={{ padding: '12px 8px', fontFamily: 'monospace', fontWeight: 'bold' }}>{item.gold_serial}</td>
+                          <td style={{ padding: '12px 8px' }}>{item.gold_type.toUpperCase()}</td>
+                          <td style={{ padding: '12px 8px' }}>{item.weight_grams} g</td>
+                          <td style={{ padding: '12px 8px' }}>{item.bar_brand}</td>
+                          <td style={{ padding: '12px 8px' }}>
+                            <span className={`badge ${badgeClass}`} style={{ fontSize: '10px', padding: '4px 8px', borderRadius: '4px', background: 'rgba(255,255,255,0.1)' }}>{item.status}</span>
+                          </td>
+                          <td style={{ padding: '12px 8px', fontFamily: 'monospace', fontSize: '11px', color: 'var(--text-muted)' }}>
                             {item.order_id ? item.order_id : '—'}
                           </td>
-                          <td className="body-sm">{new Date(item.stored_at).toLocaleDateString('vi-VN')}</td>
+                          <td className="body-sm" style={{ padding: '12px 8px' }}>{new Date(item.stored_at).toLocaleDateString('vi-VN')}</td>
                         </tr>
                       );
                     })

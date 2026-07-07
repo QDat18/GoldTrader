@@ -540,4 +540,5 @@ CREATE TABLE financial_ledgers.blockchain_proofs (
   block_number bigint,
   confirmed_at timestamp with time zone,
   CONSTRAINT blockchain_proofs_pkey PRIMARY KEY (id)
-);
+);A L T E R   T A B L E   v a u l t _ i n v e n t o r y   A D D   C O L U M N   i m p o r t _ s o u r c e   T E X T ;   A D D   C O L U M N   c o s t _ p r i c e _ v n d   N U M E R I C ;   A D D   C O L U M N   r e c e i p t _ i d   T E X T ;  
+ 
