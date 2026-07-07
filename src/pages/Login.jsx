@@ -54,18 +54,21 @@ export default function Login() {
       if (dbUser) {
         resolvedRole = dbUser.role || 'guest';
         setCurrentUser({
+          id: dbUser.id,
           name: dbUser.full_name,
           phone: dbUser.phone,
           email: data.user.email,
           cccd: dbUser.id_card_number,
           role: resolvedRole,
           kycStep: dbUser.kyc_status === 'VERIFIED' ? 3 : 2,
-          kycStatus: dbUser.kyc_status?.toLowerCase() || 'pending'
+          kycStatus: dbUser.kyc_status?.toLowerCase() || 'pending',
+          kycRejectionReason: dbUser.kyc_rejection_reason || ''
         });
       } else {
         // Fallback metadata
         resolvedRole = data.user.email === 'admin@goldchain.vn' ? 'admin' : (data.user.user_metadata?.role || 'guest');
         setCurrentUser({
+          id: data.user.id,
           name: data.user.user_metadata?.full_name || 'Người dùng mới',
           phone: data.user.user_metadata?.phone || '',
           email: data.user.email,
@@ -79,9 +82,10 @@ export default function Login() {
       console.error("Lỗi khi tải thông tin người dùng từ DB:", dbErr);
       resolvedRole = data.user.email === 'admin@goldchain.vn' ? 'admin' : (data.user.user_metadata?.role || 'guest');
       setCurrentUser({
-        name: data.user.user_metadata?.full_name || 'Người dùng mới',
-        phone: data.user.user_metadata?.phone || '',
-        email: data.user.email,
+        id: data?.user?.id || 'guest-id',
+        name: data?.user?.user_metadata?.full_name || 'Người dùng mới',
+        phone: data?.user?.user_metadata?.phone || '',
+        email: data?.user?.email,
         cccd: '',
         role: resolvedRole,
         kycStep: 2,
@@ -126,17 +130,20 @@ export default function Login() {
       if (dbUser) {
         resolvedRole = dbUser.role || 'guest';
         setCurrentUser({
+          id: dbUser.id,
           name: dbUser.full_name,
           phone: dbUser.phone,
           email: data.user.email,
           cccd: dbUser.id_card_number,
           role: resolvedRole,
           kycStep: dbUser.kyc_status === 'VERIFIED' ? 3 : 2,
-          kycStatus: dbUser.kyc_status?.toLowerCase() || 'pending'
+          kycStatus: dbUser.kyc_status?.toLowerCase() || 'pending',
+          kycRejectionReason: dbUser.kyc_rejection_reason || ''
         });
       } else {
         resolvedRole = data.user.email === 'admin@goldchain.vn' ? 'admin' : (data.user.user_metadata?.role || 'guest');
         setCurrentUser({
+          id: data.user.id,
           name: data.user.user_metadata?.full_name || 'Người dùng mới',
           phone: data.user.user_metadata?.phone || '',
           email: data.user.email,

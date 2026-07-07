@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import useStore from '../store/useStore';
-import { ShieldCheck, Mail, Phone, CreditCard, Clock, CheckCircle2, AlertCircle, Edit2, Save, X, Lock, Smartphone } from 'lucide-react';
+import { supabase } from '../supabaseClient';
+import { ShieldCheck, Mail, Phone, CreditCard, Clock, CheckCircle2, AlertCircle, Edit2, Save, X, Lock, Smartphone, UploadCloud } from 'lucide-react';
 
 export default function Profile() {
   const user = useStore((state) => state.currentUser);
@@ -18,16 +19,80 @@ export default function Profile() {
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
   const [pwdForm, setPwdForm] = useState({ old: '', new: '', confirm: '' });
 
+  const [toast, setToast] = useState(null);
+
+  const showToast = (message, type = 'success') => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 3500);
+  };
+
   const handleSave = () => {
     updateProfile(editForm);
     setIsEditing(false);
-    alert('Cập nhật thông tin thành công!');
+    showToast('Cập nhật thông tin thành công!', 'success');
   };
 
-  const handleStartKyc = () => {
-    updateKycStatus('pending');
-    useStore.getState().submitKyc({ name: user.name, avatar: avatarLetter });
-    alert('Hồ sơ của bạn đã được gửi đi. Vui lòng chờ Quản trị viên kiểm duyệt.');
+  const [reUploadFront, setReUploadFront] = useState(null);
+  const [reUploadBack, setReUploadBack] = useState(null);
+  const [isUploading, setIsUploading] = useState(false);
+
+  const handleStartKyc = async () => {
+    if (user.kycStatus === 'rejected') {
+      if (!reUploadFront || !reUploadBack) {
+         showToast('Vui lòng tải lên đầy đủ 2 mặt CCCD', 'error');
+         return;
+      }
+      setIsUploading(true);
+      try {
+        const frontName = `${user.id}_front_reupload_${Date.now()}.png`;
+        const backName = `${user.id}_back_reupload_${Date.now()}.png`;
+        
+        const { error: fErr } = await supabase.storage.from('kyc-documents').upload(frontName, reUploadFront);
+        if (fErr) throw fErr;
+        
+        const { error: bErr } = await supabase.storage.from('kyc-documents').upload(backName, reUploadBack);
+        if (bErr) throw bErr;
+        
+        const { data: fData } = supabase.storage.from('kyc-documents').getPublicUrl(frontName);
+        const { data: bData } = supabase.storage.from('kyc-documents').getPublicUrl(backName);
+
+        const { error: dbErr } = await supabase
+          .from('user_profiles')
+          .update({
+            kyc_status: 'PENDING',
+            id_card_front_url: fData.publicUrl,
+            id_card_back_url: bData.publicUrl,
+            kyc_rejection_reason: null,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', user.id);
+
+        if (dbErr) throw dbErr;
+
+        await supabase.from('notifications').insert({
+          user_id: user.id,
+          type: 'system',
+          title: 'Hồ sơ KYC đã được gửi lại',
+          desc: 'Bạn đã cập nhật và gửi lại hồ sơ eKYC. Vui lòng chờ quản trị viên phê duyệt.',
+          unread: true,
+          date: new Date().toLocaleString('vi-VN')
+        });
+
+        updateKycStatus('pending');
+        updateProfile({ kycRejectionReason: '' });
+        showToast('Hồ sơ của bạn đã được gửi lại. Vui lòng chờ Quản trị viên kiểm duyệt.', 'success');
+        
+        setReUploadFront(null);
+        setReUploadBack(null);
+      } catch (err) {
+        showToast('Lỗi tải lên: ' + err.message, 'error');
+      } finally {
+        setIsUploading(false);
+      }
+    } else {
+      updateKycStatus('pending');
+      showToast('Hồ sơ của bạn đã được gửi đi. Vui lòng chờ Quản trị viên kiểm duyệt.', 'success');
+    }
   };
 
   const handleChangePassword = () => {
@@ -36,14 +101,14 @@ export default function Profile() {
 
   const submitChangePassword = () => {
     if (!pwdForm.old || !pwdForm.new || !pwdForm.confirm) {
-      alert('Vui lòng điền đầy đủ thông tin');
+      showToast('Vui lòng điền đầy đủ thông tin', 'error');
       return;
     }
     if (pwdForm.new !== pwdForm.confirm) {
-      alert('Mật khẩu mới không khớp');
+      showToast('Mật khẩu mới không khớp', 'error');
       return;
     }
-    alert('Đổi mật khẩu thành công!');
+    showToast('Đổi mật khẩu thành công!', 'success');
     setIsPasswordModalOpen(false);
     setPwdForm({ old: '', new: '', confirm: '' });
   };
@@ -206,9 +271,30 @@ export default function Profile() {
             )}
             
             {user.kycStatus === 'rejected' && (
-              <button className="btn" onClick={handleStartKyc} style={{ marginTop: '24px', width: '100%', borderRadius: '99px', padding: '16px', fontSize: '15px', fontWeight: 700, background: 'var(--ruby)', color: '#fff' }}>
-                Gửi lại hồ sơ
-              </button>
+              <div style={{ marginTop: '24px' }}>
+                <div style={{ padding: '16px', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid var(--ruby)', borderRadius: '12px', marginBottom: '24px', fontSize: '14px', color: '#fff', lineHeight: '1.5' }}>
+                  <span style={{ color: 'var(--ruby)', fontWeight: 600 }}>Lý do từ chối:</span><br/>
+                  <span style={{ color: 'rgba(255,255,255,0.9)' }}>{user.kycRejectionReason || 'Vui lòng kiểm tra lại hình ảnh và thông tin.'}</span>
+                </div>
+                
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '24px' }}>
+                  <label style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.2)', border: '1px dashed rgba(255,255,255,0.2)', borderRadius: '12px', padding: '24px', cursor: 'pointer' }}>
+                    <input type="file" accept="image/*" style={{ display: 'none' }} onChange={(e) => { if(e.target.files && e.target.files[0]) setReUploadFront(e.target.files[0]); }} />
+                    <UploadCloud size={24} color={reUploadFront ? 'var(--emerald)' : 'var(--text-muted)'} style={{ marginBottom: '12px' }} />
+                    <div style={{ fontSize: '13px', color: reUploadFront ? 'var(--emerald)' : '#fff', fontWeight: 600, textAlign: 'center' }}>{reUploadFront ? 'Đã chọn ảnh trước' : 'Tải lại mặt trước'}</div>
+                  </label>
+                  
+                  <label style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.2)', border: '1px dashed rgba(255,255,255,0.2)', borderRadius: '12px', padding: '24px', cursor: 'pointer' }}>
+                    <input type="file" accept="image/*" style={{ display: 'none' }} onChange={(e) => { if(e.target.files && e.target.files[0]) setReUploadBack(e.target.files[0]); }} />
+                    <UploadCloud size={24} color={reUploadBack ? 'var(--emerald)' : 'var(--text-muted)'} style={{ marginBottom: '12px' }} />
+                    <div style={{ fontSize: '13px', color: reUploadBack ? 'var(--emerald)' : '#fff', fontWeight: 600, textAlign: 'center' }}>{reUploadBack ? 'Đã chọn ảnh sau' : 'Tải lại mặt sau'}</div>
+                  </label>
+                </div>
+
+                <button disabled={isUploading} className="btn" onClick={handleStartKyc} style={{ width: '100%', borderRadius: '99px', padding: '16px', fontSize: '15px', fontWeight: 700, background: 'var(--ruby)', color: '#fff' }}>
+                  {isUploading ? 'Đang gửi...' : 'Gửi lại hồ sơ KYC'}
+                </button>
+              </div>
             )}
           </div>
           )}
@@ -257,12 +343,12 @@ export default function Profile() {
 
       </div>
 
-      {/* Password Change Modal */}
+      {/* Password Modal */}
       {isPasswordModalOpen && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(10px)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px' }}>
-          <div className="card" style={{ width: '100%', maxWidth: '420px', background: 'var(--bg-card)', borderRadius: '24px', border: '1px solid rgba(255,255,255,0.08)', overflow: 'hidden' }}>
-            <div style={{ padding: '24px', borderBottom: '1px solid rgba(255,255,255,0.05)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div style={{ fontSize: '18px', fontWeight: 600 }}>Đổi mật khẩu</div>
+        <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(5px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
+          <div className="card" style={{ width: '400px', padding: '32px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+              <div className="h3" style={{ margin: 0 }}>Đổi mật khẩu</div>
               <button onClick={() => setIsPasswordModalOpen(false)} style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>
                 <X size={24} />
               </button>

@@ -92,7 +92,8 @@ function App() {
             cccd: dbUser.id_card_number,
             role: (authUser.email === 'admin@goldchain.vn') ? 'admin' : (dbUser.role || 'guest'),
             kycStep: dbUser.kyc_status === 'VERIFIED' ? 3 : 2,
-            kycStatus: dbUser.kyc_status?.toLowerCase() || 'pending'
+            kycStatus: dbUser.kyc_status?.toLowerCase() || 'pending',
+            kycRejectionReason: dbUser.kyc_rejection_reason || ''
           });
 
           // Kiểm tra và khởi tạo các ví vàng trong CSDL nếu chưa có
@@ -141,8 +142,25 @@ function App() {
       }
     });
 
+    // 4. Lắng nghe thông báo Realtime từ hệ thống
+    const notifSubscription = supabase
+      .channel('public:notifications')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'notifications' },
+        (payload) => {
+          // Chỉ thêm thông báo nếu đúng user_id của người đang đăng nhập
+          const currentUserState = useStore.getState().currentUser;
+          if (currentUserState?.id && payload.new.user_id === currentUserState.id) {
+            useStore.getState().addNotification(payload.new);
+          }
+        }
+      )
+      .subscribe();
+
     return () => {
       subscription.unsubscribe();
+      supabase.removeChannel(notifSubscription);
     };
   }, [setCurrentUser, logout]);
 

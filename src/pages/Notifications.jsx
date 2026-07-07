@@ -12,20 +12,7 @@ export default function Notifications() {
   const markAllNotificationsRead = useStore(state => state.markAllNotificationsRead);
   const deleteNotification = useStore(state => state.deleteNotification);
 
-  // Realtime subscription effect
-  useEffect(() => {
-    // Connect to Supabase Realtime via Postgres Changes to listen for new notifications
-    const channel = supabase.channel('public:notifications')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications' }, (payload) => {
-        console.log('Realtime Notification Received:', payload);
-        useStore.getState().addNotification(payload.new);
-      })
-      .subscribe();
 
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, []);
 
   // Filter logic
   const filteredNotifs = notifications.filter(n => {

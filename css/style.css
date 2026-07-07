@@ -324,3 +324,5 @@ h1, h2, h3, .h1, .h2, .h3 {
 .footer-col a { color: var(--text-muted); text-decoration: none; display: block; margin-bottom: 8px; font-size: 14px; transition: 0.2s; }
 .footer-col a:hover { color: var(--gold); }
 .footer-bottom { border-top: var(--border-silver); margin-top: 32px; padding-top: 24px; display: flex; justify-content: space-between; }
+
+@keyframes spin { 100% { transform: rotate(360deg); } }

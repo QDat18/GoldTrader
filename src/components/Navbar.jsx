@@ -188,7 +188,12 @@ export function UserNavbar() {
                       {user.role === 'admin' ? (
                         <span style={{ fontSize: '10px', color: '#fff', background: '#3b82f6', borderRadius: '9999px', padding: '2px 7px', whiteSpace: 'nowrap', fontWeight: 600 }}>Quản trị hệ thống</span>
                       ) : (
-                        <span style={{ fontSize: '10px', color: kycMeta.color, background: kycMeta.bg, borderRadius: '9999px', padding: '2px 7px', whiteSpace: 'nowrap' }}>{kycMeta.label}</span>
+                        <span 
+                          title={user.kycStatus === 'verified' ? 'Tài khoản đã xác minh (KYC Verified)\nBạn đã được phê duyệt nhận vàng vật chất. Bạn có thể đến bất kỳ chi nhánh nào để rút vàng thật.' : ''}
+                          style={{ fontSize: '10px', color: kycMeta.color, background: kycMeta.bg, borderRadius: '9999px', padding: '2px 7px', whiteSpace: 'nowrap', cursor: 'help' }}
+                        >
+                          {kycMeta.label}
+                        </span>
                       )}
                     </div>
                     <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '3px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>

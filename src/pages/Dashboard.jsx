@@ -43,15 +43,7 @@ export default function Dashboard() {
         </div>
       )}
       
-      {user.kycStatus === 'verified' && (
-        <div className="neo-card" style={{ padding: '16px 20px', marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '12px', background: 'rgba(16, 185, 129, 0.1)', borderColor: 'rgba(16, 185, 129, 0.3)' }}>
-          <ShieldCheck color="var(--emerald)" size={24} />
-          <div>
-            <div style={{ fontSize: '14px', color: 'var(--emerald)', fontWeight: 600 }}>Tài khoản đã xác minh (KYC Verified)</div>
-            <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '4px' }}>Bạn đã được phê duyệt nhận vàng vật chất. Bạn có thể đến bất kỳ chi nhánh nào để rút vàng thật.</div>
-          </div>
-        </div>
-      )}
+
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
         <div className="h2" style={{ letterSpacing: '-1px' }}>Tổng quan tài sản tại cửa hàng</div>

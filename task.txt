@@ -46,5 +46,5 @@ Tệp tin này lưu trữ các yêu cầu công việc hiện tại, danh sách 
 ---
 
 ## 📈 TIẾN ĐỘ THỰC HIỆN (PROGRESS)
-- **Trạng thái:** Đã hoàn thành tối ưu hóa UI Admin & Dashboard (Grid layout, typography, phân tách luồng Admin/User).
-- **Cập nhật lần cuối:** 2026-07-07 16:58.
+- **Trạng thái:** Đã hoàn thành tải lên thực tế ảnh CCCD 2 mặt (eKYC) lên Supabase Storage bucket 'kyc-documents' trong trang Đăng ký (Task 31).
+- **Cập nhật lần cuối:** 2026-07-07 17:15.

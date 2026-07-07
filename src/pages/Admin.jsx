@@ -2,19 +2,20 @@ import React, { useEffect, useState } from 'react';
 import useStore from '../store/useStore';
 import { supabase } from '../supabaseClient';
 import { createClient } from '@supabase/supabase-js';
-import { 
-  Download, 
-  TrendingUp, 
-  CheckCircle, 
-  XCircle, 
-  Building, 
-  QrCode, 
-  Layers, 
-  RotateCw, 
-  Plus, 
-  Search, 
-  Check, 
-  ShieldAlert 
+import {
+  Download,
+  TrendingUp,
+  CheckCircle,
+  XCircle,
+  Building,
+  QrCode,
+  Layers,
+  RotateCw,
+  Plus,
+  Search,
+  Check,
+  ShieldAlert,
+  CheckCircle2
 } from 'lucide-react';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
@@ -27,8 +28,19 @@ export default function Admin() {
   // Supabase states for KYC list
   const [dbKycList, setDbKycList] = useState([]);
 
-  // Tabs: 'overview', 'o2o', 'inventory', 'hedging'
+  const showToast = (message, type = 'success') => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 3500);
+  };
+
+  // Tabs: 'overview', 'kyc', 'o2o', 'inventory', 'hedging'
   const [activeTab, setActiveTab] = useState('overview');
+  const [rejectModal, setRejectModal] = useState({ isOpen: false, id: null, reason: '' });
+  const [previewKycModal, setPreviewKycModal] = useState({ isOpen: false, frontUrl: '', backUrl: '', name: '' });
+  const [toast, setToast] = useState(null);
+  const [kycPage, setKycPage] = useState(0);
+  const [hasMoreKyc, setHasMoreKyc] = useState(true);
+  const [isFetchingKyc, setIsFetchingKyc] = useState(false);
 
   // Supabase states
   const [dbOrders, setDbOrders] = useState([]);
@@ -123,17 +135,40 @@ export default function Admin() {
   };
 
   // 1.5. Tải danh sách eKYC chờ duyệt từ CSDL
-  const fetchDbKycList = async () => {
+  const fetchDbKycList = async (isLoadMore = false) => {
+    if (isFetchingKyc) return;
+    setIsFetchingKyc(true);
     try {
+      const page = isLoadMore ? kycPage + 1 : 0;
       const { data, error } = await supabase
         .from('user_profiles')
         .select('*')
         .eq('kyc_status', 'PENDING')
-        .order('updated_at', { ascending: false });
+        .order('updated_at', { ascending: false })
+        .range(page * 10, (page + 1) * 10 - 1);
+
       if (error) throw error;
-      setDbKycList(data || []);
+
+      if (data.length < 10) setHasMoreKyc(false);
+      else setHasMoreKyc(true);
+
+      if (isLoadMore) {
+        setDbKycList(prev => [...prev, ...data]);
+      } else {
+        setDbKycList(data || []);
+      }
+      setKycPage(page);
     } catch (err) {
       console.error('Lỗi khi tải danh sách eKYC:', err);
+    } finally {
+      setIsFetchingKyc(false);
+    }
+  };
+
+  const handleScrollKyc = (e) => {
+    const bottom = e.target.scrollHeight - e.target.scrollTop - e.target.clientHeight < 50;
+    if (bottom && hasMoreKyc && !isFetchingKyc) {
+      fetchDbKycList(true);
     }
   };
 
@@ -146,11 +181,29 @@ export default function Admin() {
 
   useEffect(() => {
     refreshAllData();
+
+    // Lắng nghe realtime từ bảng user_profiles (khi user gửi eKYC mới hoặc cập nhật lại)
+    const kycSubscription = supabase
+      .channel('admin-kyc-changes')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'user_profiles' },
+        (payload) => {
+          console.log('Realtime KYC update received!', payload);
+          // Load lại danh sách KYC từ đầu (page 0)
+          fetchDbKycList(false);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(kycSubscription);
+    };
   }, []);
 
   const pendingOrders = dbOrders.filter((o) => o.status === 'PENDING');
   const availableInventory = dbInventory.filter((i) => i.status === 'AVAILABLE');
-  
+
   // Calculate inventory counts
   const sjcStock = dbInventory.filter((i) => i.gold_type === 'sjc' && i.status === 'AVAILABLE').length;
   const pnjStock = dbInventory.filter((i) => i.gold_type === 'pnj' && i.status === 'AVAILABLE').length;
@@ -160,7 +213,7 @@ export default function Admin() {
     try {
       const { error } = await supabase
         .from('user_profiles')
-        .update({ 
+        .update({
           kyc_status: 'VERIFIED',
           kyc_verified_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
@@ -169,7 +222,7 @@ export default function Admin() {
         .eq('id', id);
 
       if (error) throw error;
-      
+
       // Gửi thông báo cho user
       await supabase.from('notifications').insert({
         user_id: id,
@@ -180,8 +233,8 @@ export default function Admin() {
         date: new Date().toLocaleString('vi-VN')
       });
 
-      alert('Đã duyệt hồ sơ eKYC thành công!');
-      
+      showToast('Đã duyệt hồ sơ eKYC thành công!', 'success');
+
       // Đồng bộ local store cho user đang đăng nhập nếu chính họ được duyệt
       const storeState = useStore.getState();
       if (storeState.currentUser && storeState.currentUser.id === id) {
@@ -191,42 +244,49 @@ export default function Admin() {
       fetchDbKycList();
     } catch (err) {
       console.error('Lỗi duyệt eKYC:', err);
-      alert('Lỗi duyệt eKYC: ' + err.message);
+      showToast('Lỗi duyệt eKYC: ' + err.message, 'error');
     }
   };
 
-  const handleRejectKyc = async (id) => {
+  const handleRejectKycClick = (id) => {
+    setRejectModal({ isOpen: true, id, reason: '' });
+  };
+
+  const submitRejectKyc = async () => {
+    if (!rejectModal.id) return;
     try {
       const { error } = await supabase
         .from('user_profiles')
-        .update({ 
+        .update({
           kyc_status: 'REJECTED',
+          kyc_rejection_reason: rejectModal.reason || 'Hình ảnh không hợp lệ hoặc sai thông tin.',
           updated_at: new Date().toISOString()
         })
-        .eq('id', id);
+        .eq('id', rejectModal.id);
 
       if (error) throw error;
 
       await supabase.from('notifications').insert({
-        user_id: id,
+        user_id: rejectModal.id,
         type: 'system',
         title: 'Từ chối xác thực tài khoản',
-        desc: 'Hồ sơ KYC của bạn bị từ chối do hình ảnh không hợp lệ hoặc sai thông tin. Vui lòng cập nhật lại.',
+        desc: `Hồ sơ KYC của bạn bị từ chối. Lý do: ${rejectModal.reason || 'Hình ảnh không hợp lệ hoặc sai thông tin.'} Vui lòng cập nhật lại.`,
         unread: true,
         date: new Date().toLocaleString('vi-VN')
       });
 
-      alert('Đã từ chối hồ sơ eKYC.');
-      
+      showToast('Đã từ chối hồ sơ eKYC.', 'error');
+
       const storeState = useStore.getState();
-      if (storeState.currentUser && storeState.currentUser.id === id) {
+      if (storeState.currentUser && storeState.currentUser.id === rejectModal.id) {
         storeState.updateKycStatus('rejected');
       }
 
+      setRejectModal({ isOpen: false, id: null, reason: '' });
       fetchDbKycList();
     } catch (err) {
       console.error('Lỗi từ chối eKYC:', err);
-      alert('Lỗi từ chối eKYC: ' + err.message);
+      showToast('Lỗi từ chối eKYC: ' + err.message, 'error');
     }
   };
 
@@ -269,7 +329,7 @@ export default function Admin() {
         newGrams = currentGrams + qtyGrams;
       } else if (order.order_type === 'SELL_ONLINE') {
         if (currentGrams < qtyGrams) {
-          alert(`Lỗi: Khách không đủ số dư để bán! (Sở hữu: ${(currentGrams/3.75).toFixed(3)} chỉ, Cần bán: ${(qtyGrams/3.75).toFixed(3)} chỉ)`);
+          alert(`Lỗi: Khách không đủ số dư để bán! (Sở hữu: ${(currentGrams / 3.75).toFixed(3)} chỉ, Cần bán: ${(qtyGrams / 3.75).toFixed(3)} chỉ)`);
           return;
         }
         newGrams = currentGrams - qtyGrams;
@@ -292,7 +352,7 @@ export default function Admin() {
       // 4. Tự động mở vị thế đối ứng Hedging (Back-to-Back Hedging) như mô tả trong Chương 2.2
       const hedgeId = 'HDG-' + Math.random().toString(36).substr(2, 9).toUpperCase();
       const hedgeDirection = order.order_type === 'BUY_ONLINE' ? 'BUY' : 'SELL';
-      
+
       const { error: hedgeErr } = await supabaseLedger
         .from('hedge_positions')
         .insert({
@@ -309,7 +369,7 @@ export default function Admin() {
       if (hedgeErr) console.error("Lỗi tự động mở vị thế Hedging:", hedgeErr);
 
       alert(`Đã duyệt khớp đơn thành công! Vị thế Hedging đối ứng ${hedgeId} tự động mở.`);
-      
+
       // Đồng bộ local store cho user đang đăng nhập
       const storeState = useStore.getState();
       if (storeState.currentUser && order.user_id) {
@@ -399,10 +459,10 @@ export default function Admin() {
       // 1. Cập nhật trạng thái đơn hàng thành COMPLETED
       const { error: ordErr } = await supabaseLedger
         .from('orders')
-        .update({ 
-          status: 'COMPLETED', 
+        .update({
+          status: 'COMPLETED',
           completed_at: new Date().toISOString(),
-          order_status: 'COMPLETED' 
+          order_status: 'COMPLETED'
         })
         .eq('id', matchedOrder.id);
 
@@ -412,10 +472,10 @@ export default function Admin() {
       if (selectedInventoryBar) {
         const { error: invErr } = await supabase
           .from('vault_inventory')
-          .update({ 
-            status: 'DISPATCHED', 
+          .update({
+            status: 'DISPATCHED',
             order_id: matchedOrder.id,
-            dispatched_at: new Date().toISOString() 
+            dispatched_at: new Date().toISOString()
           })
           .eq('gold_serial', selectedInventoryBar);
 
@@ -423,7 +483,7 @@ export default function Admin() {
       }
 
       alert(`Đã bàn giao vàng vật chất thành công!\n- Đơn hàng: ${matchedOrder.id}\n- Thỏi vàng Serial: ${selectedInventoryBar || 'Tự động'}\n- Khách nhận: ${matchedUser.full_name}`);
-      
+
       // Reset form
       setQrInput('');
       setMatchedOrder(null);
@@ -506,7 +566,7 @@ export default function Admin() {
 
   return (
     <div style={{ padding: '40px 24px', maxWidth: '1200px', margin: '0 auto' }}>
-      
+
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '32px' }}>
         <div>
@@ -524,18 +584,18 @@ export default function Admin() {
       </div>
 
       {/* Tab Navigation */}
-      <div style={{ 
-        display: 'flex', gap: '8px', 
-        background: 'rgba(255,255,255,0.03)', 
-        padding: '6px', 
-        borderRadius: '99px', 
+      <div style={{
+        display: 'flex', gap: '8px',
+        background: 'rgba(255,255,255,0.03)',
+        padding: '6px',
+        borderRadius: '99px',
         border: '1px solid rgba(255,255,255,0.05)',
         width: 'fit-content',
         marginBottom: '36px'
       }}>
-        <button 
+        <button
           onClick={() => setActiveTab('overview')}
-          style={{ 
+          style={{
             padding: '10px 24px', background: activeTab === 'overview' ? 'rgba(212,175,55,0.1)' : 'transparent', border: activeTab === 'overview' ? '1px solid rgba(212,175,55,0.2)' : '1px solid transparent',
             borderRadius: '99px', fontSize: '14px', fontWeight: 600,
             color: activeTab === 'overview' ? 'var(--gold)' : 'var(--text-muted)',
@@ -544,9 +604,9 @@ export default function Admin() {
         >
           Tổng quan & Khớp lệnh
         </button>
-        <button 
+        <button
           onClick={() => setActiveTab('o2o')}
-          style={{ 
+          style={{
             padding: '10px 24px', background: activeTab === 'o2o' ? 'rgba(212,175,55,0.1)' : 'transparent', border: activeTab === 'o2o' ? '1px solid rgba(212,175,55,0.2)' : '1px solid transparent',
             borderRadius: '99px', fontSize: '14px', fontWeight: 600,
             color: activeTab === 'o2o' ? 'var(--gold)' : 'var(--text-muted)',
@@ -555,9 +615,9 @@ export default function Admin() {
         >
           <QrCode size={16} /> Xác thực O2O tại quầy
         </button>
-        <button 
+        <button
           onClick={() => setActiveTab('inventory')}
-          style={{ 
+          style={{
             padding: '10px 24px', background: activeTab === 'inventory' ? 'rgba(212,175,55,0.1)' : 'transparent', border: activeTab === 'inventory' ? '1px solid rgba(212,175,55,0.2)' : '1px solid transparent',
             borderRadius: '99px', fontSize: '14px', fontWeight: 600,
             color: activeTab === 'inventory' ? 'var(--gold)' : 'var(--text-muted)',
@@ -566,9 +626,9 @@ export default function Admin() {
         >
           Quản lý Kho vàng
         </button>
-        <button 
+        <button
           onClick={() => setActiveTab('hedging')}
-          style={{ 
+          style={{
             padding: '10px 24px', background: activeTab === 'hedging' ? 'rgba(212,175,55,0.1)' : 'transparent', border: activeTab === 'hedging' ? '1px solid rgba(212,175,55,0.2)' : '1px solid transparent',
             borderRadius: '99px', fontSize: '14px', fontWeight: 600,
             color: activeTab === 'hedging' ? 'var(--gold)' : 'var(--text-muted)',
@@ -576,6 +636,17 @@ export default function Admin() {
           }}
         >
           <Layers size={16} /> Vị thế Hedging ({dbHedges.filter(h => h.status === 'OPEN').length})
+        </button>
+        <button
+          onClick={() => setActiveTab('kyc')}
+          style={{
+            padding: '10px 24px', background: activeTab === 'kyc' ? 'rgba(212,175,55,0.1)' : 'transparent', border: activeTab === 'kyc' ? '1px solid rgba(212,175,55,0.2)' : '1px solid transparent',
+            borderRadius: '99px', fontSize: '14px', fontWeight: 600,
+            color: activeTab === 'kyc' ? 'var(--gold)' : 'var(--text-muted)',
+            cursor: 'pointer', transition: 'all 0.3s', display: 'flex', alignItems: 'center', gap: '8px'
+          }}
+        >
+          <ShieldAlert size={16} /> Duyệt eKYC ({dbKycList.length})
         </button>
       </div>
 
@@ -608,77 +679,8 @@ export default function Admin() {
 
           {/* Tables */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '32px' }}>
-            
-            {/* KYC Table */}
-            <div className="neo-card" style={{ padding: '0', overflow: 'hidden' }}>
-              <div style={{ padding: '24px', borderBottom: '1px solid rgba(255,255,255,0.05)', display: 'flex', justifyItems: 'center', justifyContent: 'space-between' }}>
-                <div className="h3" style={{ fontSize: '18px', margin: 0 }}>
-                  Danh sách KYC chờ duyệt
-                </div>
-              </div>
-              <div style={{ overflowX: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
-                  <thead>
-                    <tr style={{ background: 'rgba(255,255,255,0.02)' }}>
-                      <th style={{ padding: '12px 18px', color: 'var(--text-muted)' }}>Khách hàng</th>
-                      <th style={{ padding: '12px 18px', color: 'var(--text-muted)' }}>Thời gian</th>
-                      <th style={{ padding: '12px 18px', color: 'var(--text-muted)', textAlign: 'right' }}>Thao tác</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {dbKycList.length === 0 ? (
-                      <tr>
-                        <td colSpan="3" style={{ padding: '24px', textAlign: 'center', color: 'var(--text-muted)' }}>Không có hồ sơ nào</td>
-                      </tr>
-                    ) : (
-                      dbKycList.map(item => {
-                        const nameInitials = item.full_name ? item.full_name.trim().split(/\s+/).filter(Boolean).slice(-2).map(p => p[0]).join('').toUpperCase() : 'US';
-                        return (
-                          <tr key={item.id} style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}>
-                            <td style={{ padding: '12px 18px' }}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: 'var(--gold-gradient)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#000', fontWeight: 'bold', fontSize: '11px' }}>
-                                  {nameInitials}
-                                </div>
-                                <div>
-                                  <div style={{ fontWeight: 600, color: '#fff' }}>{item.full_name}</div>
-                                  <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                                    CCCD: {item.id_card_number} | SĐT: {item.phone || '—'}
-                                  </div>
-                                  <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
-                                    {item.id_card_front_url ? (
-                                      <a href={item.id_card_front_url} target="_blank" rel="noreferrer" style={{ fontSize: '10px', color: 'var(--gold)', textDecoration: 'none' }}>[Mặt trước]</a>
-                                    ) : (
-                                      <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>[Không ảnh trước]</span>
-                                    )}
-                                    {item.id_card_back_url ? (
-                                      <a href={item.id_card_back_url} target="_blank" rel="noreferrer" style={{ fontSize: '10px', color: 'var(--gold)', textDecoration: 'none' }}>[Mặt sau]</a>
-                                    ) : (
-                                      <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>[Không ảnh sau]</span>
-                                    )}
-                                  </div>
-                                </div>
-                              </div>
-                            </td>
-                            <td style={{ padding: '12px 18px', color: 'var(--text-muted)' }}>
-                              {new Date(item.updated_at).toLocaleString('vi-VN')}
-                            </td>
-                            <td style={{ padding: '12px 18px', textAlign: 'right' }}>
-                              <div style={{ display: 'inline-flex', gap: '8px' }}>
-                                <button onClick={() => handleApproveKyc(item.id)} className="btn btn-sm" style={{ borderColor: 'var(--emerald)', color: 'var(--emerald)', padding: '6px 14px', fontSize: '12px', borderRadius: '99px' }}>Duyệt</button>
-                                <button onClick={() => handleRejectKyc(item.id)} className="btn btn-sm btn-danger" style={{ padding: '6px 14px', fontSize: '12px', borderRadius: '99px' }}>Từ chối</button>
-                              </div>
-                            </td>
-                          </tr>
-                        );
-                      })
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
 
-            {/* Orders Table */}
+            {/* Orders Table moved to fill space since KYC is moved */}            {/* Orders Table */}
             <div className="neo-card" style={{ padding: '0', overflow: 'hidden' }}>
               <div style={{ padding: '24px', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
                 <div className="h3" style={{ fontSize: '18px', margin: 0 }}>
@@ -737,10 +739,84 @@ export default function Admin() {
         </>
       )}
 
+      {/* TAB: KYC */}
+      {activeTab === 'kyc' && (
+        <div className="neo-card" style={{ padding: '0', overflow: 'hidden' }}>
+          <div style={{ padding: '24px', borderBottom: '1px solid rgba(255,255,255,0.05)', display: 'flex', justifyItems: 'center', justifyContent: 'space-between' }}>
+            <div className="h3" style={{ fontSize: '18px', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <ShieldAlert size={20} color="var(--gold)" /> Danh sách KYC chờ duyệt
+            </div>
+            {isFetchingKyc && <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Đang tải...</span>}
+          </div>
+          <div style={{ overflowX: 'auto', maxHeight: '500px', overflowY: 'auto' }} onScroll={handleScrollKyc}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
+              <thead>
+                <tr style={{ background: 'rgba(255,255,255,0.02)', position: 'sticky', top: 0, zIndex: 10 }}>
+                  <th style={{ padding: '12px 18px', color: 'var(--text-muted)' }}>Khách hàng</th>
+                  <th style={{ padding: '12px 18px', color: 'var(--text-muted)' }}>Thời gian gửi</th>
+                  <th style={{ padding: '12px 18px', color: 'var(--text-muted)', textAlign: 'right' }}>Thao tác</th>
+                </tr>
+              </thead>
+              <tbody>
+                {dbKycList.length === 0 ? (
+                  <tr>
+                    <td colSpan="3" style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)' }}>Không có hồ sơ eKYC nào đang chờ duyệt.</td>
+                  </tr>
+                ) : (
+                  dbKycList.map(item => {
+                    const nameInitials = item.full_name ? item.full_name.trim().split(/\s+/).filter(Boolean).slice(-2).map(p => p[0]).join('').toUpperCase() : 'US';
+                    return (
+                      <tr key={item.id} style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+                        <td style={{ padding: '16px 18px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                            <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: 'var(--gold-gradient)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#000', fontWeight: 'bold', fontSize: '13px' }}>
+                              {nameInitials}
+                            </div>
+                            <div>
+                              <div style={{ fontWeight: 600, color: '#fff', fontSize: '14px' }}>{item.full_name}</div>
+                              <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '2px' }}>
+                                CCCD: <span style={{ color: '#fff' }}>{item.id_card_number}</span> | SĐT: {item.phone || '—'}
+                              </div>
+                              <div style={{ display: 'flex', gap: '12px', marginTop: '6px' }}>
+                                {(item.id_card_front_url || item.id_card_back_url) ? (
+                                  <button onClick={() => setPreviewKycModal({ isOpen: true, frontUrl: item.id_card_front_url, backUrl: item.id_card_back_url, name: item.full_name })} style={{ fontSize: '11px', color: 'var(--gold)', background: 'rgba(212,175,55,0.1)', border: '1px solid rgba(212,175,55,0.2)', padding: '4px 12px', borderRadius: '99px', cursor: 'pointer', transition: 'all 0.2s', fontWeight: 600 }}>Xem ảnh CCCD</button>
+                                ) : (
+                                  <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>[Chưa tải ảnh]</span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </td>
+                        <td style={{ padding: '16px 18px', color: 'var(--text-muted)' }}>
+                          {new Date(item.updated_at).toLocaleString('vi-VN')}
+                        </td>
+                        <td style={{ padding: '16px 18px', textAlign: 'right' }}>
+                          <div style={{ display: 'inline-flex', gap: '8px' }}>
+                            <button onClick={() => handleApproveKyc(item.id)} className="btn" style={{ borderColor: 'var(--emerald)', color: 'var(--emerald)', background: 'rgba(16, 185, 129, 0.1)', padding: '8px 16px', fontSize: '13px', borderRadius: '99px', fontWeight: 600 }}>Duyệt</button>
+                            <button onClick={() => handleRejectKycClick(item.id)} className="btn btn-danger" style={{ padding: '8px 16px', fontSize: '13px', borderRadius: '99px', fontWeight: 600 }}>Từ chối</button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+                {hasMoreKyc && dbKycList.length > 0 && (
+                  <tr>
+                    <td colSpan="3" style={{ padding: '16px', textAlign: 'center', color: 'var(--text-muted)' }}>
+                      Cuộn xuống để tải thêm...
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
       {/* TAB 2: O2O VERIFICATION AT COUNTER */}
       {activeTab === 'o2o' && (
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '32px' }}>
-          
+
           {/* Scan Panel */}
           <div className="neo-card" style={{ padding: '24px' }}>
             <div className="h3" style={{ fontSize: '20px', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px', letterSpacing: '-0.5px' }}>
@@ -754,9 +830,9 @@ export default function Admin() {
             <div className="form-group">
               <label className="form-label">Mã xác thực O2O (Order ID # TOTP)</label>
               <div style={{ display: 'flex', gap: '10px' }}>
-                <input 
-                  className="form-input" 
-                  value={qrInput} 
+                <input
+                  className="form-input"
+                  value={qrInput}
                   onChange={(e) => setQrInput(e.target.value)}
                   placeholder="Ví dụ: ORD-20260707-123456#889900"
                   style={{ background: '#121212', borderRadius: '8px' }}
@@ -772,7 +848,7 @@ export default function Admin() {
               <div style={{ fontWeight: 600, fontSize: '13px', color: '#fff', marginBottom: '8px' }}>Phím tắt demo nhanh:</div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
                 {pendingOrders.filter(o => o.order_type === 'WITHDRAW_PHYSICAL' || o.order_type === 'PHYSICAL_WITHDRAWAL').map(o => (
-                  <button 
+                  <button
                     key={o.id}
                     className="btn btn-sm"
                     onClick={() => setQrInput(`${o.id}#${Math.floor(100000 + Math.random() * 900000)}`)}
@@ -791,7 +867,7 @@ export default function Admin() {
           {/* Results Panel */}
           <div className="neo-card" style={{ padding: '24px' }}>
             <div className="h3" style={{ fontSize: '18px', marginBottom: '16px' }}>Kết quả đối chiếu thông tin gốc</div>
-            
+
             {!matchedOrder ? (
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '220px', color: 'var(--text-muted)' }}>
                 <Search size={40} style={{ opacity: 0.3, marginBottom: '12px' }} />
@@ -799,11 +875,11 @@ export default function Admin() {
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                
+
                 {/* TOTP Alert */}
                 {totpVerificationResult && (
-                  <div style={{ 
-                    padding: '12px', borderRadius: '8px', 
+                  <div style={{
+                    padding: '12px', borderRadius: '8px',
                     background: totpVerificationResult.valid ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)',
                     border: totpVerificationResult.valid ? '1px solid rgba(16,185,129,0.2)' : '1px solid rgba(239,68,68,0.2)',
                     display: 'flex', alignItems: 'center', gap: '8px'
@@ -835,7 +911,7 @@ export default function Admin() {
                   </div>
                   <div>
                     <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>SỐ LƯỢNG KÝ GỬI</span>
-                    <div style={{ fontWeight: 'bold', fontSize: '14px', color: '#fff', marginTop: '2px' }}>{(Number(matchedOrder.quantity_grams)/3.75).toFixed(3)} chỉ</div>
+                    <div style={{ fontWeight: 'bold', fontSize: '14px', color: '#fff', marginTop: '2px' }}>{(Number(matchedOrder.quantity_grams) / 3.75).toFixed(3)} chỉ</div>
                   </div>
                 </div>
 
@@ -854,7 +930,7 @@ export default function Admin() {
                 {/* Select stock gold bar */}
                 <div className="form-group">
                   <label className="form-label" style={{ fontSize: '12px' }}>Chọn thỏi vàng vật chất bàn giao (Serial trong Kho)</label>
-                  <select 
+                  <select
                     className="form-input"
                     value={selectedInventoryBar}
                     onChange={(e) => setSelectedInventoryBar(e.target.value)}
@@ -878,10 +954,10 @@ export default function Admin() {
                   </select>
                 </div>
 
-                <button 
+                <button
                   onClick={handleDispatchGold}
                   disabled={totpVerificationResult && !totpVerificationResult.valid}
-                  className="btn btn-gold" 
+                  className="btn btn-gold"
                   style={{ width: '100%', padding: '14px', borderRadius: '99px', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '15px' }}
                 >
                   <Check size={18} /> Xác nhận bàn giao vàng vật lý & Đóng đơn
@@ -895,7 +971,7 @@ export default function Admin() {
       {/* TAB 3: PHYSICAL VAULT INVENTORY MANAGEMENT */}
       {activeTab === 'inventory' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          
+
           {/* Inventory Stats */}
           <div className="grid-3">
             <div className="stat-card" style={{ borderLeft: '3px solid var(--gold)' }}>
@@ -919,24 +995,24 @@ export default function Admin() {
           <div className="neo-card" style={{ padding: '20px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', marginBottom: '16px' }}>
               <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                <select className="form-input" style={{ width: 'auto', borderRadius: '8px', fontSize: '12px', padding: '6px 12px' }} value={invFilterType} onChange={e=>setInvFilterType(e.target.value)}>
+                <select className="form-input" style={{ width: 'auto', borderRadius: '8px', fontSize: '12px', padding: '6px 12px' }} value={invFilterType} onChange={e => setInvFilterType(e.target.value)}>
                   <option value="all">Tất cả loại vàng</option>
                   <option value="sjc">SJC</option>
                   <option value="pnj">PNJ</option>
                   <option value="doji">DOJI</option>
                 </select>
-                <select className="form-input" style={{ width: 'auto', borderRadius: '8px', fontSize: '12px', padding: '6px 12px' }} value={invFilterStatus} onChange={e=>setInvFilterStatus(e.target.value)}>
+                <select className="form-input" style={{ width: 'auto', borderRadius: '8px', fontSize: '12px', padding: '6px 12px' }} value={invFilterStatus} onChange={e => setInvFilterStatus(e.target.value)}>
                   <option value="all">Tất cả trạng thái</option>
                   <option value="AVAILABLE">Sẵn sàng (AVAILABLE)</option>
                   <option value="RESERVED">Đặt cọc (RESERVED)</option>
                   <option value="DISPATCHED">Đã bàn giao (DISPATCHED)</option>
                 </select>
-                <input 
-                  className="form-input" 
-                  placeholder="Tìm kiếm mã Serial..." 
+                <input
+                  className="form-input"
+                  placeholder="Tìm kiếm mã Serial..."
                   style={{ width: '180px', borderRadius: '8px', fontSize: '12px', padding: '6px 12px' }}
                   value={invSearchQuery}
-                  onChange={e=>setInvSearchQuery(e.target.value)}
+                  onChange={e => setInvSearchQuery(e.target.value)}
                 />
               </div>
               <button className="btn btn-gold" onClick={() => setShowAddInventory(!showAddInventory)} style={{ borderRadius: '99px', padding: '10px 18px', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', fontWeight: 600 }}>
@@ -949,7 +1025,7 @@ export default function Admin() {
               <form onSubmit={handleAddInventory} style={{ background: 'rgba(255,255,255,0.02)', padding: '20px', borderRadius: '8px', border: '1px solid rgba(212,175,55,0.2)', marginBottom: '20px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', alignItems: 'flex-end' }}>
                 <div className="form-group" style={{ marginBottom: 0 }}>
                   <label className="form-label">Loại vàng</label>
-                  <select className="form-input" value={newInvType} onChange={e=>setNewInvType(e.target.value)}>
+                  <select className="form-input" value={newInvType} onChange={e => setNewInvType(e.target.value)}>
                     <option value="sjc">SJC 1 Chỉ</option>
                     <option value="pnj">PNJ 9999</option>
                     <option value="doji">DOJI 999.9</option>
@@ -957,11 +1033,11 @@ export default function Admin() {
                 </div>
                 <div className="form-group" style={{ marginBottom: 0 }}>
                   <label className="form-label">Nhãn hiệu đúc</label>
-                  <input className="form-input" value={newInvBrand} onChange={e=>setNewInvBrand(e.target.value)} placeholder="VD: SJC HCM, PNJ HN" required />
+                  <input className="form-input" value={newInvBrand} onChange={e => setNewInvBrand(e.target.value)} placeholder="VD: SJC HCM, PNJ HN" required />
                 </div>
                 <div className="form-group" style={{ marginBottom: 0 }}>
                   <label className="form-label">Trọng lượng (grams)</label>
-                  <input className="form-input" type="number" step="0.01" value={newInvWeight} onChange={e=>setNewInvWeight(e.target.value)} required />
+                  <input className="form-input" type="number" step="0.01" value={newInvWeight} onChange={e => setNewInvWeight(e.target.value)} required />
                 </div>
                 <div style={{ display: 'flex', gap: '10px' }}>
                   <button type="submit" className="btn btn-gold" style={{ flex: 1, padding: '12px', borderRadius: '99px', fontWeight: 600 }}>
@@ -1024,7 +1100,7 @@ export default function Admin() {
       {/* TAB 4: BACK-TO-BACK HEDGING POSITIONS */}
       {activeTab === 'hedging' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          
+
           {/* Hedging summary cards */}
           <div className="grid-3">
             <div className="stat-card" style={{ borderTop: '2px solid var(--emerald)' }}>
@@ -1034,7 +1110,7 @@ export default function Admin() {
             </div>
             <div className="stat-card" style={{ borderTop: '2px solid var(--gold)' }}>
               <div className="stat-label">KHỐI LƯỢNG HEDGING TÍCH LŨY</div>
-              <div className="stat-value">{(dbHedges.reduce((sum, h) => sum + Number(h.quantity_grams), 0)/3.75).toFixed(2)} chỉ</div>
+              <div className="stat-value">{(dbHedges.reduce((sum, h) => sum + Number(h.quantity_grams), 0) / 3.75).toFixed(2)} chỉ</div>
               <div className="stat-sub" style={{ color: 'var(--text-muted)' }}>Tổng khối lượng đối ứng nhà sỉ</div>
             </div>
             <div className="stat-card" style={{ borderTop: '2px solid #3b82f6' }}>
@@ -1079,7 +1155,7 @@ export default function Admin() {
                           <td style={{ fontFamily: 'monospace', fontWeight: 'bold' }}>{h.id}</td>
                           <td style={{ fontFamily: 'monospace', fontSize: '11px' }}>{h.order_id}</td>
                           <td>{h.gold_type.toUpperCase()}</td>
-                          <td>{(Number(h.quantity_grams)/3.75).toFixed(3)} chỉ</td>
+                          <td>{(Number(h.quantity_grams) / 3.75).toFixed(3)} chỉ</td>
                           <td>₫{Number(h.hedge_price_vnd).toLocaleString('vi-VN')}</td>
                           <td>{h.counterparty}</td>
                           <td>
@@ -1116,6 +1192,80 @@ export default function Admin() {
         </div>
       )}
 
+      {/* Rejection Modal */}
+      {rejectModal.isOpen && (
+        <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(10px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
+          <div style={{ width: '100%', maxWidth: '420px', padding: '32px', borderRadius: '24px', position: 'relative', border: '1px solid rgba(255,255,255,0.08)', background: '#1a1a1a', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)' }}>
+            <button onClick={() => setRejectModal({ isOpen: false, id: null, reason: '' })} style={{ position: 'absolute', top: '24px', right: '24px', background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>
+              <XCircle size={24} />
+            </button>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '24px' }}>
+              <div style={{ width: '48px', height: '48px', borderRadius: '16px', background: 'rgba(239, 68, 68, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <ShieldAlert size={24} color="var(--ruby)" />
+              </div>
+              <div>
+                <div style={{ fontSize: '20px', fontWeight: 600, color: '#fff', letterSpacing: '-0.5px' }}>Từ chối KYC</div>
+                <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '4px' }}>Hồ sơ này sẽ bị trả lại cho khách hàng</div>
+              </div>
+            </div>
+
+            <div style={{ marginBottom: '28px' }}>
+              <label style={{ display: 'block', fontSize: '13px', color: '#fff', marginBottom: '10px', fontWeight: 500 }}>Lý do từ chối (Bắt buộc)</label>
+              <textarea
+                rows={4}
+                placeholder="Ví dụ: Ảnh chụp bị lóa, không rõ mặt, hoặc sai số CCCD..."
+                value={rejectModal.reason}
+                onChange={(e) => setRejectModal({ ...rejectModal, reason: e.target.value })}
+                style={{ width: '100%', resize: 'none', background: '#0a0a0a', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', padding: '16px', borderRadius: '12px', fontSize: '14px', outline: 'none', fontFamily: 'inherit' }}
+              ></textarea>
+            </div>
+
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <button onClick={() => setRejectModal({ isOpen: false, id: null, reason: '' })} style={{ flex: 1, padding: '14px', borderRadius: '12px', fontSize: '14px', fontWeight: 600, background: 'rgba(255,255,255,0.05)', color: '#fff', border: 'none', cursor: 'pointer', transition: 'all 0.2s' }}>Hủy bỏ</button>
+              <button onClick={submitRejectKyc} disabled={!rejectModal.reason.trim()} style={{ flex: 1, padding: '14px', borderRadius: '12px', fontSize: '14px', fontWeight: 600, background: 'var(--ruby)', color: '#fff', border: 'none', cursor: !rejectModal.reason.trim() ? 'not-allowed' : 'pointer', opacity: !rejectModal.reason.trim() ? 0.5 : 1, transition: 'all 0.2s' }}>Xác nhận từ chối</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* KYC Image Preview Modal */}
+      {previewKycModal.isOpen && (
+        <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.9)', backdropFilter: 'blur(10px)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: '24px' }}>
+          <button onClick={() => setPreviewKycModal({ isOpen: false, frontUrl: '', backUrl: '', name: '' })} style={{ position: 'absolute', top: '24px', right: '32px', background: 'rgba(255,255,255,0.1)', border: 'none', color: '#fff', cursor: 'pointer', padding: '12px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <XCircle size={28} />
+          </button>
+
+          <div className="h2" style={{ color: '#fff', marginBottom: '24px' }}>Hồ sơ CCCD: {previewKycModal.name}</div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '32px', width: '100%', maxWidth: '1000px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', alignItems: 'center' }}>
+              <div style={{ fontWeight: 600, color: 'var(--gold)' }}>MẶT TRƯỚC</div>
+              {previewKycModal.frontUrl ? (
+                <img src={previewKycModal.frontUrl} alt="Mặt trước" style={{ width: '100%', objectFit: 'contain', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.1)', maxHeight: '60vh', background: 'rgba(255,255,255,0.02)' }} />
+              ) : (
+                <div style={{ width: '100%', height: '300px', borderRadius: '16px', background: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>Không có ảnh</div>
+              )}
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', alignItems: 'center' }}>
+              <div style={{ fontWeight: 600, color: 'var(--gold)' }}>MẶT SAU</div>
+              {previewKycModal.backUrl ? (
+                <img src={previewKycModal.backUrl} alt="Mặt sau" style={{ width: '100%', objectFit: 'contain', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.1)', maxHeight: '60vh', background: 'rgba(255,255,255,0.02)' }} />
+              ) : (
+                <div style={{ width: '100%', height: '300px', borderRadius: '16px', background: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>Không có ảnh</div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Toast Notification */}
+      {toast && (
+        <div style={{ position: 'fixed', top: '24px', right: '24px', background: toast.type === 'error' ? 'var(--ruby)' : 'var(--emerald)', color: '#fff', padding: '16px 24px', borderRadius: '12px', boxShadow: '0 10px 30px rgba(0,0,0,0.5)', zIndex: 99999, display: 'flex', alignItems: 'center', gap: '12px', fontWeight: 500 }}>
+          {toast.type === 'error' ? <XCircle size={20} /> : <CheckCircle2 size={20} />}
+          {toast.message}
+        </div>
+      )}
     </div>
   );
 }
