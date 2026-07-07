@@ -126,7 +126,8 @@ export function UserNavbar() {
 
       <div className="nav-links">
         {!isLoggedIn && <Link to="/" className={`nav-link ${activePage === 'home' || activePage === '' ? 'active' : ''}`}>Trang chủ</Link>}
-        {isLoggedIn && <Link to="/dashboard" className={`nav-link ${activePage === 'dashboard' ? 'active' : ''}`}>Tổng quan</Link>}
+        {isLoggedIn && user.role !== 'admin' && <Link to="/dashboard" className={`nav-link ${activePage === 'dashboard' ? 'active' : ''}`}>Tổng quan</Link>}
+        {isLoggedIn && user.role === 'admin' && <Link to="/admin" className={`nav-link ${activePage === 'admin' ? 'active' : ''}`}>Bàn làm việc Admin</Link>}
         <Link to="/trade" className={`nav-link ${activePage === 'trade' ? 'active' : ''}`}>Giao dịch</Link>
         {isLoggedIn && <Link to="/dca" className={`nav-link ${activePage === 'dca' ? 'active' : ''}`}>Tích lũy DCA</Link>}
         {isLoggedIn && <Link to="/history" className={`nav-link ${activePage === 'history' ? 'active' : ''}`}>Lịch sử</Link>}

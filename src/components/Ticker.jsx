@@ -4,16 +4,8 @@ import useStore from '../store/useStore';
 export default function Ticker() {
   const prices = useStore((state) => state.goldPrices);
 
-  const goldKeys = [
-    'sjc_1l',
-    'sjc_1c',
-    'sjc_nhan',
-    'sjc_trangsuc',
-    'doji_hn',
-    'doji_hcm',
-    'pnj_hn',
-    'pnj_hcm'
-  ];
+  // Dynamic: Lấy toàn bộ key từ goldPrices thay vì fix cứng
+  const goldKeys = Object.keys(prices);
 
   return (
     <div className="ticker-bar">
@@ -39,13 +31,6 @@ export default function Ticker() {
                 </div>
               );
             })}
-            
-            {/* Tỷ giá vàng thế giới tham khảo */}
-            <div className="ticker-item" key={`xau-usd-${set}`}>
-              <span className="ticker-name">XAU/USD (THẾ GIỚI)</span>
-              <span className="ticker-price">2,318.40</span>
-              <span className="ticker-change up">▲ 0.18%</span>
-            </div>
           </React.Fragment>
         ))}
       </div>

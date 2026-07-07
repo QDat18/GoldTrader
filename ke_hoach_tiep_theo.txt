@@ -1,0 +1,62 @@
+KẾ HOẠCH TRIỂN KHAI & PHÁT TRIỂN TIẾP THEO CHO DỰ ÁN GOLDCHAIN
+================================================================
+
+Sau khi đối chiếu chi tiết báo cáo nghiên cứu lý thuyết trong tệp "document (1).docx" (lưu vết tại doc_text.txt) với mã nguồn React SPA hiện tại (thư mục /src và cấu hình cơ sở dữ liệu database.txt), tôi phát hiện ra một số khoảng trống công nghệ (gaps) giữa lý thuyết học thuật và mã nguồn thực tế.
+
+Để chuẩn bị tốt nhất cho buổi bảo vệ đồ án tốt nghiệp, dưới đây là danh sách những việc nhóm bạn CẦN LÀM TIẾP THEO được chia theo từng cấu phần nghiệp vụ:
+
+1. HỆ THỐNG GIAO DỊCH VÀ PERSISTENCE TRÊN SUPABASE (CSDL THỰC TẾ)
+--------------------------------------------------------------
+* Thực trạng: Trang Trade.jsx và useStore.js hiện tại đã thực hiện cập nhật cục bộ và lưu trữ một số thông tin, nhưng các giao dịch tiền tệ (VND) vẫn đang sử dụng biến lưu tạm trong bộ nhớ và chưa lưu trữ đồng bộ đầy đủ các trạng thái tài chính vào bảng tương ứng trên Supabase.
+* Việc cần làm:
+  - Tạo bảng ví tiền mặt VND trong Database (Ví dụ: public.cash_wallets) hoặc bổ sung trường wallet_balance_vnd vào bảng public.user_profiles để quản lý số dư ví VND thực tế trên Supabase, thay vì dùng số dư VND ảo trong Zustand Store (mất khi F5).
+  - Viết các câu lệnh Supabase mutation (Insert/Update) chính thức khi người dùng đặt mua/bán thành công để cập nhật bảng `public.gold_wallets`, `financial_ledgers.orders`, và `financial_ledgers.gold_transactions`.
+  - Thay vì chạy các lệnh Supabase rời rạc (dễ lỗi vi phạm tính nhất quán dữ liệu ACID), hãy viết một hàm stored procedure (RPC) trên Postgres của Supabase để trừ số dư ví VND và cộng số dư ví vàng đồng thời trong cùng một Transaction với cấp độ cách ly cao nhất (SERIALIZABLE) như mô tả trong Chương 2.3 của báo cáo.
+
+2. CƠ CHẾ PHÂN BỔ GIÁ VỐN FIFO (FIRST IN, FIRST OUT)
+---------------------------------------------------
+* Thực trạng: Báo cáo lý thuyết yêu cầu khi khách hàng bán vàng online, hệ thống phải tự động tính toán giá vốn và lợi nhuận (PnL) dựa theo phương pháp FIFO (khấu trừ các lô vàng mua đầu tiên trước). Trong CSDL đã thiết kế bảng `financial_ledgers.gold_lots` và `financial_ledgers.lot_consumptions` nhưng code frontend bán vàng hiện tại chỉ thực hiện phép trừ số dư cơ học đơn giản.
+* Việc cần làm:
+  - Khi người dùng MUA vàng thành công (lệnh BUY_ONLINE hoặc DCA thành công): Insert một bản ghi mới vào bảng `financial_ledgers.gold_lots` lưu trữ ID giao dịch, khối lượng vàng (grams) và đơn giá mua (cost_price_vnd) với cột `quantity_remaining_grams` = khối lượng vừa mua.
+  - Khi người dùng BÁN vàng (lệnh SELL_ONLINE): Viết câu lệnh truy vấn tìm các lô vàng cũ nhất còn số dư của user đó (`quantity_remaining_grams > 0` sắp xếp theo `purchased_at ASC`). Thực hiện khấu trừ tuần tự số lượng vàng bán vào các lô này, ghi nhận lịch sử tiêu thụ lô vàng vào bảng `financial_ledgers.lot_consumptions` và tính toán PnL thực tế:
+    Realized PnL = (Giá bán hiện tại - Giá vốn lô mua) * Khối lượng bán.
+
+3. KỸ THUẬT PHÒNG NGỪA RỦI RO ĐỐI ỨNG (BACK-TO-BACK HEDGING)
+-----------------------------------------------------------
+* Thực trạng: Hệ thống chưa thực hiện tạo và hiển thị vị thế Hedging như đã nêu trong Chương 2.2 của báo cáo nhằm loại bỏ rủi ro trượt giá cho doanh nghiệp. CSDL có sẵn bảng `financial_ledgers.hedge_positions`.
+* Việc cần làm:
+  - Trong logic hàm `buyGold` và `sellGold` ở useStore, bổ sung thêm hành động chèn dữ liệu vào bảng `financial_ledgers.hedge_positions`. Mỗi khi khách đặt mua X gram vàng, hệ thống tự động ghi nhận một vị thế mua đối ứng tương ứng với cùng khối lượng và giá tương tự từ nhà cung cấp sỉ (ví dụ đặt đối tác mặc định là "DOJI Wholesale" hoặc "Thị trường phái sinh").
+  - Xây dựng một tab quản trị "Quản lý vị thế đối ứng (Hedging Positions)" trên trang Admin (`Admin.jsx`) hiển thị danh sách các vị thế đang mở (OPEN) hoặc đã đóng (CLOSED), tính toán biên độ lợi nhuậnSpread được khóa chặt và tổng lãi/lỗ của các vị thế đối ứng để chứng minh tính ứng dụng của Back-to-Back Hedging.
+
+4. XÁC THỰC MÃ QR ĐỘNG (TOTP) TẠI QUẦY O2O
+------------------------------------------
+* Thực trạng: Trang chi tiết đơn hàng O2O (`order.js` ở Vanilla và các trang tương ứng ở React) chỉ chạy đếm ngược 30 giây để thay đổi mã QR cơ học, chưa áp dụng thuật toán mã hóa TOTP dựa trên thời gian thực tế.
+* Việc cần làm:
+  - Sử dụng khóa bí mật `totp_secret` hoặc `secure_token` của đơn hàng kết hợp với thời gian hiện tại (làm tròn theo chu kỳ 30 giây) để tạo ra mã số động dùng thư viện JS (hoặc viết giải thuật băm đơn giản trên client).
+  - Thiết kế màn hình phía Admin dành cho nhân viên tại quầy ("Quầy xác thực bàn giao O2O"): Cho phép nhập hoặc quét mã QR từ điện thoại khách hàng. Admin sẽ giải mã/so khớp TOTP. Nếu khớp và hợp lệ trong chu kỳ 30s, tải thông tin đơn hàng cùng ảnh CCCD gốc của khách hàng để nhân viên đối chiếu trước khi bấm nút "Bàn giao vàng thật". Khi bấm nút, trạng thái đơn hàng cập nhật thành `COMPLETED` và cập nhật thỏi vàng tương ứng trong kho vật chất (`public.vault_inventory`) thành `DISPATCHED`.
+
+5. BẰNG CHỨNG SỐ PHÒNG CHỐNG GIẢ MẠO (BLOCKCHAIN PROOF)
+-------------------------------------------------------
+* Thực trạng: Chưa liên kết hóa đơn điện tử với sổ cái Blockchain. Bảng `financial_ledgers.blockchain_proofs` đang để trống.
+* Việc cần làm:
+  - Khi tạo hóa đơn hoặc hợp đồng mua vàng, viết hàm tạo mã băm SHA-256 đại diện cho dữ liệu đơn hàng (bao gồm Họ tên, Số CCCD, Mã đơn, Khối lượng và Ngày giao dịch).
+  - Giả lập (hoặc tích hợp thư viện ethers.js) lệnh ghi nhận chuỗi băm SHA-256 này lên Blockchain (bằng cách insert vào bảng `financial_ledgers.blockchain_proofs` với các thông tin giả lập như `tx_hash` giao dịch blockchain, `contract_address` và trạng thái `CONFIRMED`).
+  - Thêm chức năng "Kiểm tra tính nguyên bản" ở trang chi tiết đơn hàng: Khi nhấn vào, hệ thống tính toán lại mã băm SHA-256 của đơn hàng hiện tại và đối chiếu với mã băm đã lưu trên `blockchain_proofs`. Nếu khớp, hiển thị dấu tích xanh lá cây "Hóa đơn hợp lệ - Xác thực trên Blockchain"; nếu sai lệch (giả lập bị sửa số lượng vàng hoặc đổi tên người nhận), hiển thị cảnh báo đỏ "Cảnh báo: Dữ liệu hóa đơn đã bị chỉnh sửa trái phép!".
+
+6. BỘ CHẠY LỆNH DCA TỰ ĐỘNG (DCA EXECUTION ENGINE)
+-------------------------------------------------
+* Thực trạng: Trang Dca.jsx cho phép tạo gói DCA định kỳ nhưng hiện chưa có engine/worker chạy ngầm thực hiện việc tự động gom mua vàng cho người dùng khi đến ngày.
+* Việc cần làm:
+  - Viết một kịch bản Node.js (tương tự như tệp worker.js cào giá vàng) hoặc thiết lập Postgres Cron trong Supabase chạy định kỳ mỗi ngày:
+    + Tìm các bản ghi trong `public.dca_plans` đang ở trạng thái `ACTIVE` và có `next_run_at` nhỏ hơn hoặc bằng thời gian hiện tại.
+    + Lấy giá vàng bán ra mới nhất từ `gold_price_snapshots`.
+    + Kiểm tra số dư ví VND của user đó. Nếu đủ, trừ tiền ví VND, tính toán khối lượng vàng nhận được và cộng vào `gold_wallets`.
+    + Ghi nhận kết quả vào bảng `financial_ledgers.dca_executions` và cập nhật `next_run_at` cho kỳ tiếp theo (tuần sau hoặc tháng sau).
+
+7. TẢI ẢNH ĐỊNH DANH CCCD CHO eKYC LÊN SUPABASE STORAGE
+-------------------------------------------------------
+* Thực trạng: Luồng KYC hiện tại ở Register.jsx chỉ thay đổi trạng thái kycStatus của user thành 'pending', chưa lưu trữ ảnh CCCD thực tế lên cloud.
+* Việc cần làm:
+  - Sử dụng API `supabase.storage.from('kyc-documents').upload(...)` để tải ảnh 2 mặt CCCD của khách hàng lên Supabase Storage bucket khi đăng ký.
+  - Lưu các liên kết Public URL trả về vào hai trường `id_card_front_url` và `id_card_back_url` trong bảng `public.user_profiles`.
+  - Trên màn hình Admin, hiển thị trực quan 2 bức ảnh CCCD này để quản trị viên có thể xem xét đối chiếu trước khi bấm nút Duyệt eKYC.

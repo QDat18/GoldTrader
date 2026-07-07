@@ -87,8 +87,7 @@ export default function Home() {
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', maxHeight: '380px', overflowY: 'auto', paddingRight: '4px' }} className="custom-scrollbar">
-            {['sjc_1l', 'sjc_1c', 'sjc_nhan', 'sjc_trangsuc', 'doji_hn', 'doji_hcm', 'pnj_hn', 'pnj_hcm'].map((key) => {
-              const item = prices[key];
+            {Object.entries(prices).map(([key, item]) => {
               if (!item) return null;
               return (
                 <div key={key} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', background: 'rgba(255,255,255,0.02)', borderRadius: '10px', transition: '0.3s', border: '1px solid rgba(255,255,255,0.03)' }} className="hover-highlight">
@@ -101,6 +100,7 @@ export default function Home() {
                   <div style={{ textAlign: 'right' }}>
                     <div style={{ fontSize: '13px', color: 'var(--emerald)', fontWeight: '500' }}>Mua: ₫{item.sell.toLocaleString('vi-VN')}</div>
                     <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '2px' }}>Bán: ₫{item.buy.toLocaleString('vi-VN')}</div>
+                    <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.25)', marginTop: '2px' }}>đ/lượng</div>
                   </div>
                 </div>
               );

@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import UserLayout from './layouts/UserLayout';
 import BlankLayout from './layouts/BlankLayout';
@@ -25,6 +25,7 @@ const Placeholder = ({ title }) => (
 );
 
 function App() {
+  const [loadingSession, setLoadingSession] = useState(true);
   const currentUser = useStore(state => state.currentUser);
   const setCurrentUser = useStore(state => state.setCurrentUser);
   const logout = useStore(state => state.logout);
@@ -56,6 +57,7 @@ function App() {
             await fetchAndSetUser(data.user);
             // Dọn sạch token trên URL để bảo mật
             window.history.replaceState({}, document.title, window.location.pathname);
+            setLoadingSession(false);
             return;
           }
         } catch (tokenErr) {
@@ -69,6 +71,7 @@ function App() {
       } else {
         logout();
       }
+      setLoadingSession(false);
     };
 
     // 2. Tải thông tin hồ sơ chi tiết từ public.user_profiles
@@ -139,6 +142,17 @@ function App() {
       subscription.unsubscribe();
     };
   }, [setCurrentUser, logout]);
+
+  if (loadingSession) {
+    return (
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', background: '#121212', color: '#fff' }}>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ fontSize: '20px', color: 'var(--gold)', fontWeight: 600, letterSpacing: '2px' }}>GOLDCHAIN</div>
+          <div style={{ fontSize: '13px', color: 'rgba(255,255,255,0.4)', marginTop: '8px' }}>Đang xác thực phiên đăng nhập...</div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <Router>

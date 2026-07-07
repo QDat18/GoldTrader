@@ -22,7 +22,7 @@ Tài liệu này tổng hợp toàn bộ thông tin chi tiết về cấu trúc 
 
 ## 2. BẢN ĐỒ CHI TIẾT KIẾN TRÚC MÃ NGUỒN (PROJECT STRUCTURE)
 
-Dự án hiện tại đang nằm trong trạng thái **chuyển dịch công nghệ (Refactoring)** từ kiến trúc Web truyền thống chạy mã nguồn Vanilla JS sang ứng dụng trang đơn **React Single Page Application (SPA)** sử dụng công cụ build **Vite**.
+Dự án đã **hoàn tất** quá trình chuyển dịch công nghệ (Refactoring) từ kiến trúc Web truyền thống chạy mã nguồn Vanilla JS sang ứng dụng trang đơn **React Single Page Application (SPA)** hoàn chỉnh sử dụng công cụ build **Vite** và cơ sở dữ liệu **Supabase**.
 
 ```
 GoldTrader-master/
@@ -58,6 +58,11 @@ GoldTrader-master/
     └── pages/
         ├── Home.jsx           # Trang chủ giới thiệu, quy trình 4 bước và báo giá trực tiếp
         ├── Dashboard.jsx      # Trang quản lý tài sản cá nhân hiển thị số dư vàng, ví tiền và trạng thái eKYC
+        ├── Trade.jsx          # Trang giao dịch 3 tab (Mua tích lũy, Bán trực tuyến, Rút vật chất) thanh toán qua ví
+        ├── Dca.jsx            # Trang thiết lập và quản lý các gói đầu tư tích lũy định kỳ tự động
+        ├── Admin.jsx          # Phân hệ quản trị viên duyệt rút vàng, nạp tiền và quản lý người dùng
+        ├── History.jsx        # Lịch sử giao dịch và biến động số dư chi tiết
+        ├── Notifications.jsx  # Hệ thống thông báo toàn cục về biến động số dư và trạng thái đơn hàng
         ├── Login.jsx          # Trang đăng nhập tích hợp Supabase Auth và cơ chế bypass Admin
         └── Register.jsx       # Trang đăng ký 3 bước tích hợp gửi & xác thực mã OTP email
 
@@ -146,24 +151,17 @@ CREATE TABLE orders (
 
 ---
 
-## 6. ĐÁNH GIÁ TRẠNG THÁI HIỆN TẠI & LỘ TRÌNH PHÁT TRIỂN (ROADMAP)
+## 6. ĐÁNH GIÁ TRẠNG THÁI HIỆN TẠI & KẾT QUẢ ĐẠT ĐƯỢC
 
 ### 6.1. Trạng thái hiện tại (Current Status)
-Dự án đã có cấu trúc rất vững chãi với mã nguồn cũ viết bằng Vanilla JS chứa toàn bộ nghiệp vụ thực tế hoạt động mượt mà. Tuy nhiên, luồng phát triển React SPA mới trong `/src` mới hoàn thành được phần khung vỏ giao diện cơ bản và cấu hình đăng nhập/đăng ký. Nhiều chức năng nghiệp vụ trọng yếu hiện đang phải hiển thị bằng component tạm (`Placeholder`).
+Dự án đã **hoàn tất thành công** quá trình chuyển dịch công nghệ (Refactoring) sang kiến trúc **React SPA**. Toàn bộ các chức năng nghiệp vụ trọng yếu đã được lập trình hoàn thiện và đưa vào hoạt động thực tế, không còn sử dụng component tạm (Placeholder) như giai đoạn trước:
 
-### 6.2. Lộ trình phát triển đề xuất (Roadmap)
-Để hoàn thiện dự án, nhà phát triển cần tập trung chuyển đổi (porting) các trang nghiệp vụ từ Vanilla JS sang React SPA theo các bước ưu tiên dưới đây:
+*   **Hệ thống Giao dịch (Trade):** Đã hoàn thiện luồng giao dịch 3 Tab: "Mua tích lũy", "Bán trực tuyến" và "Rút vật chất". Việc thanh toán được thực hiện 100% thông qua hệ thống **Ví nội bộ** (Ví tiền VNĐ và Ví Vàng). Khách hàng mua/bán sẽ được trừ/cộng ngay lập tức vào số dư ví, đảm bảo trải nghiệm mượt mà. Lệnh "Rút vật chất" sẽ sinh ra đơn hàng chờ duyệt để khách ra quầy nhận vàng.
+*   **Hệ thống Thông báo (Notifications):** Đã triển khai toàn diện. Mọi biến động số dư (nạp tiền, mua/bán vàng) và thay đổi trạng thái đơn hàng (duyệt rút vàng) đều bắn thông báo thời gian thực về tài khoản khách hàng.
+*   **Hệ thống Quản trị (Admin):** Đã xây dựng hoàn chỉnh trang quản trị cho phép Admin duyệt các lệnh rút vàng vật lý, cộng tiền vào ví người dùng và quản lý toàn diện hệ thống.
+*   **Data API (Giá vàng):** Đã gỡ bỏ kiến trúc cào dữ liệu tự động (Puppeteer) kém ổn định do các nguồn web thường xuyên chặn bot (404/Timeout). Máy chủ Node.js hiện tại đã được nâng cấp thành một **REST API độc lập chuẩn vnappmob**. Quản trị viên có thể dùng API `POST` để chủ động đẩy giá thực tế vào cơ sở dữ liệu Supabase, đảm bảo dữ liệu luôn chính xác, an toàn tuyệt đối khi demo đồ án (đã khắc phục triệt để lỗi giới hạn ký tự `VARCHAR(20)` khi đẩy giá vàng SJC).
 
-1.  **Tích hợp Zustand Store nâng cao:**
-    *   Mở rộng `src/store/useStore.js` để tích hợp đầy đủ các logic xử lý nghiệp vụ của `js/store.js` như `buyGold`, `sellGold`, `createDcaPlan`, `approveKyc`, `addInventoryItem`.
-2.  **Xây dựng trang giao dịch React (`src/pages/Trade.jsx`):**
-    *   Chuyển đổi màn hình giao dịch từ `js/pages/trade.js`.
-    *   Xây dựng UI chia cột: Bên trái là biểu đồ nến (sử dụng Chart.js hoặc thư viện Lightweight Charts) và bảng giá trực tiếp 3 loại vàng; bên phải là form mua/bán nhập số lượng tự động quy đổi số tiền với bộ đếm ngược khóa giá 60 giây.
-3.  **Xây dựng trang tích lũy định kỳ (`src/pages/Dca.jsx`):**
-    *   Chuyển đổi logic lập gói DCA tự động từ `js/pages/dca.js`.
-    *   Hiển thị danh sách các kế hoạch đang chạy, số tiền đầu tư định kỳ, giá vốn trung bình thực tế tích lũy, hỗ trợ tạm dừng, tiếp tục hoặc hủy gói.
-4.  **Xây dựng phân hệ quản trị viên (`src/pages/Admin.jsx` & `src/pages/Inventory.jsx`):**
-    *   Chuyển đổi trang duyệt hồ sơ khách hàng gửi yêu cầu eKYC từ `js/pages/adminDashboard.js`.
-    *   Chuyển đổi phân hệ quản lý kho vàng vật lý (`js/pages/inventory.js`) để gán mã số sê-ri vàng thật cho các lệnh rút vàng trực tiếp tại quầy của khách hàng.
-5.  **Kết nối trực tiếp Database Supabase:**
-    *   Thay thế việc sử dụng dữ liệu tĩnh (mock data) trong Zustand Store bằng các hàm gọi API truy vấn dữ liệu từ các bảng `users`, `orders`, `transactions` trên cơ sở dữ liệu Supabase thông qua `src/supabaseClient.js`.
+### 6.2. Hướng phát triển tiếp theo (Future Enhancements)
+*   **Tích hợp Web3/Smart Contract:** Tích hợp sâu hơn công nghệ Blockchain trên mạng Testnet để tự động phát hành (Mint) token chứng nhận sở hữu thay vì chỉ lưu mã băm hóa đơn.
+*   **Phân tích dữ liệu (AI/ML):** Nghiên cứu áp dụng thuật toán Machine Learning để phân tích dữ liệu lịch sử `gold_price_snapshots`, dự đoán xu hướng giá vàng ngắn hạn và đưa ra gợi ý giao dịch.
+*   **Tối ưu hóa hiệu năng:** Nâng cấp biểu đồ nến chuyên nghiệp (như TradingView/Lightweight Charts) để hiển thị mượt mà khi dữ liệu lịch sử giá vàng phình to.

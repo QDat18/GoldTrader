@@ -19,7 +19,9 @@ export default function Dca() {
 
   // Calculate aggregated stats
   const totalAccumulated = plans.reduce((acc, p) => acc + (p.status === 'running' ? p.amount : 0), 13000000);
-  const avgGoldEstimate = (totalAccumulated / prices.sjc.sell).toFixed(2);
+  const priceKeys = Object.keys(prices);
+  const firstSellPrice = priceKeys.length > 0 ? (prices[priceKeys[0]]?.sell || 148000000) : 148000000;
+  const avgGoldEstimate = (totalAccumulated / firstSellPrice).toFixed(2);
 
   const handleSave = () => {
     const amt = parseInt(amount, 10);
@@ -166,8 +168,8 @@ export default function Dca() {
                     <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
                       <td style={{ padding: '12px 8px' }}>01/01/2026</td>
                       <td style={{ padding: '12px 8px' }}>₫{p.amount.toLocaleString('vi-VN')}</td>
-                      <td style={{ padding: '12px 8px' }}>{(p.amount / prices.sjc.sell).toFixed(4)} chỉ</td>
-                      <td style={{ padding: '12px 8px' }}>₫{prices.sjc.sell.toLocaleString('vi-VN')}</td>
+                      <td style={{ padding: '12px 8px' }}>{(p.amount / firstSellPrice).toFixed(4)} chỉ</td>
+                      <td style={{ padding: '12px 8px' }}>₫{firstSellPrice.toLocaleString('vi-VN')}</td>
                       <td style={{ padding: '12px 8px' }}><span style={{ color: 'var(--emerald)', background: 'rgba(16,185,129,0.1)', padding: '4px 8px', borderRadius: '4px', fontSize: '11px' }}>Thành công</span></td>
                     </tr>
                     <tr>
