@@ -43,6 +43,7 @@ export default function Login() {
     }
 
     // Success login -> Fetch user details from public.user_profiles
+    let resolvedRole = 'guest';
     try {
       const { data: dbUser, error: dbError } = await supabase
         .from('user_profiles')
@@ -51,41 +52,48 @@ export default function Login() {
         .single();
 
       if (dbUser) {
+        resolvedRole = dbUser.role || 'guest';
         setCurrentUser({
           name: dbUser.full_name,
           phone: dbUser.phone,
           email: data.user.email,
           cccd: dbUser.id_card_number,
-          role: dbUser.role || 'guest',
+          role: resolvedRole,
           kycStep: dbUser.kyc_status === 'VERIFIED' ? 3 : 2,
           kycStatus: dbUser.kyc_status?.toLowerCase() || 'pending'
         });
       } else {
         // Fallback metadata
+        resolvedRole = data.user.email === 'admin@goldchain.vn' ? 'admin' : (data.user.user_metadata?.role || 'guest');
         setCurrentUser({
           name: data.user.user_metadata?.full_name || 'Người dùng mới',
           phone: data.user.user_metadata?.phone || '',
           email: data.user.email,
           cccd: '',
-          role: data.user.user_metadata?.role || 'guest',
+          role: resolvedRole,
           kycStep: 2,
           kycStatus: 'pending'
         });
       }
     } catch (dbErr) {
       console.error("Lỗi khi tải thông tin người dùng từ DB:", dbErr);
+      resolvedRole = data.user.email === 'admin@goldchain.vn' ? 'admin' : (data.user.user_metadata?.role || 'guest');
       setCurrentUser({
         name: data.user.user_metadata?.full_name || 'Người dùng mới',
         phone: data.user.user_metadata?.phone || '',
         email: data.user.email,
         cccd: '',
-        role: data.user.user_metadata?.role || 'guest',
+        role: resolvedRole,
         kycStep: 2,
         kycStatus: 'pending'
       });
     }
 
-    navigate('/dashboard');
+    if (resolvedRole === 'admin') {
+      navigate('/admin');
+    } else {
+      navigate('/dashboard');
+    }
     setLoading(false);
   };
 
@@ -108,6 +116,7 @@ export default function Login() {
       }
 
       // Success login -> Fetch user details from public.user_profiles
+      let resolvedRole = 'guest';
       const { data: dbUser, error: dbError } = await supabase
         .from('user_profiles')
         .select('*')
@@ -115,27 +124,34 @@ export default function Login() {
         .single();
 
       if (dbUser) {
+        resolvedRole = dbUser.role || 'guest';
         setCurrentUser({
           name: dbUser.full_name,
           phone: dbUser.phone,
           email: data.user.email,
           cccd: dbUser.id_card_number,
-          role: dbUser.role || 'guest',
+          role: resolvedRole,
           kycStep: dbUser.kyc_status === 'VERIFIED' ? 3 : 2,
           kycStatus: dbUser.kyc_status?.toLowerCase() || 'pending'
         });
       } else {
+        resolvedRole = data.user.email === 'admin@goldchain.vn' ? 'admin' : (data.user.user_metadata?.role || 'guest');
         setCurrentUser({
           name: data.user.user_metadata?.full_name || 'Người dùng mới',
           phone: data.user.user_metadata?.phone || '',
           email: data.user.email,
           cccd: '',
-          role: data.user.user_metadata?.role || 'guest',
+          role: resolvedRole,
           kycStep: 2,
           kycStatus: 'pending'
         });
       }
-      navigate('/dashboard');
+      
+      if (resolvedRole === 'admin') {
+        navigate('/admin');
+      } else {
+        navigate('/dashboard');
+      }
     } catch (dbErr) {
       console.error("Lỗi khi tải thông tin người dùng từ DB:", dbErr);
       setError('Token không hợp lệ hoặc đã hết hạn.');

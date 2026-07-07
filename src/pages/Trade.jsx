@@ -452,7 +452,7 @@ export default function Trade() {
             id: ordId,
             user_id: dbUser.id,
             gold_type: activeItem.name,
-            order_type: 'PHYSICAL_WITHDRAWAL',
+            order_type: 'WITHDRAW_PHYSICAL',
             quantity_grams: qtyVal * 3.75,
             unit_price_vnd: Math.round(currentPrice / 3.75),
             total_amount_vnd: amountVal,
