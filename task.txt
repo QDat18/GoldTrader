@@ -40,9 +40,11 @@ Tệp tin này lưu trữ các yêu cầu công việc hiện tại, danh sách 
 - [ ] **Task 29:** Giả lập/Tích hợp lưu trữ bằng chứng số (Blockchain Proof) đối chiếu tính nguyên bản của hóa đơn.
 - [ ] **Task 30:** Viết kịch bản tự động thực thi DCA định kỳ (DCA Execution Engine).
 - [x] **Task 31:** Lưu trữ ảnh CCCD eKYC thực tế lên Supabase Storage và hiển thị trên Admin panel.
+- [x] **Task 32:** Rà soát và chuẩn hóa hệ thống phân quyền (Role Management) theo quy định của workflow.md (Guest, User, Admin). Tự động nâng quyền lên 'user' khi duyệt KYC và hiển thị chức vụ động trên giao diện Profile.
+- [x] **Task 33:** Tối ưu hóa giao diện người dùng (Dashboard), bổ sung layout grid 3 cột responsive và tinh chỉnh typography chuẩn Apple design.
 
 ---
 
 ## 📈 TIẾN ĐỘ THỰC HIỆN (PROGRESS)
-- **Trạng thái:** Đã hoàn thành tích hợp cơ chế eKYC thực tế, Notifications với Supabase Realtime cho Admin và Backend cào/giả lập giá tự động.
-- **Cập nhật lần cuối:** 2026-07-07 16:15.
+- **Trạng thái:** Đã hoàn thành tối ưu hóa UI Admin & Dashboard (Grid layout, typography, phân tách luồng Admin/User).
+- **Cập nhật lần cuối:** 2026-07-07 16:58.

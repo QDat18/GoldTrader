@@ -20,6 +20,10 @@ export default function Dashboard() {
 
   const totalAssetsValue = wallet + totalGoldValue;
 
+  const sjcValue = (balances.sjc || 0) * avgBuyPrice;
+  const pnjValue = (balances.pnj || 0) * avgBuyPrice;
+  const dojiValue = (balances.doji || 0) * avgBuyPrice;
+
   // Lấy 3 giao dịch gần đây nhất
   const recentTxns = transactions.slice(0, 3);
 
@@ -28,15 +32,14 @@ export default function Dashboard() {
       
       {/* KYC Banners */}
       {user.kycStatus === 'pending' && (
-        <div className="neo-card" style={{ padding: '16px 20px', marginBottom: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(212, 175, 55, 0.05)', borderColor: 'rgba(212, 175, 55, 0.3)' }}>
+        <div className="neo-card" style={{ padding: '16px 20px', marginBottom: '24px', display: 'flex', alignItems: 'center', background: 'rgba(212, 175, 55, 0.05)', borderColor: 'rgba(212, 175, 55, 0.3)' }}>
           <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
             <Clock color="var(--gold)" size={24} />
             <div>
               <div style={{ fontSize: '14px', color: 'var(--gold)', fontWeight: 600 }}>Yêu cầu xác minh tài khoản đang chờ duyệt</div>
-              <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '4px' }}>Cửa hàng đang kiểm tra ảnh CCCD của bạn. Bạn vẫn có thể nạp tiền và mua vàng tích lũy bình thường.</div>
+              <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '4px' }}>Cửa hàng đang kiểm tra hồ sơ eKYC của bạn. Quá trình này có thể mất từ 1-2 giờ làm việc.</div>
             </div>
           </div>
-          <Link to="/admin" className="btn btn-gold" style={{ textDecoration: 'none', padding: '8px 16px' }}>Tới duyệt nhanh (Dev)</Link>
         </div>
       )}
       
@@ -50,8 +53,8 @@ export default function Dashboard() {
         </div>
       )}
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-        <div className="h2">Tổng quan tài sản tại cửa hàng</div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
+        <div className="h2" style={{ letterSpacing: '-1px' }}>Tổng quan tài sản tại cửa hàng</div>
         <div className="body-sm" style={{ color: 'var(--text-muted)' }}>
           Giá quy đổi tính theo giá tiệm mua vào hiện tại
         </div>
@@ -59,8 +62,8 @@ export default function Dashboard() {
       
       {/* KHỐI TỔNG TÀI SẢN KHÔNG CÓ LÃI LỖ */}
       <div className="neo-card" style={{ marginBottom: '24px', padding: '32px' }}>
-        <div className="body-sm" style={{ color: 'var(--text-muted)', marginBottom: '8px', fontWeight: 600, letterSpacing: '1px', textTransform: 'uppercase' }}>Tổng giá trị quy đổi hiện tại (Vàng + Ví VND)</div>
-        <div style={{ fontSize: '44px', fontWeight: 600, color: 'var(--gold)', lineHeight: 1, marginBottom: '24px' }}>₫{totalAssetsValue.toLocaleString('vi-VN')}</div>
+        <div className="body-sm" style={{ color: 'var(--text-muted)', marginBottom: '12px', fontWeight: 600, letterSpacing: '1px', textTransform: 'uppercase' }}>Tổng giá trị quy đổi hiện tại (Vàng + Ví VND)</div>
+        <div style={{ fontSize: '48px', fontWeight: 600, color: 'var(--gold)', lineHeight: 1, marginBottom: '32px', letterSpacing: '-1.5px' }}>₫{totalAssetsValue.toLocaleString('vi-VN')}</div>
         
         <div style={{ display: 'flex', gap: '48px', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '24px' }}>
           <div>
@@ -113,7 +116,7 @@ export default function Dashboard() {
         
         {/* HƯỚNG DẪN RÚT VÀNG VẬT CHẤT (O2O PROCESS) */}
         <div className="neo-card" style={{ padding: '24px' }}>
-          <div className="h3" style={{ marginBottom: '16px' }}>Hướng dẫn nhận Vàng vật chất tại quầy</div>
+          <div className="h3" style={{ marginBottom: '20px', letterSpacing: '-0.5px' }}>Hướng dẫn nhận Vàng vật chất tại quầy</div>
           
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
             
@@ -198,7 +201,7 @@ export default function Dashboard() {
               </tbody>
             </table>
           </div>
-          <Link to="/history" className="btn btn-outline" style={{ width: '100%', marginTop: '20px', textDecoration: 'none', justifyContent: 'center' }}>
+          <Link to="/history" className="btn btn-outline" style={{ width: '100%', marginTop: '24px', padding: '12px', borderRadius: '99px', textDecoration: 'none', justifyContent: 'center', fontWeight: 600 }}>
             Xem toàn bộ lịch sử
           </Link>
         </div>

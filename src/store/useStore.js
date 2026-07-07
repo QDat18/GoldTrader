@@ -326,7 +326,7 @@ const useStore = create((set, get) => ({
       // In this mock, we also automatically verify the current user
       return { 
         kycSubmissions: state.kycSubmissions.filter(s => s.id !== id),
-        currentUser: { ...state.currentUser, kycStatus: 'verified', kycStep: 3 }
+        currentUser: { ...state.currentUser, kycStatus: 'verified', kycStep: 3, role: 'user' }
       };
     }),
 

@@ -127,6 +127,7 @@ export default function Admin() {
     try {
       const { data, error } = await supabase
         .from('user_profiles')
+        .select('*')
         .eq('kyc_status', 'PENDING')
         .order('updated_at', { ascending: false });
       if (error) throw error;
@@ -162,7 +163,8 @@ export default function Admin() {
         .update({ 
           kyc_status: 'VERIFIED',
           kyc_verified_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
+          updated_at: new Date().toISOString(),
+          role: 'user'
         })
         .eq('id', id);
 
@@ -506,30 +508,38 @@ export default function Admin() {
     <div style={{ padding: '40px 24px', maxWidth: '1200px', margin: '0 auto' }}>
       
       {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '24px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '32px' }}>
         <div>
           <div className="tag" style={{ marginBottom: '8px' }}>FINTECH PLATFORM SYSTEM</div>
-          <div className="h2" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <Building size={24} style={{ color: 'var(--gold)' }} />
+          <div className="h2" style={{ display: 'flex', alignItems: 'center', gap: '10px', letterSpacing: '-1px' }}>
+            <Building size={28} style={{ color: 'var(--gold)' }} />
             GoldChain Admin Console
           </div>
         </div>
         <div style={{ display: 'flex', gap: '12px' }}>
-          <button className="btn btn-outline" onClick={refreshAllData} style={{ borderRadius: '12px', padding: '10px 16px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <RotateCw size={14} /> Làm mới dữ liệu
+          <button className="btn btn-outline" onClick={refreshAllData} style={{ borderRadius: '99px', padding: '12px 20px', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', fontWeight: 600 }}>
+            <RotateCw size={16} /> Làm mới dữ liệu
           </button>
         </div>
       </div>
 
       {/* Tab Navigation */}
-      <div style={{ display: 'flex', gap: '8px', borderBottom: '1px solid rgba(255,255,255,0.08)', marginBottom: '32px', paddingBottom: '4px' }}>
+      <div style={{ 
+        display: 'flex', gap: '8px', 
+        background: 'rgba(255,255,255,0.03)', 
+        padding: '6px', 
+        borderRadius: '99px', 
+        border: '1px solid rgba(255,255,255,0.05)',
+        width: 'fit-content',
+        marginBottom: '36px'
+      }}>
         <button 
           onClick={() => setActiveTab('overview')}
           style={{ 
-            padding: '10px 20px', background: 'none', border: 'none', fontSize: '14px', fontWeight: 600,
+            padding: '10px 24px', background: activeTab === 'overview' ? 'rgba(212,175,55,0.1)' : 'transparent', border: activeTab === 'overview' ? '1px solid rgba(212,175,55,0.2)' : '1px solid transparent',
+            borderRadius: '99px', fontSize: '14px', fontWeight: 600,
             color: activeTab === 'overview' ? 'var(--gold)' : 'var(--text-muted)',
-            borderBottom: activeTab === 'overview' ? '2.5px solid var(--gold)' : 'none',
-            cursor: 'pointer', transition: '0.2s'
+            cursor: 'pointer', transition: 'all 0.3s'
           }}
         >
           Tổng quan & Khớp lệnh
@@ -537,21 +547,21 @@ export default function Admin() {
         <button 
           onClick={() => setActiveTab('o2o')}
           style={{ 
-            padding: '10px 20px', background: 'none', border: 'none', fontSize: '14px', fontWeight: 600,
+            padding: '10px 24px', background: activeTab === 'o2o' ? 'rgba(212,175,55,0.1)' : 'transparent', border: activeTab === 'o2o' ? '1px solid rgba(212,175,55,0.2)' : '1px solid transparent',
+            borderRadius: '99px', fontSize: '14px', fontWeight: 600,
             color: activeTab === 'o2o' ? 'var(--gold)' : 'var(--text-muted)',
-            borderBottom: activeTab === 'o2o' ? '2.5px solid var(--gold)' : 'none',
-            cursor: 'pointer', transition: '0.2s', display: 'flex', alignItems: 'center', gap: '6px'
+            cursor: 'pointer', transition: 'all 0.3s', display: 'flex', alignItems: 'center', gap: '8px'
           }}
         >
-          <QrCode size={15} /> Xác thực O2O tại quầy
+          <QrCode size={16} /> Xác thực O2O tại quầy
         </button>
         <button 
           onClick={() => setActiveTab('inventory')}
           style={{ 
-            padding: '10px 20px', background: 'none', border: 'none', fontSize: '14px', fontWeight: 600,
+            padding: '10px 24px', background: activeTab === 'inventory' ? 'rgba(212,175,55,0.1)' : 'transparent', border: activeTab === 'inventory' ? '1px solid rgba(212,175,55,0.2)' : '1px solid transparent',
+            borderRadius: '99px', fontSize: '14px', fontWeight: 600,
             color: activeTab === 'inventory' ? 'var(--gold)' : 'var(--text-muted)',
-            borderBottom: activeTab === 'inventory' ? '2.5px solid var(--gold)' : 'none',
-            cursor: 'pointer', transition: '0.2s'
+            cursor: 'pointer', transition: 'all 0.3s'
           }}
         >
           Quản lý Kho vàng
@@ -559,13 +569,13 @@ export default function Admin() {
         <button 
           onClick={() => setActiveTab('hedging')}
           style={{ 
-            padding: '10px 20px', background: 'none', border: 'none', fontSize: '14px', fontWeight: 600,
+            padding: '10px 24px', background: activeTab === 'hedging' ? 'rgba(212,175,55,0.1)' : 'transparent', border: activeTab === 'hedging' ? '1px solid rgba(212,175,55,0.2)' : '1px solid transparent',
+            borderRadius: '99px', fontSize: '14px', fontWeight: 600,
             color: activeTab === 'hedging' ? 'var(--gold)' : 'var(--text-muted)',
-            borderBottom: activeTab === 'hedging' ? '2.5px solid var(--gold)' : 'none',
-            cursor: 'pointer', transition: '0.2s', display: 'flex', alignItems: 'center', gap: '6px'
+            cursor: 'pointer', transition: 'all 0.3s', display: 'flex', alignItems: 'center', gap: '8px'
           }}
         >
-          <Layers size={15} /> Vị thế Hedging ({dbHedges.filter(h => h.status === 'OPEN').length})
+          <Layers size={16} /> Vị thế Hedging ({dbHedges.filter(h => h.status === 'OPEN').length})
         </button>
       </div>
 
@@ -654,9 +664,9 @@ export default function Admin() {
                               {new Date(item.updated_at).toLocaleString('vi-VN')}
                             </td>
                             <td style={{ padding: '12px 18px', textAlign: 'right' }}>
-                              <div style={{ display: 'inline-flex', gap: '6px' }}>
-                                <button onClick={() => handleApproveKyc(item.id)} className="btn btn-sm" style={{ borderColor: 'var(--emerald)', color: 'var(--emerald)', padding: '2px 8px', fontSize: '11px' }}>Duyệt</button>
-                                <button onClick={() => handleRejectKyc(item.id)} className="btn btn-sm btn-danger" style={{ padding: '2px 8px', fontSize: '11px' }}>Từ chối</button>
+                              <div style={{ display: 'inline-flex', gap: '8px' }}>
+                                <button onClick={() => handleApproveKyc(item.id)} className="btn btn-sm" style={{ borderColor: 'var(--emerald)', color: 'var(--emerald)', padding: '6px 14px', fontSize: '12px', borderRadius: '99px' }}>Duyệt</button>
+                                <button onClick={() => handleRejectKyc(item.id)} className="btn btn-sm btn-danger" style={{ padding: '6px 14px', fontSize: '12px', borderRadius: '99px' }}>Từ chối</button>
                               </div>
                             </td>
                           </tr>
@@ -710,7 +720,7 @@ export default function Admin() {
                               <div style={{ color: 'var(--gold)', fontSize: '11px', marginTop: '2px' }}>₫{Number(o.total_amount_vnd).toLocaleString('vi-VN')}</div>
                             </td>
                             <td style={{ padding: '12px 18px', textAlign: 'right' }}>
-                              <button onClick={() => handleApproveOrder(o)} className="btn btn-sm btn-gold" style={{ padding: '4px 10px', fontSize: '11px' }}>
+                              <button onClick={() => handleApproveOrder(o)} className="btn btn-sm btn-gold" style={{ padding: '8px 16px', fontSize: '12px', borderRadius: '99px', fontWeight: 600 }}>
                                 Khớp lệnh
                               </button>
                             </td>
@@ -733,8 +743,8 @@ export default function Admin() {
           
           {/* Scan Panel */}
           <div className="neo-card" style={{ padding: '24px' }}>
-            <div className="h3" style={{ fontSize: '18px', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <QrCode style={{ color: 'var(--gold)' }} size={20} />
+            <div className="h3" style={{ fontSize: '20px', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px', letterSpacing: '-0.5px' }}>
+              <QrCode style={{ color: 'var(--gold)' }} size={24} />
               Quầy xác thực TOTP Dynamic QR Code
             </div>
             <p className="body-sm" style={{ marginBottom: '20px' }}>
@@ -751,7 +761,7 @@ export default function Admin() {
                   placeholder="Ví dụ: ORD-20260707-123456#889900"
                   style={{ background: '#121212', borderRadius: '8px' }}
                 />
-                <button className="btn btn-gold" onClick={handleVerifyO2oQr} style={{ borderRadius: '8px', whiteSpace: 'nowrap' }}>
+                <button className="btn btn-gold" onClick={handleVerifyO2oQr} style={{ borderRadius: '99px', padding: '0 24px', fontWeight: 600, whiteSpace: 'nowrap' }}>
                   Xác thực
                 </button>
               </div>
@@ -872,7 +882,7 @@ export default function Admin() {
                   onClick={handleDispatchGold}
                   disabled={totpVerificationResult && !totpVerificationResult.valid}
                   className="btn btn-gold" 
-                  style={{ width: '100%', padding: '12px', borderRadius: '10px', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+                  style={{ width: '100%', padding: '14px', borderRadius: '99px', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '15px' }}
                 >
                   <Check size={18} /> Xác nhận bàn giao vàng vật lý & Đóng đơn
                 </button>
@@ -929,7 +939,7 @@ export default function Admin() {
                   onChange={e=>setInvSearchQuery(e.target.value)}
                 />
               </div>
-              <button className="btn btn-gold" onClick={() => setShowAddInventory(!showAddInventory)} style={{ borderRadius: '8px', padding: '8px 16px', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px' }}>
+              <button className="btn btn-gold" onClick={() => setShowAddInventory(!showAddInventory)} style={{ borderRadius: '99px', padding: '10px 18px', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', fontWeight: 600 }}>
                 <Plus size={14} /> Nhập kho thỏi vàng mới
               </button>
             </div>
@@ -954,10 +964,10 @@ export default function Admin() {
                   <input className="form-input" type="number" step="0.01" value={newInvWeight} onChange={e=>setNewInvWeight(e.target.value)} required />
                 </div>
                 <div style={{ display: 'flex', gap: '10px' }}>
-                  <button type="submit" className="btn btn-gold" style={{ flex: 1, padding: '10px', borderRadius: '6px' }}>
+                  <button type="submit" className="btn btn-gold" style={{ flex: 1, padding: '12px', borderRadius: '99px', fontWeight: 600 }}>
                     Nhập kho
                   </button>
-                  <button type="button" className="btn btn-outline" onClick={() => setShowAddInventory(false)} style={{ padding: '10px', borderRadius: '6px' }}>
+                  <button type="button" className="btn btn-outline" onClick={() => setShowAddInventory(false)} style={{ padding: '12px', borderRadius: '99px', fontWeight: 600 }}>
                     Hủy
                   </button>
                 </div>
@@ -1087,7 +1097,7 @@ export default function Admin() {
                           </td>
                           <td>
                             {isOpen ? (
-                              <button className="btn btn-sm" onClick={() => handleCloseHedge(h.id)} style={{ padding: '2px 8px', fontSize: '11px', borderColor: 'var(--gold)', color: 'var(--gold)' }}>
+                              <button className="btn btn-sm" onClick={() => handleCloseHedge(h.id)} style={{ padding: '6px 14px', fontSize: '12px', borderColor: 'var(--gold)', color: 'var(--gold)', borderRadius: '99px', fontWeight: 600 }}>
                                 Đóng vị thế
                               </button>
                             ) : (

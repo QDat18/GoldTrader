@@ -90,7 +90,7 @@ export default function Profile() {
             <div style={{ flex: 1 }}>
               <div style={{ fontSize: '26px', fontWeight: 700, color: '#fff', letterSpacing: '-0.5px' }}>{user.name || 'Khách hàng'}</div>
               <div style={{ display: 'inline-block', padding: '4px 10px', background: 'rgba(255,255,255,0.1)', borderRadius: '99px', fontSize: '12px', color: 'var(--text-muted)', marginTop: '8px', fontWeight: 500 }}>
-                Thành viên GoldChain
+                {user.role === 'admin' ? 'Quản trị viên hệ thống' : (user.role === 'user' ? 'Thành viên GoldChain' : 'Khách hàng (Guest)')}
               </div>
             </div>
           </div>
@@ -176,8 +176,9 @@ export default function Profile() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
           
           {/* KYC Status Card */}
-          <div className="card" style={{ padding: '32px', borderRadius: '24px', background: 'linear-gradient(145deg, rgba(30,30,30,0.8) 0%, rgba(15,15,15,0.8) 100%)', border: `1px solid ${kycConfig.color}40`, position: 'relative', overflow: 'hidden' }}>
-            <div style={{ position: 'absolute', top: '-50px', right: '-50px', width: '150px', height: '150px', background: kycConfig.color, filter: 'blur(100px)', opacity: 0.15, borderRadius: '50%' }}></div>
+          {user.role !== 'admin' && (
+            <div className="card" style={{ padding: '32px', borderRadius: '24px', background: 'linear-gradient(145deg, rgba(30,30,30,0.8) 0%, rgba(15,15,15,0.8) 100%)', border: `1px solid ${kycConfig.color}40`, position: 'relative', overflow: 'hidden' }}>
+              <div style={{ position: 'absolute', top: '-50px', right: '-50px', width: '150px', height: '150px', background: kycConfig.color, filter: 'blur(100px)', opacity: 0.15, borderRadius: '50%' }}></div>
             
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px' }}>
               <ShieldCheck size={28} color={kycConfig.color} />
@@ -210,6 +211,7 @@ export default function Profile() {
               </button>
             )}
           </div>
+          )}
 
           {/* Security Card */}
           <div className="card" style={{ padding: '32px', borderRadius: '24px', background: 'rgba(25,25,25,0.6)', border: '1px solid rgba(255,255,255,0.05)' }}>
