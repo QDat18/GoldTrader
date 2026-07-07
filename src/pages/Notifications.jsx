@@ -14,13 +14,11 @@ export default function Notifications() {
 
   // Realtime subscription effect
   useEffect(() => {
-    // Connect to Supabase Realtime via Broadcast to listen for live notifications
+    // Connect to Supabase Realtime via Postgres Changes to listen for new notifications
     const channel = supabase.channel('public:notifications')
-      .on('broadcast', { event: 'new_notification' }, (payload) => {
-        // Automatically add to our local store if we were receiving real objects
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications' }, (payload) => {
         console.log('Realtime Notification Received:', payload);
-        // Note: For full integration, this would push payload.payload to useStore
-        // useStore.getState().addNotification(payload.payload)
+        useStore.getState().addNotification(payload.new);
       })
       .subscribe();
 

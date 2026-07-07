@@ -31,17 +31,18 @@ Tệp tin này lưu trữ các yêu cầu công việc hiện tại, danh sách 
 - [x] **Task 20:** Viết giả lập thay thế API vnappmob SJC, DOJI và PNJ (GET/POST /api/v2/gold/*) để trả về cấu trúc tương thích 100% và cho phép đẩy giá thủ công vào database.
 - [x] **Task 21:** Đồng bộ hóa frontend React SPA để tự động fetch giá vàng từ Supabase Database thông qua Zustand store mỗi 30 giây.
 - [x] **Task 22:** Triển khai trang giao dịch chính thức Trade.jsx phân chia bố cục khoa học, tích hợp biểu đồ hình nến Nhật SVG động, chỉ báo MA, sổ lệnh trực tuyến và đồng bộ lệnh trực tiếp lên database Supabase.
-- [x] **Task 23:** Triển khai tiếp các component còn thiếu trong React SPA (DCA, History, Admin...).
-- [ ] **Task 24:** Tích hợp Supabase thực tế cho Mua/Bán/Rút trên trang Trade.jsx thay vì chỉ cập nhật trạng thái local.
-- [ ] **Task 25:** Triển khai giải thuật hạch toán giá vốn FIFO khi bán vàng (bảng gold_lots & lot_consumptions).
-- [x] **Task 26:** Tự động tạo vị thế đối ứng (Hedging Positions) khi khớp lệnh trực tuyến.
-- [x] **Task 27:** Triển khai giải thuật Dynamic QR Code (TOTP) và trang đối chiếu tại quầy của Admin.
-- [ ] **Task 28:** Giả lập/Tích hợp lưu trữ bằng chứng số (Blockchain Proof) đối chiếu tính nguyên bản của hóa đơn.
-- [ ] **Task 29:** Viết kịch bản tự động thực thi DCA định kỳ (DCA Execution Engine).
-- [x] **Task 30:** Lưu trữ ảnh CCCD eKYC thực tế lên Supabase Storage và hiển thị trên Admin panel.
+- [x] **Task 23:** Chuyển đổi hệ thống Notifications từ hardcode sang dạng động (dynamic) trên Supabase, tích hợp Realtime tự động cập nhật, và viết Trình giả lập thị trường (Market Simulator) tự động biến động giá để bypass anti-bot.
+- [x] **Task 24:** Triển khai tiếp các component còn thiếu trong React SPA (DCA, History, Admin...).
+- [ ] **Task 25:** Tích hợp Supabase thực tế cho Mua/Bán/Rút trên trang Trade.jsx thay vì chỉ cập nhật trạng thái local.
+- [ ] **Task 26:** Triển khai giải thuật hạch toán giá vốn FIFO khi bán vàng (bảng gold_lots & lot_consumptions).
+- [x] **Task 27:** Tự động tạo vị thế đối ứng (Hedging Positions) khi khớp lệnh trực tuyến.
+- [x] **Task 28:** Triển khai giải thuật Dynamic QR Code (TOTP) và trang đối chiếu tại quầy của Admin.
+- [ ] **Task 29:** Giả lập/Tích hợp lưu trữ bằng chứng số (Blockchain Proof) đối chiếu tính nguyên bản của hóa đơn.
+- [ ] **Task 30:** Viết kịch bản tự động thực thi DCA định kỳ (DCA Execution Engine).
+- [x] **Task 31:** Lưu trữ ảnh CCCD eKYC thực tế lên Supabase Storage và hiển thị trên Admin panel.
 
 ---
 
 ## 📈 TIẾN ĐỘ THỰC HIỆN (PROGRESS)
-- **Trạng thái:** Đã hoàn thành tích hợp toàn bộ cơ chế eKYC thực tế với Supabase cho Admin: Tải danh sách khách hàng có trạng thái PENDING từ database, hiển thị thông tin CCCD/SĐT/Ảnh CCCD, và thực hiện duyệt/từ chối trực tiếp lên bảng user_profiles trên Supabase.
-- **Cập nhật lần cuối:** 2026-07-07 14:26.
+- **Trạng thái:** Đã hoàn thành tích hợp cơ chế eKYC thực tế, Notifications với Supabase Realtime cho Admin và Backend cào/giả lập giá tự động.
+- **Cập nhật lần cuối:** 2026-07-07 16:15.

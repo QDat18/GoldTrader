@@ -170,7 +170,12 @@ export function UserNavbar() {
                 </div>
                 <div style={{ minWidth: 0, flex: 1, textAlign: 'left' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
-                    <span style={{ fontSize: '13px', color: 'var(--text-main)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user.name || 'Khách hàng GoldChain'}</span>
+                    <span style={{ fontSize: '13px', color: 'var(--text-main)', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      {user.name || 'Khách hàng GoldChain'}
+                      {user.role === 'admin' && (
+                        <ShieldCheck size={14} style={{ color: '#3b82f6' }} />
+                      )}
+                    </span>
                     <span style={{ fontSize: '10px', color: kycMeta.color, background: kycMeta.bg, borderRadius: '9999px', padding: '2px 7px', whiteSpace: 'nowrap' }}>{kycMeta.label}</span>
                   </div>
                   <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '3px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -210,7 +215,12 @@ export function UserNavbar() {
                           {initials}
                         </div>
                         <div style={{ minWidth: 0 }}>
-                          <div style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-main)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user.name}</div>
+                          <div style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-main)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            {user.name}
+                            {user.role === 'admin' && (
+                              <ShieldCheck size={14} style={{ color: '#3b82f6' }} />
+                            )}
+                          </div>
                           <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '3px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user.email}</div>
                         </div>
                       </div>

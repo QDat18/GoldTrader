@@ -6,5 +6,8 @@ export default defineConfig({
   plugins: [react()],
   optimizeDeps: {
     include: ['@supabase/supabase-js', 'tslib']
+  },
+  build: {
+    chunkSizeWarningLimit: 1000,
   }
 });

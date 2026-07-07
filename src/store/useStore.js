@@ -62,35 +62,7 @@ const initialState = {
       status: 'OK'
     }
   ],
-  notifications: [
-    {
-      id: 1,
-      type: 'transaction',
-      title: 'Đơn hàng mua đang chờ nhận',
-      desc: 'Mua 1.500 chỉ SJC 1 Chỉ — Trị giá ₫13.125.000 đã thanh toán bằng ví. Chờ quét mã QR tại quầy để nhận vàng vật chất.',
-      time: '10:30 hôm nay',
-      unread: true,
-      date: 'Hôm nay, 10:30:15'
-    },
-    {
-      id: 2,
-      type: 'system',
-      title: 'Xác thực tài khoản (KYC)',
-      desc: 'Hồ sơ xác thực danh tính CCCD của bạn đã được gửi thành công và đang chờ xét duyệt.',
-      time: '09:15 hôm nay',
-      unread: true,
-      date: 'Hôm nay, 09:15:00'
-    },
-    {
-      id: 3,
-      type: 'system',
-      title: 'Chào mừng thành viên mới',
-      desc: 'Chào mừng bạn đến với GoldChain - Hệ thống mua bán và tích lũy vàng vật chất thế hệ mới.',
-      time: 'Hôm qua',
-      unread: false,
-      date: 'Hôm qua, 15:45:10'
-    }
-  ],
+  notifications: [],
   dcaPlans: [],
   inventory: [],
   kycSubmissions: [],
@@ -197,19 +169,27 @@ const useStore = create((set, get) => ({
     };
 
     const newNotification = {
-      id: state.notifications.length + 1,
+      user_id: state.currentUser?.id,
       type: 'transaction',
       title: 'Lệnh mua thành công',
       desc: `Mua ${quantity} chỉ ${item.name.split(' ')[0]} — ₫${totalCost.toLocaleString('vi-VN')}`,
       time: `${String(timeNow.getHours()).padStart(2, '0')}:${String(timeNow.getMinutes()).padStart(2, '0')}`,
       unread: true,
       date: `Hôm nay, ${String(timeNow.getHours()).padStart(2, '0')}:${String(timeNow.getMinutes()).padStart(2, '0')}:${String(timeNow.getSeconds()).padStart(2, '0')}`,
-      goldTypeName: item.name,
+      "goldTypeName": item.name,
       qty: `${quantity} chỉ`,
       price: `₫${price.toLocaleString('vi-VN')}/chỉ`,
       total: `₫${totalCost.toLocaleString('vi-VN')}`,
-      orderId: orderId
+      "orderId": orderId
     };
+
+    if (state.currentUser?.id) {
+      supabase.from('notifications').insert(newNotification).select('*').single().then(({ data, error }) => {
+        if (data && !error) {
+          get().addNotification(data);
+        }
+      });
+    }
 
     let newInventory = [...state.inventory];
     const availableBar = newInventory.find(i => i.goldType === goldType && i.status === 'available');
@@ -238,7 +218,6 @@ const useStore = create((set, get) => ({
       },
       orders: [newOrder, ...state.orders],
       transactions: [newTxn, ...state.transactions],
-      notifications: [newNotification, ...state.notifications],
       inventory: newInventory
     });
 
@@ -273,18 +252,26 @@ const useStore = create((set, get) => ({
     };
 
     const newNotification = {
-      id: state.notifications.length + 1,
+      user_id: state.currentUser?.id,
       type: 'transaction',
       title: 'Lệnh bán thành công',
       desc: `Bán ${quantity} chỉ ${item.name.split(' ')[0]} — ₫${totalRevenue.toLocaleString('vi-VN')}`,
       time: `${String(timeNow.getHours()).padStart(2, '0')}:${String(timeNow.getMinutes()).padStart(2, '0')}`,
       unread: true,
       date: `Hôm nay, ${String(timeNow.getHours()).padStart(2, '0')}:${String(timeNow.getMinutes()).padStart(2, '0')}:${String(timeNow.getSeconds()).padStart(2, '0')}`,
-      goldTypeName: item.name,
+      "goldTypeName": item.name,
       qty: `${quantity} chỉ`,
       price: `₫${price.toLocaleString('vi-VN')}/chỉ`,
       total: `₫${totalRevenue.toLocaleString('vi-VN')}`
     };
+
+    if (state.currentUser?.id) {
+      supabase.from('notifications').insert(newNotification).select('*').single().then(({ data, error }) => {
+        if (data && !error) {
+          get().addNotification(data);
+        }
+      });
+    }
 
     set({
       walletBalance: state.walletBalance + totalRevenue,
@@ -292,8 +279,7 @@ const useStore = create((set, get) => ({
         ...state.goldBalances,
         [goldType]: parseFloat((userBalance - quantity).toFixed(4))
       },
-      transactions: [newTxn, ...state.transactions],
-      notifications: [newNotification, ...state.notifications]
+      transactions: [newTxn, ...state.transactions]
     });
   },
 
@@ -352,15 +338,44 @@ const useStore = create((set, get) => ({
       };
     }),
 
-  markAllNotificationsRead: () =>
+  addNotification: (notification) =>
+    set((state) => {
+      const exists = state.notifications.find(n => n.id === notification.id);
+      if (exists) return state;
+      return { notifications: [notification, ...state.notifications] };
+    }),
+
+  fetchNotifications: async (userId) => {
+    try {
+      const { data, error } = await supabase
+        .from('notifications')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false });
+      if (!error && data) {
+        set({ notifications: data });
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  },
+
+  markAllNotificationsRead: async () => {
+    const state = get();
+    if (state.currentUser?.id) {
+      await supabase.from('notifications').update({ unread: false }).eq('user_id', state.currentUser.id);
+    }
     set((state) => ({
       notifications: state.notifications.map(n => ({ ...n, unread: false }))
-    })),
+    }));
+  },
 
-  deleteNotification: (id) =>
+  deleteNotification: async (id) => {
+    await supabase.from('notifications').delete().eq('id', id);
     set((state) => ({
       notifications: state.notifications.filter(n => n.id !== id)
-    })),
+    }));
+  },
 
   fetchGoldPrices: async () => {
     try {
@@ -450,18 +465,30 @@ const useStore = create((set, get) => ({
     }
   },
 
-  markAllNotificationsAsRead: () =>
+  markAllNotificationsAsRead: async () => {
+    const state = get();
+    if (state.currentUser?.id) {
+      await supabase.from('notifications').update({ unread: false }).eq('user_id', state.currentUser.id);
+    }
     set((state) => ({
       notifications: state.notifications.map((n) => ({ ...n, unread: false }))
-    })),
+    }));
+  },
 
-  markNotificationAsRead: (id) =>
+  markNotificationAsRead: async (id) => {
+    await supabase.from('notifications').update({ unread: false }).eq('id', id);
     set((state) => ({
       notifications: state.notifications.map((n) => n.id === id ? { ...n, unread: false } : n)
-    })),
+    }));
+  },
 
-  clearAllNotifications: () =>
-    set({ notifications: [] }),
+  clearAllNotifications: async () => {
+    const state = get();
+    if (state.currentUser?.id) {
+      await supabase.from('notifications').delete().eq('user_id', state.currentUser.id);
+    }
+    set({ notifications: [] });
+  },
 }));
 
 export default useStore;

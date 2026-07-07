@@ -32,6 +32,7 @@ export default function Admin() {
 
   // Supabase states
   const [dbOrders, setDbOrders] = useState([]);
+  const [kycList, setKycList] = useState([]);
   const [usersMap, setUsersMap] = useState({});
   const [dbInventory, setDbInventory] = useState([]);
   const [dbHedges, setDbHedges] = useState([]);
@@ -56,28 +57,40 @@ export default function Admin() {
   // 1. Tải danh sách đơn hàng từ CSDL
   const fetchDbOrders = async () => {
     try {
+      // 1. Fetch Orders
       const { data: orders, error } = await supabaseLedger
         .from('orders')
         .select('*')
         .order('created_at', { ascending: false });
-
       if (error) throw error;
       setDbOrders(orders || []);
 
-      // Tải thông tin người dùng tương ứng để lấy tên khách hàng
+      // 2. Fetch Users & pending KYCs
       const { data: users, error: userErr } = await supabase
         .from('user_profiles')
         .select('id, full_name, phone, id_card_number');
 
+
       if (!userErr && users) {
         const uMap = {};
+        const pendingKyc = [];
         users.forEach((u) => {
           uMap[u.id] = u;
+          if (u.kyc_status === 'PENDING') {
+            pendingKyc.push({
+              id: u.id,
+              name: u.full_name || 'Khách hàng',
+              avatar: (u.full_name || 'K').charAt(0).toUpperCase(),
+              type: `CCCD: ${u.id_card_number || 'Chưa cung cấp'}`,
+              time: new Date(u.created_at).toLocaleDateString('vi-VN')
+            });
+          }
         });
         setUsersMap(uMap);
+        setKycList(pendingKyc);
       }
     } catch (err) {
-      console.error('Lỗi khi tải đơn hàng:', err);
+      console.error('Lỗi khi tải dữ liệu admin:', err);
     }
   };
 
@@ -154,6 +167,17 @@ export default function Admin() {
         .eq('id', id);
 
       if (error) throw error;
+      
+      // Gửi thông báo cho user
+      await supabase.from('notifications').insert({
+        user_id: id,
+        type: 'system',
+        title: 'Xác thực tài khoản thành công',
+        desc: 'Hồ sơ KYC của bạn đã được duyệt. Tài khoản hiện đã có tick xanh (Verified).',
+        unread: true,
+        date: new Date().toLocaleString('vi-VN')
+      });
+
       alert('Đã duyệt hồ sơ eKYC thành công!');
       
       // Đồng bộ local store cho user đang đăng nhập nếu chính họ được duyệt
@@ -180,6 +204,16 @@ export default function Admin() {
         .eq('id', id);
 
       if (error) throw error;
+
+      await supabase.from('notifications').insert({
+        user_id: id,
+        type: 'system',
+        title: 'Từ chối xác thực tài khoản',
+        desc: 'Hồ sơ KYC của bạn bị từ chối do hình ảnh không hợp lệ hoặc sai thông tin. Vui lòng cập nhật lại.',
+        unread: true,
+        date: new Date().toLocaleString('vi-VN')
+      });
+
       alert('Đã từ chối hồ sơ eKYC.');
       
       const storeState = useStore.getState();

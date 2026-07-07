@@ -12,7 +12,6 @@ import Admin from './pages/Admin';
 import Login from './pages/Login';
 import Notifications from './pages/Notifications';
 import Register from './pages/Register';
-import Notifications from './pages/Notifications';
 import { supabase } from './supabaseClient';
 import useStore from './store/useStore';
 
@@ -31,6 +30,7 @@ function App() {
   const logout = useStore(state => state.logout);
   const fetchGoldPrices = useStore(state => state.fetchGoldPrices);
   const fetchUserBalances = useStore(state => state.fetchUserBalances);
+  const fetchNotifications = useStore(state => state.fetchNotifications);
 
   useEffect(() => {
     // Tải giá vàng ban đầu từ Supabase và cập nhật định kỳ mỗi 30 giây
@@ -85,6 +85,7 @@ function App() {
 
         if (dbUser) {
           setCurrentUser({
+            id: dbUser.id,
             name: dbUser.full_name,
             phone: dbUser.phone,
             email: authUser.email,
@@ -110,6 +111,8 @@ function App() {
 
           // Đồng bộ số dư vàng của người dùng từ CSDL vào Zustand Store
           await fetchUserBalances(dbUser.id);
+          // Tải thông báo từ CSDL
+          await fetchNotifications(dbUser.id);
         } else {
           // Fallback nếu chưa kịp tạo bản ghi ở user_profiles
           setCurrentUser({
