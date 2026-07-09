@@ -39,6 +39,7 @@ export default function Register() {
   const [error, setError] = useState('');
   const [fieldErrors, setFieldErrors] = useState({});
   const [loading, setLoading] = useState(false);
+  const [generatedOtp, setGeneratedOtp] = useState('');
   const [otpSent, setOtpSent] = useState(false);
   const [otpVerified, setOtpVerified] = useState(false);
   const [success, setSuccess] = useState(false);
@@ -55,11 +56,31 @@ export default function Register() {
     setError('');
     setLoading(true);
 
-    // Giả lập gửi OTP 6 số thành công sang email (OTP mặc định: 123456)
-    setTimeout(() => {
-      setLoading(false);
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    setGeneratedOtp(code);
+
+    try {
+      await fetch('/api/send-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          to: email,
+          subject: '[GoldChain] Mã xác thực đăng ký tài khoản mới',
+          templateName: 'OtpRegister',
+          templateData: {
+            otp: code,
+            expiry: '5 phút'
+          }
+        })
+      });
+
       setOtpSent(true);
-    }, 500);
+    } catch (err) {
+      console.error(err);
+      setError('Lỗi khi gửi email OTP: ' + err.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleVerifyOtp = async () => {
@@ -67,15 +88,15 @@ export default function Register() {
     setError('');
     setLoading(true);
 
-    // Hardcode xác minh mã 123456
-    if (otp === '123456') {
+    // Cho phép bypass bằng mã 123456 phục vụ demo/test nhanh
+    if (otp === generatedOtp || otp === '123456') {
       setOtpVerified(true);
       setLoading(false);
       return;
     }
 
     setLoading(false);
-    setError('Mã xác thực không hợp lệ. Vui lòng nhập mã 123456.');
+    setError('Mã xác thực không hợp lệ. Vui lòng nhập đúng mã đã gửi tới email.');
   };
 
   const handleRegister = async (e) => {
@@ -95,8 +116,8 @@ export default function Register() {
     setFieldErrors(errs);
     if (Object.keys(errs).length > 0) return;
 
-    if (!otpVerified && otp !== '123456') {
-      setError('Vui lòng xác thực email bằng mã 123456 trước khi đăng ký.');
+    if (!otpVerified && otp !== '123456' && otp !== generatedOtp) {
+      setError('Vui lòng xác thực email bằng mã OTP trước khi đăng ký.');
       return;
     }
 
@@ -208,6 +229,26 @@ export default function Register() {
           unread: true,
           date: new Date().toLocaleString('vi-VN')
         });
+
+        // Gửi email chào mừng bằng SMTP
+        try {
+          await fetch('/api/send-email', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              to: email,
+              subject: 'Chào mừng bạn đến với GoldChain - Bảo chứng vàng vật chất 1:1',
+              templateName: 'welcome',
+              templateData: {
+                name: name,
+                email: email,
+                appUrl: window.location.origin
+              }
+            })
+          });
+        } catch (mailErr) {
+          console.error("Lỗi khi gửi email chào mừng qua SMTP:", mailErr);
+        }
       }
       
       setLoading(false);

@@ -263,7 +263,7 @@ export default function Trade() {
       // Tải thông tin user profile
       const { data: dbUser, error: userErr } = await supabase
         .from('user_profiles')
-        .select('id')
+        .select('id, full_name')
         .eq('auth_user_id', session.user.id)
         .single();
       
@@ -333,6 +333,30 @@ export default function Trade() {
             total_amount_vnd: amountVal,
             status: 'COMPLETED'
           });
+
+        // Hợp đồng mua điện tử qua SMTP
+        try {
+          await fetch('/api/send-email', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              to: session.user.email,
+              subject: `[GoldChain] Hợp đồng mua vàng tích lũy điện tử #${ordId}`,
+              templateName: 'HopDongMua',
+              templateData: {
+                name: dbUser.full_name || session.user.email.split('@')[0],
+                contractId: ordId,
+                goldType: activeItem.name,
+                quantity: qtyVal.toString(),
+                price: currentPrice.toLocaleString('vi-VN'),
+                total: amountVal.toLocaleString('vi-VN'),
+                date: new Date().toLocaleString('vi-VN')
+              }
+            })
+          });
+        } catch (mailErr) {
+          console.error("Lỗi gửi email hợp đồng mua qua SMTP:", mailErr);
+        }
 
         // 4. Tạo lịch sử giao dịch local
         const newTxn = {
@@ -407,6 +431,30 @@ export default function Trade() {
             total_amount_vnd: amountVal,
             status: 'COMPLETED'
           });
+
+        // Hợp đồng bán điện tử qua SMTP
+        try {
+          await fetch('/api/send-email', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              to: session.user.email,
+              subject: `[GoldChain] Hợp đồng bán vàng tích lũy trực tuyến #${ordId}`,
+              templateName: 'HopDongBan',
+              templateData: {
+                name: dbUser.full_name || session.user.email.split('@')[0],
+                contractId: ordId,
+                goldType: activeItem.name,
+                quantity: qtyVal.toString(),
+                price: currentPrice.toLocaleString('vi-VN'),
+                total: amountVal.toLocaleString('vi-VN'),
+                date: new Date().toLocaleString('vi-VN')
+              }
+            })
+          });
+        } catch (mailErr) {
+          console.error("Lỗi gửi email hợp đồng bán qua SMTP:", mailErr);
+        }
 
         // 4. Giao dịch local
         const newTxn = {

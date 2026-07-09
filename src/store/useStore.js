@@ -27,41 +27,7 @@ const initialState = {
   },
   goldPrices: {}, // Dynamic: Tự động nạp từ Database
   orders: [],
-  transactions: [
-    {
-      id: 'TXN-202607011234',
-      type: 'buy',
-      goldTypeName: 'SJC 1 Chỉ',
-      quantity: 1,
-      price: 8700000,
-      total: 8700000,
-      pnl: '—',
-      time: '10:30 01/07/2026',
-      status: 'OK'
-    },
-    {
-      id: 'TXN-202607025678',
-      type: 'dca',
-      goldTypeName: 'PNJ 9999',
-      quantity: 0.5,
-      price: 7870000,
-      total: 3935000,
-      pnl: '—',
-      time: '08:00 02/07/2026',
-      status: 'OK'
-    },
-    {
-      id: 'TXN-202607039012',
-      type: 'sell',
-      goldTypeName: 'DOJI 999.9',
-      quantity: 2,
-      price: 8630000,
-      total: 17260000,
-      pnl: '+₫863.000',
-      time: '14:15 03/07/2026',
-      status: 'OK'
-    }
-  ],
+  transactions: [],
   notifications: [],
   dcaPlans: [],
   inventory: [],
@@ -85,10 +51,22 @@ const useStore = create((set, get) => ({
       },
     })),
 
-  depositMoney: (amount) =>
-    set((state) => ({
-      walletBalance: state.walletBalance + amount,
-    })),
+  depositMoney: async (amount) => {
+    const state = get();
+    const newBalance = state.walletBalance + amount;
+    set({ walletBalance: newBalance });
+    const userId = state.currentUser?.id;
+    if (userId) {
+      try {
+        await supabase
+          .from('user_profiles')
+          .update({ wallet_balance_vnd: newBalance })
+          .eq('id', userId);
+      } catch (err) {
+        console.error("Lỗi cập nhật số dư ví vào database:", err);
+      }
+    }
+  },
 
   setCurrentUser: (user) =>
     set((state) => ({
@@ -112,7 +90,9 @@ const useStore = create((set, get) => ({
         kycStatus: 'pending'
       },
       walletBalance: 0,
-      goldBalances: { sjc: 0, pnj: 0, doji: 0 }
+      goldBalances: { sjc: 0, pnj: 0, doji: 0 },
+      transactions: [],
+      orders: []
     })),
 
   updateGoldPrice: (goldType, newSell, newBuy) =>
@@ -488,6 +468,51 @@ const useStore = create((set, get) => ({
       await supabase.from('notifications').delete().eq('user_id', state.currentUser.id);
     }
     set({ notifications: [] });
+  },
+
+  fetchTransactions: async (userId) => {
+    try {
+      const { data, error } = await supabaseLedger
+        .from('orders')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      if (data) {
+        const loadedTxns = data.map(order => {
+          let type = 'buy';
+          if (order.order_type === 'SELL_ONLINE') {
+            type = 'sell';
+          } else if (order.order_type === 'WITHDRAW_PHYSICAL' || order.order_type === 'PHYSICAL_WITHDRAWAL') {
+            type = 'withdraw';
+          }
+
+          const date = new Date(order.created_at);
+          const timeStr = `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')} ${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear()}`;
+
+          const qty = Number(order.quantity_grams) / 3.75;
+          const price = Math.round(Number(order.unit_price_vnd) * 3.75);
+
+          return {
+            id: order.id,
+            type: type,
+            goldTypeName: order.gold_type,
+            quantity: qty,
+            price: price,
+            total: Number(order.total_amount_vnd),
+            pnl: '—',
+            time: timeStr,
+            status: order.status || order.order_status || 'OK'
+          };
+        });
+
+        set({ transactions: loadedTxns });
+      }
+    } catch (err) {
+      console.error("Lỗi khi tải lịch sử giao dịch:", err);
+    }
   },
 }));
 

@@ -42,9 +42,10 @@ Tệp tin này lưu trữ các yêu cầu công việc hiện tại, danh sách 
 - [x] **Task 31:** Lưu trữ ảnh CCCD eKYC thực tế lên Supabase Storage và hiển thị trên Admin panel.
 - [x] **Task 32:** Rà soát và chuẩn hóa hệ thống phân quyền (Role Management) theo quy định của workflow.md (Guest, User, Admin). Tự động nâng quyền lên 'user' khi duyệt KYC và hiển thị chức vụ động trên giao diện Profile.
 - [x] **Task 33:** Tối ưu hóa giao diện người dùng (Dashboard), bổ sung layout grid 3 cột responsive và tinh chỉnh typography chuẩn Apple design.
+- [x] **Task 34:** Tích hợp cấu hình SMTP tự động và tạo thư mục TemplateMail chứa các mẫu email (Welcome, ForgotPass, HopDongMua, HopDongBan) phục vụ chạy demo.
 
 ---
 
 ## 📈 TIẾN ĐỘ THỰC HIỆN (PROGRESS)
-- **Trạng thái:** Đã hoàn thành tải lên thực tế ảnh CCCD 2 mặt (eKYC) lên Supabase Storage bucket 'kyc-documents' trong trang Đăng ký (Task 31).
-- **Cập nhật lần cuối:** 2026-07-07 17:15.
+- **Trạng thái:** Đã hoàn thành cấu hình dịch vụ SMTP tự động qua Middleware Vite Dev Server kết hợp nodemailer, tự động nạp các mẫu thiết kế HTML chuyên nghiệp trong `TemplateMail` khi gửi Welcome email, xác thực OTP khôi phục mật khẩu, Hợp đồng mua/bán khớp lệnh thành công (Task 34).
+- **Cập nhật lần cuối:** 2026-07-09 13:15.

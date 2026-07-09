@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chào mừng bạn đến với GoldChain</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #121212;
+            color: #E2E8F0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        }
+        .container {
+            max-width: 600px;
+            margin: 20px auto;
+            background-color: #1E1E1E;
+            border: 1px solid #2D3748;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+        }
+        .header {
+            padding: 32px 24px;
+            text-align: center;
+            background: linear-gradient(135deg, #1A1A1A, #121212);
+            border-bottom: 2px solid #B38728;
+        }
+        .logo-mark {
+            width: 48px;
+            height: 48px;
+            border-radius: 9999px;
+            background: linear-gradient(135deg, #BF953F, #FCF6BA, #B38728);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 800;
+            color: #121212;
+            font-size: 24px;
+            margin-bottom: 12px;
+        }
+        .logo-text {
+            font-size: 20px;
+            font-weight: 750;
+            color: #FFFFFF;
+            letter-spacing: 1px;
+            font-family: inherit;
+        }
+        .logo-text em {
+            color: #B38728;
+            font-style: normal;
+        }
+        .content {
+            padding: 40px 32px;
+            line-height: 1.6;
+        }
+        .greeting {
+            font-size: 20px;
+            color: #FFFFFF;
+            font-weight: 600;
+            margin-bottom: 20px;
+        }
+        .gold-text {
+            color: #B38728;
+            font-weight: 600;
+        }
+        .features {
+            margin: 24px 0;
+            padding-left: 20px;
+        }
+        .features li {
+            margin-bottom: 12px;
+        }
+        .btn-container {
+            text-align: center;
+            margin: 32px 0 16px;
+        }
+        .btn {
+            display: inline-block;
+            padding: 14px 32px;
+            background: linear-gradient(135deg, #BF953F, #FCF6BA, #B38728);
+            color: #121212 !important;
+            text-decoration: none;
+            font-weight: 700;
+            border-radius: 9999px;
+            box-shadow: 0 4px 10px rgba(179, 135, 40, 0.3);
+            text-shadow: 0 0 1px rgba(255,255,255,0.4);
+        }
+        .footer {
+            padding: 24px 32px;
+            background-color: #171717;
+            border-top: 1px solid #2D3748;
+            font-size: 12px;
+            color: #A0AEC0;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo-mark">G</div>
+            <div class="logo-text">GOLD<em>CHAIN</em></div>
+        </div>
+        <div class="content">
+            <div class="greeting">Chào mừng {{name}},</div>
+            <p>
+                Cảm ơn bạn đã lựa chọn tham gia <span class="gold-text">GoldChain</span>, nền tảng số hóa đầu tư và tích lũy vàng O2O (Online-to-Offline) hàng đầu.
+            </p>
+            <p>
+                Tài khoản của bạn đã được khởi tạo thành công với email đăng ký là: <strong style="color: #FFFFFF;">{{email}}</strong>.
+            </p>
+            <p>
+                Với tài khoản này, bạn có thể ngay lập tức trải nghiệm các tính năng đầu tư tài chính cao cấp:
+            </p>
+            <ul class="features">
+                <li><strong style="color: #FFFFFF;">Giao dịch 24/7:</strong> Mua/bán tích lũy vàng online lẻ từ 100.000 VNĐ.</li>
+                <li><strong style="color: #FFFFFF;">Tự động hóa DCA:</strong> Tích lũy định kỳ giúp bình quân chi phí vốn hiệu quả.</li>
+                <li><strong style="color: #FFFFFF;">Quy đổi O2O:</strong> Rút vàng vật chất nhanh chóng tại quầy đối tác qua mã QR bảo mật.</li>
+            </ul>
+            <p>
+                Hiện tại trạng thái xác thực hồ sơ KYC của bạn đang chờ quản trị viên phê duyệt. Vui lòng theo dõi thông báo trên ứng dụng để nhận cập nhật mới nhất.
+            </p>
+            <div class="btn-container">
+                <a href="{{appUrl}}" class="btn">Bắt Đầu Giao Dịch</a>
+            </div>
+        </div>
+        <div class="footer">
+            <p>&copy; 2026 GoldChain JSC. Bảo chứng vàng vật chất 1:1.</p>
+            <p>Đây là email tự động từ hệ thống của dự án GoldChain. Vui lòng không trả lời email này.</p>
+        </div>
+    </div>
+</body>
+</html>

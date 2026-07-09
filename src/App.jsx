@@ -31,6 +31,7 @@ function App() {
   const fetchGoldPrices = useStore(state => state.fetchGoldPrices);
   const fetchUserBalances = useStore(state => state.fetchUserBalances);
   const fetchNotifications = useStore(state => state.fetchNotifications);
+  const fetchTransactions = useStore(state => state.fetchTransactions);
 
   useEffect(() => {
     // Tải giá vàng ban đầu từ Supabase và cập nhật định kỳ mỗi 30 giây
@@ -110,10 +111,14 @@ function App() {
             ]);
           }
 
+          // Đồng bộ số dư ví VND của người dùng từ CSDL vào Zustand Store
+          useStore.setState({ walletBalance: Number(dbUser.wallet_balance_vnd) || 0 });
           // Đồng bộ số dư vàng của người dùng từ CSDL vào Zustand Store
           await fetchUserBalances(dbUser.id);
           // Tải thông báo từ CSDL
           await fetchNotifications(dbUser.id);
+          // Tải lịch sử giao dịch từ CSDL
+          await fetchTransactions(dbUser.id);
         } else {
           // Fallback nếu chưa kịp tạo bản ghi ở user_profiles
           setCurrentUser({

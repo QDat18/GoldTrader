@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hóa đơn & Hợp đồng mua vàng tích lũy</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #121212;
+            color: #E2E8F0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        }
+        .container {
+            max-width: 600px;
+            margin: 20px auto;
+            background-color: #1E1E1E;
+            border: 1px solid #2D3748;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+        }
+        .header {
+            padding: 32px 24px;
+            text-align: center;
+            background: linear-gradient(135deg, #1A1A1A, #121212);
+            border-bottom: 2px solid #B38728;
+        }
+        .logo-mark {
+            width: 48px;
+            height: 48px;
+            border-radius: 9999px;
+            background: linear-gradient(135deg, #BF953F, #FCF6BA, #B38728);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 800;
+            color: #121212;
+            font-size: 24px;
+            margin-bottom: 12px;
+        }
+        .logo-text {
+            font-size: 20px;
+            font-weight: 750;
+            color: #FFFFFF;
+            letter-spacing: 1px;
+        }
+        .logo-text em {
+            color: #B38728;
+            font-style: normal;
+        }
+        .content {
+            padding: 40px 32px;
+            line-height: 1.6;
+        }
+        .greeting {
+            font-size: 20px;
+            color: #FFFFFF;
+            font-weight: 600;
+            margin-bottom: 12px;
+            text-align: center;
+        }
+        .contract-title {
+            text-align: center;
+            font-size: 16px;
+            color: #B38728;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 24px;
+        }
+        .contract-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            background: #121212;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 1px solid #2D3748;
+        }
+        .contract-table td {
+            padding: 12px 16px;
+            border-bottom: 1px solid #2D3748;
+            font-size: 14px;
+        }
+        .contract-table td.label {
+            color: #A0AEC0;
+            width: 40%;
+            font-weight: 550;
+        }
+        .contract-table td.value {
+            color: #FFFFFF;
+            font-weight: bold;
+            text-align: right;
+        }
+        .contract-table tr:last-child td {
+            border-bottom: none;
+        }
+        .certified-badge {
+            text-align: center;
+            margin: 24px 0;
+            padding: 16px;
+            background: rgba(16, 185, 129, 0.05);
+            border: 1px solid rgba(16, 185, 129, 0.2);
+            border-radius: 8px;
+            color: #10B981;
+            font-size: 13px;
+            font-weight: 600;
+        }
+        .footer {
+            padding: 24px 32px;
+            background-color: #171717;
+            border-top: 1px solid #2D3748;
+            font-size: 12px;
+            color: #A0AEC0;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo-mark">G</div>
+            <div class="logo-text">GOLD<em>CHAIN</em></div>
+        </div>
+        <div class="content">
+            <div class="greeting">Xác nhận giao dịch thành công</div>
+            <div class="contract-title">Hợp đồng mua vàng tích lũy điện tử</div>
+            <p>
+                Kính gửi khách hàng <strong style="color: #FFFFFF;">{{name}}</strong>,
+            </p>
+            <p>
+                Hệ thống xác nhận lệnh Mua vàng tích lũy trực tuyến của quý khách đã được khớp lệnh thành công. Dưới đây là thông chi tiết hợp đồng giao dịch:
+            </p>
+            
+            <table class="contract-table">
+                <tr>
+                    <td class="label">Mã hợp đồng (Order ID)</td>
+                    <td class="value" style="color: #B38728;">{{contractId}}</td>
+                </tr>
+                <tr>
+                    <td class="label">Sản phẩm vàng</td>
+                    <td class="value">{{goldType}}</td>
+                </tr>
+                <tr>
+                    <td class="label">Số lượng vàng</td>
+                    <td class="value">{{quantity}} chỉ</td>
+                </tr>
+                <tr>
+                    <td class="label">Đơn giá niêm yết</td>
+                    <td class="value">₫{{price}} / chỉ</td>
+                </tr>
+                <tr>
+                    <td class="label">Thời gian giao dịch</td>
+                    <td class="value">{{date}}</td>
+                </tr>
+                <tr style="background: rgba(179, 135, 40, 0.08);">
+                    <td class="label" style="color: #B38728; font-weight: 700;">Tổng tiền thanh toán</td>
+                    <td class="value" style="color: #B38728; font-size: 16px; font-weight: 800;">₫{{total}}</td>
+                </tr>
+            </table>
+
+            <div class="certified-badge">
+                🛡️ Chứng nhận quyền sở hữu vàng vật chất 1:1 trong kho ký gửi của GoldChain.
+            </div>
+
+            <p style="font-size: 13px; color: #A0AEC0; text-align: center; margin-top: 24px;">
+                Hóa đơn và bằng chứng số (SHA-256 Hash) của hợp đồng này đã được lưu trữ bảo vệ trên sổ cái Blockchain. Quý khách có thể theo dõi và thực hiện rút vàng vật chất bất kể lúc nào tại quầy giao dịch được ủy quyền.
+            </p>
+        </div>
+        <div class="footer">
+            <p>&copy; 2026 GoldChain JSC. Bảo chứng vàng vật chất 1:1.</p>
+            <p>Đây là email tự động từ hệ thống của dự án GoldChain. Vui lòng không trả lời email này.</p>
+        </div>
+    </div>
+</body>
+</html>
