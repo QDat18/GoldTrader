@@ -27,19 +27,45 @@ export default function Trade() {
   const [chartData, setChartData] = useState([]);
   const [visibleCount, setVisibleCount] = useState(24);
 
-  // Kho hàng vật lý của cửa hàng - được sinh tự động cho tất cả loại vàng
-  const [storeStock, setStoreStock] = useState({});
+  // Kho hàng vật lý của cửa hàng - được lấy trực tiếp từ database
+  const [storeStock, setStoreStock] = useState({ sjc: 0, pnj: 0, doji: 0 });
+
+  const fetchStoreStock = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('vault_inventory')
+        .select('gold_type, status');
+      if (error) throw error;
+      
+      const counts = { sjc: 0, pnj: 0, doji: 0 };
+      if (data) {
+        data.forEach(item => {
+          if (item.status === 'AVAILABLE') {
+            const type = item.gold_type.toLowerCase();
+            if (type.includes('sjc')) counts.sjc += 1;
+            else if (type.includes('pnj')) counts.pnj += 1;
+            else if (type.includes('doji')) counts.doji += 1;
+          }
+        });
+      }
+      setStoreStock(counts);
+    } catch (err) {
+      console.error('Lỗi khi tải kho cửa hàng từ database:', err);
+    }
+  };
 
   const timerRef = useRef(null);
 
-  // 1. Đồng bộ giá từ database và khởi tạo đếm ngược
+  // 1. Đồng bộ giá từ database, tồn kho và khởi tạo đếm ngược
   useEffect(() => {
     fetchGoldPrices();
+    fetchStoreStock();
     
     timerRef.current = setInterval(() => {
       setTimeLeft((prev) => {
         if (prev <= 1) {
           fetchGoldPrices();
+          fetchStoreStock();
           return 60;
         }
         return prev - 1;
@@ -51,22 +77,12 @@ export default function Trade() {
     };
   }, [fetchGoldPrices]);
 
-  // Auto-select key đầu tiên và khởi tạo kho hàng
+  // Auto-select key đầu tiên
   useEffect(() => {
     const keys = Object.keys(prices);
     if (keys.length > 0 && !selectedGoldKey) {
       setSelectedGoldKey(keys[0]);
     }
-    // Khởi tạo kho hàng cho các loại vàng mới (nếu chưa có)
-    const newStock = { ...storeStock };
-    let changed = false;
-    keys.forEach(k => {
-      if (newStock[k] === undefined) {
-        newStock[k] = Math.floor(50 + Math.random() * 200); // Stock ngẫu nhiên 50-250
-        changed = true;
-      }
-    });
-    if (changed) setStoreStock(newStock);
   }, [prices]);
 
   // 2. Tải lịch sử biến động giá vàng
@@ -494,8 +510,9 @@ export default function Trade() {
         });
       }
 
-      // Làm mới số dư vàng
+      // Làm mới số dư vàng & kho cửa hàng
       await fetchUserBalances(dbUser.id);
+      await fetchStoreStock();
       setQuantity('');
       setAmount('');
     } catch (err) {

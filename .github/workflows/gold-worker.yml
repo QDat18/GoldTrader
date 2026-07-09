@@ -1,0 +1,29 @@
+name: Gold Price Worker
+
+on:
+  schedule:
+    # Chạy mỗi 15 phút (*/15), 24/7, miễn phí
+    - cron: '*/15 * * * *'
+  workflow_dispatch: # Cho phép chạy thủ công từ GitHub UI
+
+jobs:
+  fetch-gold-prices:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: vang-today-worker
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - run: npm install
+
+      - name: Fetch and save gold prices
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+        run: node cron.js
