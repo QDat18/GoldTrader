@@ -93,10 +93,20 @@ export default function Trade() {
       const activeItem = prices[selectedGoldKey];
       
       let limit = 40;
-      if (timeframe === '1H') limit = 15;
-      else if (timeframe === '1D') limit = 30;
-      else if (timeframe === '1W') limit = 50;
-      else if (timeframe === '1M') limit = 80;
+      let startTime = new Date();
+      if (timeframe === '1H') {
+        limit = 15;
+        startTime.setHours(startTime.getHours() - 1);
+      } else if (timeframe === '1D') {
+        limit = 30;
+        startTime.setDate(startTime.getDate() - 1);
+      } else if (timeframe === '1W') {
+        limit = 50;
+        startTime.setDate(startTime.getDate() - 7);
+      } else if (timeframe === '1M') {
+        limit = 80;
+        startTime.setDate(startTime.getDate() - 30);
+      }
 
       try {
         const { data, error } = await supabaseLedger
@@ -104,26 +114,66 @@ export default function Trade() {
           .select('*')
           .eq('source', source)
           .eq('gold_type', activeItem.name)
-          .order('recorded_at', { ascending: false })
-          .limit(limit);
+          .gte('recorded_at', startTime.toISOString())
+          .order('recorded_at', { ascending: true }); // Chú ý: sắp xếp tăng dần thời gian
 
         if (error) throw error;
 
-        if (data && data.length > 2) {
-          const sorted = [...data].reverse();
-          const candles = [];
-          for (let i = 0; i < sorted.length; i++) {
-            const close = Number(sorted[i].buy_price_vnd);
-            const open = i > 0 ? Number(sorted[i - 1].buy_price_vnd) : close * (0.998 + Math.random() * 0.004);
-            const diff = Math.abs(close - open);
-            const maxVal = Math.max(open, close);
-            const minVal = Math.min(open, close);
-            
-            const high = maxVal + (diff * 0.3) + (close * 0.001 * Math.random());
-            const low = minVal - (diff * 0.3) - (close * 0.001 * Math.random());
-            const volume = Math.floor(100 + Math.random() * 900);
+        if (data && data.length >= 5) {
+          // Xác định số phút cho mỗi nến tùy timeframe
+          let T = 5; // số phút gộp
+          if (timeframe === '1H') T = 5;
+          else if (timeframe === '1D') T = 48; // ~30 nến / ngày
+          else if (timeframe === '1W') T = 240; // 42 nến / tuần (6 nến/ngày)
+          else if (timeframe === '1M') T = 1440; // 30 nến / tháng (1 nến/ngày)
 
-            const dateObj = new Date(sorted[i].recorded_at);
+          // Gộp dữ liệu theo thời gian (bucketKey)
+          const bucketKeyOf = (dateStr, minutes) => {
+            const d = new Date(dateStr);
+            if (minutes === 1440) {
+              return d.toISOString().substring(0, 10); // "YYYY-MM-DD"
+            }
+            const ms = d.getTime();
+            const bucketMs = Math.floor(ms / (minutes * 60 * 1000)) * (minutes * 60 * 1000);
+            return new Date(bucketMs).toISOString();
+          };
+
+          const groups = {};
+          const groupKeys = [];
+          for (const row of data) {
+            const key = bucketKeyOf(row.recorded_at, T);
+            if (!groups[key]) {
+              groups[key] = [];
+              groupKeys.push(key);
+            }
+            groups[key].push(row);
+          }
+
+          const candles = [];
+          for (let idx = 0; idx < groupKeys.length; idx++) {
+            const key = groupKeys[idx];
+            const rows = groups[key];
+            
+            const close = Number(rows[rows.length - 1].buy_price_vnd);
+            
+            // open lấy từ close của nến trước, nếu là nến đầu tiên thì lấy buy_price của bản ghi đầu tiên trong nhóm
+            let open = Number(rows[0].buy_price_vnd);
+            if (idx > 0) {
+              const prevKey = groupKeys[idx - 1];
+              const prevRows = groups[prevKey];
+              open = Number(prevRows[prevRows.length - 1].buy_price_vnd);
+            }
+
+            const buyPrices = rows.map(r => Number(r.buy_price_vnd));
+            const sellPrices = rows.map(r => Number(r.sell_price_vnd));
+            
+            const low = Math.min(...buyPrices);
+            const high = Math.max(...sellPrices);
+            
+            // volume: tổng volume hoặc tự sinh dựa trên số lượng bản ghi gộp lại
+            const volume = Math.floor(100 * rows.length + Math.random() * 900);
+
+            const dateObj = new Date(key);
             let label = '';
             if (timeframe === '1H' || timeframe === '1D') {
               label = dateObj.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
@@ -135,6 +185,7 @@ export default function Trade() {
           }
           setChartData(candles);
         } else {
+          // Fallback sang mock data nếu dữ liệu lịch sử trong DB chưa đủ (ví dụ setup mới)
           const currentPrice = activeTab === 'sell' ? activeItem.buy : activeItem.sell;
           const mockCandles = [];
           let prevClose = currentPrice * 0.98;

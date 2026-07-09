@@ -46,33 +46,52 @@ async function fetchAndSavePrices() {
       throw new Error("Định dạng dữ liệu trả về không hợp lệ");
     }
 
-    const records = [];
-    for (const [type_code, item] of Object.entries(json.prices)) {
-      // Bỏ qua vàng thế giới (tính bằng USD, không phải VND)
-      if (type_code === "XAUUSD") continue;
+    const promises = Object.entries(json.prices)
+      .filter(([type_code]) => type_code !== "XAUUSD")
+      .map(async ([type_code, item]) => {
+        const buyVnd = Number(item.buy);
+        const sellVnd = Number(item.sell);
+        const spreadVnd = Math.max(0, sellVnd - buyVnd);
+        const goldType = NAME_VI[item.name] || item.name;
 
-      const buyVnd = Number(item.buy);
-      const sellVnd = Number(item.sell);
-      const spreadVnd = Math.max(0, sellVnd - buyVnd);
+        // Query bản ghi cuối cùng của loại vàng này trong DB
+        const { data, error } = await supabase
+          .from("gold_price_snapshots")
+          .select("buy_price_vnd, sell_price_vnd")
+          .eq("source", type_code)
+          .order("recorded_at", { ascending: false })
+          .limit(1);
 
-      // Dùng tên tiếng Việt nếu có, không thì giữ nguyên tên gốc từ API
-      const goldType = NAME_VI[item.name] || item.name;
+        if (error) {
+          console.error(`⚠️ Lỗi khi tải giá cũ của ${goldType}:`, error.message);
+        }
 
-      records.push({
-        source: type_code,
-        gold_type: goldType,
-        buy_price_vnd: buyVnd,
-        sell_price_vnd: sellVnd,
-        spread_vnd: spreadVnd,
+        const lastRecord = data && data[0];
+        const changed = !lastRecord || 
+                        Number(lastRecord.buy_price_vnd) !== buyVnd || 
+                        Number(lastRecord.sell_price_vnd) !== sellVnd;
+
+        if (changed) {
+          return {
+            source: type_code,
+            gold_type: goldType,
+            buy_price_vnd: buyVnd,
+            sell_price_vnd: sellVnd,
+            spread_vnd: spreadVnd,
+          };
+        }
+        return null;
       });
-    }
+
+    const results = await Promise.all(promises);
+    const records = results.filter(Boolean);
 
     if (records.length === 0) {
-      console.log("⚠️ Không có dữ liệu hợp lệ nào từ API.");
+      console.log("⚠️ Không có giá vàng nào thay đổi so với bản ghi trước. Bỏ qua ghi Database.");
       return;
     }
 
-    console.log(`Đã phân tích xong ${records.length} bản ghi. Đang lưu vào Supabase...`);
+    console.log(`Đã phát hiện ${records.length} loại vàng có thay đổi giá. Đang lưu vào Supabase...`);
 
     const { error } = await supabase.from("gold_price_snapshots").insert(records);
 
@@ -81,9 +100,9 @@ async function fetchAndSavePrices() {
     } else {
       console.log(`✅ Lưu thành công ${records.length} bản ghi giá vàng vào Database!`);
 
-      // Cleanup: Xóa bản ghi cũ hơn 3 ngày
+      // Cleanup: Xóa bản ghi cũ hơn 30 ngày để hiển thị biểu đồ tháng
       const cutoffDate = new Date();
-      cutoffDate.setDate(cutoffDate.getDate() - 3);
+      cutoffDate.setDate(cutoffDate.getDate() - 30);
       await supabase
         .from("gold_price_snapshots")
         .delete()

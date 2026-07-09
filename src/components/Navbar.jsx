@@ -135,6 +135,7 @@ export function UserNavbar() {
             <>
               {!isLoggedIn && <Link to="/" className={`nav-link ${activePage === 'home' || activePage === '' ? 'active' : ''}`}>Trang chủ</Link>}
               {isLoggedIn && <Link to="/dashboard" className={`nav-link ${activePage === 'dashboard' ? 'active' : ''}`}>Tổng quan</Link>}
+              <Link to="/prices" className={`nav-link ${activePage === 'prices' ? 'active' : ''}`}>Giá vàng</Link>
               <Link to="/trade" className={`nav-link ${activePage === 'trade' ? 'active' : ''}`}>Giao dịch</Link>
               {isLoggedIn && <Link to="/dca" className={`nav-link ${activePage === 'dca' ? 'active' : ''}`}>Tích lũy DCA</Link>}
               {isLoggedIn && <Link to="/history" className={`nav-link ${activePage === 'history' ? 'active' : ''}`}>Lịch sử</Link>}

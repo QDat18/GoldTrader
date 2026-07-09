@@ -416,10 +416,13 @@ const useStore = create((set, get) => ({
           };
         }
 
+        console.log("📊 useStore: fetchGoldPrices success, count = ", data.length, "groups = ", Object.keys(nextPrices));
         set({ goldPrices: nextPrices });
+      } else {
+        console.warn("⚠️ useStore: fetchGoldPrices returned empty data.");
       }
     } catch (err) {
-      console.error("Lỗi khi tải giá vàng từ database:", err);
+      console.error("❌ useStore: Lỗi khi tải giá vàng từ database:", err);
     }
   },
 

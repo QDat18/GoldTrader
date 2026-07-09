@@ -12,6 +12,7 @@ import Admin from './pages/Admin';
 import Login from './pages/Login';
 import Notifications from './pages/Notifications';
 import Register from './pages/Register';
+import Prices from './pages/Prices';
 import { supabase } from './supabaseClient';
 import useStore from './store/useStore';
 
@@ -198,6 +199,7 @@ function App() {
           <Route path="/dca" element={<Dca />} />
           <Route path="/history" element={<History />} />
           <Route path="/profile" element={<Profile />} />
+          <Route path="/prices" element={<Prices />} />
           <Route path="/order" element={<Placeholder title="Order Details" />} />
           <Route path="/notifications" element={<Notifications />} />
         </Route>
