@@ -16,6 +16,24 @@ import Prices from './pages/Prices';
 import { supabase } from './supabaseClient';
 import useStore from './store/useStore';
 
+const VALID_ROLES = ['guest', 'user', 'admin'];
+
+const normalizeRole = (role) => (
+  VALID_ROLES.includes(role) ? role : 'guest'
+);
+
+const createFallbackUser = (authUser) => ({
+  id: authUser.id,
+  name: authUser.user_metadata?.full_name || 'Người dùng mới',
+  phone: authUser.user_metadata?.phone || '',
+  email: authUser.email,
+  cccd: '',
+  role: 'guest',
+  kycStep: 2,
+  kycStatus: 'pending',
+  kycRejectionReason: ''
+});
+
 // We will create these layout and page components next
 const Placeholder = ({ title }) => (
   <div style={{ padding: '20px', textAlign: 'center' }}>
@@ -85,6 +103,10 @@ function App() {
           .eq('auth_user_id', authUser.id)
           .single();
 
+        if (error && error.code !== 'PGRST116') {
+          throw error;
+        }
+
         if (dbUser) {
           setCurrentUser({
             id: dbUser.id,
@@ -92,7 +114,7 @@ function App() {
             phone: dbUser.phone,
             email: authUser.email,
             cccd: dbUser.id_card_number,
-            role: 'admin', // TEMPORARY DEV BYPASS
+            role: normalizeRole(dbUser.role),
             kycStep: dbUser.kyc_status === 'VERIFIED' ? 3 : 2,
             kycStatus: dbUser.kyc_status?.toLowerCase() || 'pending',
             kycRejectionReason: dbUser.kyc_rejection_reason || ''
@@ -122,18 +144,11 @@ function App() {
           await fetchTransactions(dbUser.id);
         } else {
           // Fallback nếu chưa kịp tạo bản ghi ở user_profiles
-          setCurrentUser({
-            name: authUser.user_metadata?.full_name || 'Người dùng mới',
-            phone: authUser.user_metadata?.phone || '',
-            email: authUser.email,
-            cccd: '',
-            role: 'admin', // TEMPORARY DEV BYPASS
-            kycStep: 2,
-            kycStatus: 'pending'
-          });
+          setCurrentUser(createFallbackUser(authUser));
         }
       } catch (err) {
         console.error("Lỗi khi tải thông tin hồ sơ:", err);
+        setCurrentUser(createFallbackUser(authUser));
       }
     };
 

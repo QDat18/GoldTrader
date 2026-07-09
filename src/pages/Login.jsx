@@ -3,6 +3,24 @@ import { Link, useNavigate } from 'react-router-dom';
 import useStore from '../store/useStore';
 import { supabase } from '../supabaseClient';
 
+const VALID_ROLES = ['guest', 'user', 'admin'];
+
+const normalizeRole = (role) => (
+  VALID_ROLES.includes(role) ? role : 'guest'
+);
+
+const createFallbackUser = (authUser) => ({
+  id: authUser?.id || 'guest-id',
+  name: authUser?.user_metadata?.full_name || 'Người dùng mới',
+  phone: authUser?.user_metadata?.phone || '',
+  email: authUser?.email || '',
+  cccd: '',
+  role: 'guest',
+  kycStep: 2,
+  kycStatus: 'pending',
+  kycRejectionReason: ''
+});
+
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -59,8 +77,12 @@ export default function Login() {
         .eq('auth_user_id', data.user.id)
         .single();
 
+      if (dbError && dbError.code !== 'PGRST116') {
+        throw dbError;
+      }
+
       if (dbUser) {
-        resolvedRole = dbUser.role || 'guest';
+        resolvedRole = normalizeRole(dbUser.role);
         setCurrentUser({
           id: dbUser.id,
           name: dbUser.full_name,
@@ -73,35 +95,16 @@ export default function Login() {
           kycRejectionReason: dbUser.kyc_rejection_reason || ''
         });
       } else {
-        // Fallback metadata
-        resolvedRole = data.user.email === 'admin@goldchain.vn' ? 'admin' : (data.user.user_metadata?.role || 'guest');
-        setCurrentUser({
-          id: data.user.id,
-          name: data.user.user_metadata?.full_name || 'Người dùng mới',
-          phone: data.user.user_metadata?.phone || '',
-          email: data.user.email,
-          cccd: '',
-          role: resolvedRole,
-          kycStep: 2,
-          kycStatus: 'pending'
-        });
+        resolvedRole = 'guest';
+        setCurrentUser(createFallbackUser(data.user));
       }
     } catch (dbErr) {
       console.error("Lỗi khi tải thông tin người dùng từ DB:", dbErr);
-      resolvedRole = data.user.email === 'admin@goldchain.vn' ? 'admin' : (data.user.user_metadata?.role || 'guest');
-      setCurrentUser({
-        id: data?.user?.id || 'guest-id',
-        name: data?.user?.user_metadata?.full_name || 'Người dùng mới',
-        phone: data?.user?.user_metadata?.phone || '',
-        email: data?.user?.email,
-        cccd: '',
-        role: resolvedRole,
-        kycStep: 2,
-        kycStatus: 'pending'
-      });
+      resolvedRole = 'guest';
+      setCurrentUser(createFallbackUser(data.user));
     }
 
-    if (true) { // TEMPORARY DEV BYPASS
+    if (resolvedRole === 'admin') {
       navigate('/admin');
     } else {
       navigate('/dashboard');
