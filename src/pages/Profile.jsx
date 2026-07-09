@@ -37,15 +37,16 @@ export default function Profile() {
   const [isUploading, setIsUploading] = useState(false);
 
   const handleStartKyc = async () => {
-    if (user.kycStatus === 'rejected') {
+    if (user.kycStatus === 'rejected' || user.kycStatus === 'unverified') {
       if (!reUploadFront || !reUploadBack) {
          showToast('Vui lòng tải lên đầy đủ 2 mặt CCCD', 'error');
          return;
       }
       setIsUploading(true);
       try {
-        const frontName = `${user.id}_front_reupload_${Date.now()}.png`;
-        const backName = `${user.id}_back_reupload_${Date.now()}.png`;
+        const isReupload = user.kycStatus === 'rejected';
+        const frontName = `${user.id}_front_${isReupload ? 'reupload_' : ''}${Date.now()}.png`;
+        const backName = `${user.id}_back_${isReupload ? 'reupload_' : ''}${Date.now()}.png`;
         
         const { error: fErr } = await supabase.storage.from('kyc-documents').upload(frontName, reUploadFront);
         if (fErr) throw fErr;
@@ -72,15 +73,22 @@ export default function Profile() {
         await supabase.from('notifications').insert({
           user_id: user.id,
           type: 'system',
-          title: 'Hồ sơ KYC đã được gửi lại',
-          desc: 'Bạn đã cập nhật và gửi lại hồ sơ eKYC. Vui lòng chờ quản trị viên phê duyệt.',
+          title: isReupload ? 'Hồ sơ KYC đã được gửi lại' : 'Hồ sơ KYC đã được gửi',
+          desc: isReupload 
+            ? 'Bạn đã cập nhật và gửi lại hồ sơ eKYC. Vui lòng chờ quản trị viên phê duyệt.' 
+            : 'Yêu cầu định danh điện tử của bạn đã được gửi thành công. Vui lòng chờ quản trị viên phê duyệt.',
           unread: true,
           date: new Date().toLocaleString('vi-VN')
         });
 
         updateKycStatus('pending');
         updateProfile({ kycRejectionReason: '' });
-        showToast('Hồ sơ của bạn đã được gửi lại. Vui lòng chờ Quản trị viên kiểm duyệt.', 'success');
+        showToast(
+          isReupload 
+            ? 'Hồ sơ của bạn đã được gửi lại. Vui lòng chờ Quản trị viên kiểm duyệt.' 
+            : 'Hồ sơ của bạn đã được gửi. Vui lòng chờ Quản trị viên kiểm duyệt.', 
+          'success'
+        );
         
         setReUploadFront(null);
         setReUploadBack(null);
@@ -264,24 +272,20 @@ export default function Profile() {
               </div>
             </div>
 
-            {user.kycStatus === 'unverified' && (
-              <button className="btn btn-gold" onClick={handleStartKyc} style={{ marginTop: '24px', width: '100%', borderRadius: '99px', padding: '16px', fontSize: '15px', fontWeight: 700, boxShadow: '0 8px 16px rgba(212,175,55,0.2)' }}>
-                Bắt đầu xác minh ngay
-              </button>
-            )}
-            
-            {user.kycStatus === 'rejected' && (
+            {(user.kycStatus === 'unverified' || user.kycStatus === 'rejected') && (
               <div style={{ marginTop: '24px' }}>
-                <div style={{ padding: '16px', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid var(--ruby)', borderRadius: '12px', marginBottom: '24px', fontSize: '14px', color: '#fff', lineHeight: '1.5' }}>
-                  <span style={{ color: 'var(--ruby)', fontWeight: 600 }}>Lý do từ chối:</span><br/>
-                  <span style={{ color: 'rgba(255,255,255,0.9)' }}>{user.kycRejectionReason || 'Vui lòng kiểm tra lại hình ảnh và thông tin.'}</span>
-                </div>
+                {user.kycStatus === 'rejected' && (
+                  <div style={{ padding: '16px', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid var(--ruby)', borderRadius: '12px', marginBottom: '24px', fontSize: '14px', color: '#fff', lineHeight: '1.5' }}>
+                    <span style={{ color: 'var(--ruby)', fontWeight: 600 }}>Lý do từ chối:</span><br/>
+                    <span style={{ color: 'rgba(255,255,255,0.9)' }}>{user.kycRejectionReason || 'Vui lòng kiểm tra lại hình ảnh và thông tin.'}</span>
+                  </div>
+                )}
                 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '24px' }}>
                   <label style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.2)', border: '1px dashed rgba(255,255,255,0.2)', borderRadius: '12px', padding: '24px', cursor: 'pointer' }}>
                     <input type="file" accept="image/*" style={{ display: 'none' }} onChange={(e) => { if(e.target.files && e.target.files[0]) setReUploadFront(e.target.files[0]); }} />
                     <UploadCloud size={24} color={reUploadFront ? 'var(--emerald)' : 'var(--text-muted)'} style={{ marginBottom: '12px' }} />
-                    <div style={{ fontSize: '13px', color: reUploadFront ? 'var(--emerald)' : '#fff', fontWeight: 600, textAlign: 'center' }}>{reUploadFront ? 'Đã chọn ảnh trước' : 'Tải lại mặt trước'}</div>
+                    <div style={{ fontSize: '13px', color: reUploadFront ? 'var(--emerald)' : '#fff', fontWeight: 600, textAlign: 'center' }}>{reUploadFront ? 'Đã chọn ảnh trước' : 'Tải lên mặt trước'}</div>
                   </label>
                   
                   <label style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.2)', border: '1px dashed rgba(255,255,255,0.2)', borderRadius: '12px', padding: '24px', cursor: 'pointer' }}>
@@ -291,8 +295,8 @@ export default function Profile() {
                   </label>
                 </div>
 
-                <button disabled={isUploading} className="btn" onClick={handleStartKyc} style={{ width: '100%', borderRadius: '99px', padding: '16px', fontSize: '15px', fontWeight: 700, background: 'var(--ruby)', color: '#fff' }}>
-                  {isUploading ? 'Đang gửi...' : 'Gửi lại hồ sơ KYC'}
+                <button disabled={isUploading} className="btn btn-gold" onClick={handleStartKyc} style={{ width: '100%', borderRadius: '99px', padding: '16px', fontSize: '15px', fontWeight: 700, boxShadow: '0 8px 16px rgba(212,175,55,0.2)' }}>
+                  {isUploading ? 'Đang gửi...' : (user.kycStatus === 'rejected' ? 'Gửi lại hồ sơ KYC' : 'Gửi yêu cầu xác minh')}
                 </button>
               </div>
             )}

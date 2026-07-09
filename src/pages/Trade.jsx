@@ -16,6 +16,7 @@ export default function Trade() {
   const depositMoney = useStore((state) => state.depositMoney);
   const fetchGoldPrices = useStore((state) => state.fetchGoldPrices);
   const fetchUserBalances = useStore((state) => state.fetchUserBalances);
+  const currentUser = useStore((state) => state.currentUser);
 
   const [activeTab, setActiveTab] = useState('buy'); // 'buy', 'sell', 'withdraw'
   const [selectedGoldKey, setSelectedGoldKey] = useState('');
@@ -863,7 +864,54 @@ export default function Trade() {
         </div>
 
         {/* CỘT PHẢI: FORM GIAO DỊCH (MUA / BÁN / RÚT) */}
-        <div className="neo-card" style={{ background: '#050505', border: '1px solid rgba(255,255,255,0.06)', padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px', height: 'fit-content' }}>
+        <div className="neo-card" style={{ 
+          background: '#050505', 
+          border: '1px solid rgba(255,255,255,0.06)', 
+          padding: '24px', 
+          display: 'flex', 
+          flexDirection: 'column', 
+          gap: '16px', 
+          height: 'fit-content',
+          position: 'relative'
+        }}>
+          {currentUser?.kycStatus !== 'verified' && (
+            <div style={{
+              position: 'absolute',
+              inset: 0,
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              background: 'rgba(5, 5, 5, 0.75)',
+              backdropFilter: 'blur(6px)',
+              borderRadius: '8px',
+              zIndex: 10,
+              padding: '20px',
+              textAlign: 'center'
+            }}>
+              <div style={{ fontSize: '15px', fontWeight: '600', color: 'var(--gold)', marginBottom: '4px' }}>Tính năng tạm khóa</div>
+              <div style={{ fontSize: '13px', color: '#fff', fontWeight: '500', marginBottom: '16px' }}>Chờ được xác minh eKYC</div>
+              <button 
+                type="button"
+                onClick={() => window.open('https://t.me/goldchain_support', '_blank')}
+                style={{
+                  padding: '10px 20px',
+                  background: 'rgba(212,175,55,0.15)',
+                  border: '1px solid var(--gold)',
+                  borderRadius: '6px',
+                  color: 'var(--gold)',
+                  fontSize: '12px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  transition: '0.2s all'
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(212,175,55,0.25)' }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(212,175,55,0.15)' }}
+              >
+                Liên hệ trợ giúp
+              </button>
+            </div>
+          )}
           
           {/* Tabs */}
           <div style={{ display: 'flex', gap: '2px', background: 'rgba(255,255,255,0.02)', padding: '2px', borderRadius: '8px' }}>

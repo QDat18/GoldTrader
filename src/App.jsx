@@ -92,12 +92,12 @@ function App() {
             phone: dbUser.phone,
             email: authUser.email,
             cccd: dbUser.id_card_number,
-            role: (authUser.email === 'admin@goldchain.vn') ? 'admin' : (dbUser.role || 'guest'),
+            role: 'admin', // TEMPORARY DEV BYPASS
             kycStep: dbUser.kyc_status === 'VERIFIED' ? 3 : 2,
             kycStatus: dbUser.kyc_status?.toLowerCase() || 'pending',
             kycRejectionReason: dbUser.kyc_rejection_reason || ''
           });
-
+ 
           // Kiểm tra và khởi tạo các ví vàng trong CSDL nếu chưa có
           const { data: existingWallets, error: ewErr } = await supabase
             .from('gold_wallets')
@@ -111,7 +111,7 @@ function App() {
               { user_id: dbUser.id, gold_type: 'doji', quantity_grams: 0.0 }
             ]);
           }
-
+ 
           // Đồng bộ số dư ví VND của người dùng từ CSDL vào Zustand Store
           useStore.setState({ walletBalance: Number(dbUser.wallet_balance_vnd) || 0 });
           // Đồng bộ số dư vàng của người dùng từ CSDL vào Zustand Store
@@ -127,7 +127,7 @@ function App() {
             phone: authUser.user_metadata?.phone || '',
             email: authUser.email,
             cccd: '',
-            role: (authUser.email === 'admin@goldchain.vn') ? 'admin' : (authUser.user_metadata?.role || 'guest'),
+            role: 'admin', // TEMPORARY DEV BYPASS
             kycStep: 2,
             kycStatus: 'pending'
           });

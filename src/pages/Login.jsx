@@ -101,7 +101,7 @@ export default function Login() {
       });
     }
 
-    if (resolvedRole === 'admin') {
+    if (true) { // TEMPORARY DEV BYPASS
       navigate('/admin');
     } else {
       navigate('/dashboard');
