@@ -13,6 +13,7 @@ export default function AdminKyc() {
   const [rejectModal, setRejectModal] = useState({ isOpen: false, id: null, reason: '' });
   const [previewKycModal, setPreviewKycModal] = useState({ isOpen: false, frontUrl: '', backUrl: '', name: '' });
   const [toast, setToast] = useState(null);
+  const [viewedKycIds, setViewedKycIds] = useState([]);
 
   const showToast = (message, type = 'success') => {
     setToast({ message, type });
@@ -30,6 +31,14 @@ export default function AdminKyc() {
   };
 
   const handleApproveKyc = async (id) => {
+    // Kiểm tra xem admin đã mở ảnh CCCD của khách hàng này chưa
+    const targetUser = dbKycList.find(item => item.id === id);
+    const hasImages = targetUser && (targetUser.id_card_front_url || targetUser.id_card_back_url);
+    if (hasImages && !viewedKycIds.includes(id)) {
+      showToast('Bạn phải xem hình ảnh CCCD trước khi duyệt eKYC!', 'error');
+      return;
+    }
+
     try {
       const { error } = await supabase
         .from('user_profiles')
@@ -131,8 +140,119 @@ export default function AdminKyc() {
   }, []);
 
   return (
-    <div className="neo-card" style={{ padding: '0', overflow: 'hidden' }}>
-      
+    <>
+      <div className="neo-card" style={{ padding: '0', overflow: 'hidden' }}>
+        
+        <div style={{ padding: '24px', borderBottom: '1px solid rgba(255,255,255,0.05)', display: 'flex', justifyItems: 'center', justifyContent: 'space-between' }}>
+          <div className="h3" style={{ fontSize: '18px', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <ShieldAlert size={20} color="var(--gold)" /> Danh sách KYC chờ duyệt
+          </div>
+          {isFetchingKyc && <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Đang tải...</span>}
+        </div>
+        <div style={{ overflowX: 'auto', maxHeight: '500px', overflowY: 'auto' }} onScroll={handleScrollKyc}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
+            <thead>
+              <tr style={{ background: 'rgba(255,255,255,0.02)', position: 'sticky', top: 0, zIndex: 10 }}>
+                <th style={{ padding: '12px 18px', color: 'var(--text-muted)' }}>Khách hàng</th>
+                <th style={{ padding: '12px 18px', color: 'var(--text-muted)' }}>Thời gian gửi</th>
+                <th style={{ padding: '12px 18px', color: 'var(--text-muted)', textAlign: 'right' }}>Thao tác</th>
+              </tr>
+            </thead>
+            <tbody>
+              {dbKycList.length === 0 ? (
+                <tr>
+                  <td colSpan="3" style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)' }}>Không có hồ sơ eKYC nào đang chờ duyệt.</td>
+                </tr>
+              ) : (
+                dbKycList.map(item => {
+                  const nameInitials = item.full_name ? item.full_name.trim().split(/\s+/).filter(Boolean).slice(-2).map(p => p[0]).join('').toUpperCase() : 'US';
+                  const hasImages = !!(item.id_card_front_url || item.id_card_back_url);
+                  const isViewed = viewedKycIds.includes(item.id);
+                  const approveDisabled = hasImages && !isViewed;
+
+                  return (
+                    <tr key={item.id} style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+                      <td style={{ padding: '16px 18px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                          <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: 'var(--gold-gradient)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#000', fontWeight: 'bold', fontSize: '13px' }}>
+                            {nameInitials}
+                          </div>
+                          <div>
+                            <div style={{ fontWeight: 600, color: '#fff', fontSize: '14px' }}>{item.full_name}</div>
+                            <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '2px' }}>
+                              CCCD: <span style={{ color: '#fff' }}>{item.id_card_number}</span> | SĐT: {item.phone || '—'}
+                            </div>
+                          </div>
+                        </div>
+                      </td>
+                      <td style={{ padding: '16px 18px', color: 'var(--text-muted)' }}>
+                        {new Date(item.updated_at).toLocaleString('vi-VN')}
+                      </td>
+                      <td style={{ padding: '16px 18px', textAlign: 'right' }}>
+                        <div style={{ display: 'inline-flex', gap: '8px', alignItems: 'center' }}>
+                          {hasImages ? (
+                            <button 
+                              onClick={() => {
+                                setPreviewKycModal({ isOpen: true, frontUrl: item.id_card_front_url, backUrl: item.id_card_back_url, name: item.full_name });
+                                if (!viewedKycIds.includes(item.id)) {
+                                  setViewedKycIds(prev => [...prev, item.id]);
+                                }
+                              }} 
+                              style={{ 
+                                borderColor: 'var(--gold)', 
+                                color: 'var(--gold)', 
+                                background: 'rgba(212,175,55,0.1)', 
+                                border: '1px solid rgba(212,175,55,0.2)',
+                                padding: '8px 16px', 
+                                fontSize: '13px', 
+                                borderRadius: '99px', 
+                                fontWeight: 600,
+                                cursor: 'pointer',
+                                transition: 'all 0.2s'
+                              }}
+                            >
+                              Xem CCCD
+                            </button>
+                          ) : (
+                            <span style={{ fontSize: '12px', color: 'var(--text-muted)', marginRight: '8px' }}>Chưa tải ảnh</span>
+                          )}
+                          <button 
+                            onClick={() => handleApproveKyc(item.id)} 
+                            disabled={approveDisabled}
+                            className="btn" 
+                            style={{ 
+                              borderColor: approveDisabled ? 'rgba(255,255,255,0.1)' : 'var(--emerald)', 
+                              color: approveDisabled ? 'var(--text-muted)' : 'var(--emerald)', 
+                              background: approveDisabled ? 'rgba(255,255,255,0.02)' : 'rgba(16, 185, 129, 0.1)', 
+                              padding: '8px 16px', 
+                              fontSize: '13px', 
+                              borderRadius: '99px', 
+                              fontWeight: 600,
+                              cursor: approveDisabled ? 'not-allowed' : 'pointer',
+                              opacity: approveDisabled ? 0.5 : 1
+                            }}
+                          >
+                            Duyệt
+                          </button>
+                          <button onClick={() => handleRejectKycClick(item.id)} className="btn btn-danger" style={{ padding: '8px 16px', fontSize: '13px', borderRadius: '99px', fontWeight: 600 }}>Từ chối</button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+              {hasMoreKyc && dbKycList.length > 0 && (
+                <tr>
+                  <td colSpan="3" style={{ padding: '16px', textAlign: 'center', color: 'var(--text-muted)' }}>
+                    Cuộn xuống để tải thêm...
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
       {/* Toast Notification */}
       {toast && (
         <div style={{
@@ -146,75 +266,6 @@ export default function AdminKyc() {
           {toast.message}
         </div>
       )}
-
-      <div style={{ padding: '24px', borderBottom: '1px solid rgba(255,255,255,0.05)', display: 'flex', justifyItems: 'center', justifyContent: 'space-between' }}>
-        <div className="h3" style={{ fontSize: '18px', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <ShieldAlert size={20} color="var(--gold)" /> Danh sách KYC chờ duyệt
-        </div>
-        {isFetchingKyc && <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Đang tải...</span>}
-      </div>
-      <div style={{ overflowX: 'auto', maxHeight: '500px', overflowY: 'auto' }} onScroll={handleScrollKyc}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
-          <thead>
-            <tr style={{ background: 'rgba(255,255,255,0.02)', position: 'sticky', top: 0, zIndex: 10 }}>
-              <th style={{ padding: '12px 18px', color: 'var(--text-muted)' }}>Khách hàng</th>
-              <th style={{ padding: '12px 18px', color: 'var(--text-muted)' }}>Thời gian gửi</th>
-              <th style={{ padding: '12px 18px', color: 'var(--text-muted)', textAlign: 'right' }}>Thao tác</th>
-            </tr>
-          </thead>
-          <tbody>
-            {dbKycList.length === 0 ? (
-              <tr>
-                <td colSpan="3" style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)' }}>Không có hồ sơ eKYC nào đang chờ duyệt.</td>
-              </tr>
-            ) : (
-              dbKycList.map(item => {
-                const nameInitials = item.full_name ? item.full_name.trim().split(/\s+/).filter(Boolean).slice(-2).map(p => p[0]).join('').toUpperCase() : 'US';
-                return (
-                  <tr key={item.id} style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}>
-                    <td style={{ padding: '16px 18px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                        <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: 'var(--gold-gradient)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#000', fontWeight: 'bold', fontSize: '13px' }}>
-                          {nameInitials}
-                        </div>
-                        <div>
-                          <div style={{ fontWeight: 600, color: '#fff', fontSize: '14px' }}>{item.full_name}</div>
-                          <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '2px' }}>
-                            CCCD: <span style={{ color: '#fff' }}>{item.id_card_number}</span> | SĐT: {item.phone || '—'}
-                          </div>
-                          <div style={{ display: 'flex', gap: '12px', marginTop: '6px' }}>
-                            {(item.id_card_front_url || item.id_card_back_url) ? (
-                              <button onClick={() => setPreviewKycModal({ isOpen: true, frontUrl: item.id_card_front_url, backUrl: item.id_card_back_url, name: item.full_name })} style={{ fontSize: '11px', color: 'var(--gold)', background: 'rgba(212,175,55,0.1)', border: '1px solid rgba(212,175,55,0.2)', padding: '4px 12px', borderRadius: '99px', cursor: 'pointer', transition: 'all 0.2s', fontWeight: 600 }}>Xem ảnh CCCD</button>
-                            ) : (
-                              <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>[Chưa tải ảnh]</span>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    </td>
-                    <td style={{ padding: '16px 18px', color: 'var(--text-muted)' }}>
-                      {new Date(item.updated_at).toLocaleString('vi-VN')}
-                    </td>
-                    <td style={{ padding: '16px 18px', textAlign: 'right' }}>
-                      <div style={{ display: 'inline-flex', gap: '8px' }}>
-                        <button onClick={() => handleApproveKyc(item.id)} className="btn" style={{ borderColor: 'var(--emerald)', color: 'var(--emerald)', background: 'rgba(16, 185, 129, 0.1)', padding: '8px 16px', fontSize: '13px', borderRadius: '99px', fontWeight: 600 }}>Duyệt</button>
-                        <button onClick={() => handleRejectKycClick(item.id)} className="btn btn-danger" style={{ padding: '8px 16px', fontSize: '13px', borderRadius: '99px', fontWeight: 600 }}>Từ chối</button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })
-            )}
-            {hasMoreKyc && dbKycList.length > 0 && (
-              <tr>
-                <td colSpan="3" style={{ padding: '16px', textAlign: 'center', color: 'var(--text-muted)' }}>
-                  Cuộn xuống để tải thêm...
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
 
       {/* Rejection Modal */}
       {rejectModal.isOpen && (
@@ -255,34 +306,46 @@ export default function AdminKyc() {
 
       {/* KYC Image Preview Modal */}
       {previewKycModal.isOpen && (
-        <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.9)', backdropFilter: 'blur(10px)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: '24px' }}>
-          <button onClick={() => setPreviewKycModal({ isOpen: false, frontUrl: '', backUrl: '', name: '' })} style={{ position: 'absolute', top: '24px', right: '32px', background: 'rgba(255,255,255,0.1)', border: 'none', color: '#fff', cursor: 'pointer', padding: '12px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <XCircle size={28} />
-          </button>
+        <div 
+          onClick={() => setPreviewKycModal({ isOpen: false, frontUrl: '', backUrl: '', name: '' })}
+          style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(12px)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: '24px', cursor: 'pointer' }}
+        >
+          <div 
+            onClick={(e) => e.stopPropagation()} 
+            style={{ width: '100%', maxWidth: '1000px', background: 'rgba(30,30,30,0.6)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '24px', padding: '32px', position: 'relative', boxShadow: '0 30px 60px rgba(0,0,0,0.6)', cursor: 'default' }}
+          >
+            <button 
+              onClick={() => setPreviewKycModal({ isOpen: false, frontUrl: '', backUrl: '', name: '' })} 
+              style={{ position: 'absolute', top: '16px', right: '16px', background: 'rgba(255,255,255,0.05)', border: 'none', color: '#fff', cursor: 'pointer', padding: '6px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s' }}
+              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.1)'}
+              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.05)'}
+            >
+              <XCircle size={24} />
+            </button>
 
-          <div className="h2" style={{ color: '#fff', marginBottom: '24px' }}>Hồ sơ CCCD: {previewKycModal.name}</div>
+            <div className="h2" style={{ color: '#fff', marginBottom: '24px', textAlign: 'center', letterSpacing: '-0.5px' }}>Hồ sơ CCCD: {previewKycModal.name}</div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '32px', width: '100%', maxWidth: '1000px' }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', alignItems: 'center' }}>
-              <div style={{ fontWeight: 600, color: 'var(--gold)' }}>MẶT TRƯỚC</div>
-              {previewKycModal.frontUrl ? (
-                <img src={previewKycModal.frontUrl} alt="Mặt trước" style={{ width: '100%', objectFit: 'contain', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.1)', maxHeight: '60vh', background: 'rgba(255,255,255,0.02)' }} />
-              ) : (
-                <div style={{ width: '100%', height: '300px', borderRadius: '16px', background: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>Không có ảnh</div>
-              )}
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', alignItems: 'center' }}>
-              <div style={{ fontWeight: 600, color: 'var(--gold)' }}>MẶT SAU</div>
-              {previewKycModal.backUrl ? (
-                <img src={previewKycModal.backUrl} alt="Mặt sau" style={{ width: '100%', objectFit: 'contain', borderRadius: '16px', border: '1px solid rgba(255,255,255,0.1)', maxHeight: '60vh', background: 'rgba(255,255,255,0.02)' }} />
-              ) : (
-                <div style={{ width: '100%', height: '300px', borderRadius: '16px', background: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>Không có ảnh</div>
-              )}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', alignItems: 'center' }}>
+                <div style={{ fontWeight: 600, color: 'var(--gold)', letterSpacing: '0.05em', fontSize: '13px' }}>MẶT TRƯỚC</div>
+                {previewKycModal.frontUrl ? (
+                  <img src={previewKycModal.frontUrl} alt="Mặt trước" style={{ width: '100%', height: 'auto', maxHeight: '50vh', objectFit: 'contain', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)', background: 'rgba(0,0,0,0.2)' }} />
+                ) : (
+                  <div style={{ width: '100%', height: '300px', borderRadius: '12px', background: 'rgba(255,255,255,0.03)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', border: '1px dashed rgba(255,255,255,0.1)' }}>Không có ảnh</div>
+                )}
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', alignItems: 'center' }}>
+                <div style={{ fontWeight: 600, color: 'var(--gold)', letterSpacing: '0.05em', fontSize: '13px' }}>MẶT SAU</div>
+                {previewKycModal.backUrl ? (
+                  <img src={previewKycModal.backUrl} alt="Mặt sau" style={{ width: '100%', height: 'auto', maxHeight: '50vh', objectFit: 'contain', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)', background: 'rgba(0,0,0,0.2)' }} />
+                ) : (
+                  <div style={{ width: '100%', height: '300px', borderRadius: '12px', background: 'rgba(255,255,255,0.03)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', border: '1px dashed rgba(255,255,255,0.1)' }}>Không có ảnh</div>
+                )}
+              </div>
             </div>
           </div>
         </div>
       )}
-
-    </div>
+    </>
   );
 }

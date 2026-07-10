@@ -5,11 +5,7 @@ import { AreaChart, Eye, LayoutGrid } from 'lucide-react';
 
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || "";
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || "";
-const supabaseLedger = createClient(supabaseUrl, supabaseAnonKey, {
-  db: { schema: "financial_ledgers" }
-});
+const supabaseLedger = supabase.schema('financial_ledgers');
 
 export default function Prices() {
   const goldPrices = useStore((state) => state.goldPrices);
@@ -202,11 +198,12 @@ export default function Prices() {
   const groupOrder = [];
 
   chronologicalReversed.forEach((row) => {
-    const ymd = row.recorded_at.substring(0, 10); // "YYYY-MM-DD"
+    const vnTime = new Date(new Date(row.recorded_at).toLocaleString("en-US", { timeZone: "Asia/Ho_Chi_Minh" }));
+    const ymd = `${vnTime.getFullYear()}-${String(vnTime.getMonth() + 1).padStart(2, '0')}-${String(vnTime.getDate()).padStart(2, '0')}`;
     if (!dateGroups[ymd]) {
       dateGroups[ymd] = {
         ymd,
-        displayDate: `${ymd.substring(8, 10)}/${ymd.substring(5, 7)}`, // "DD/MM"
+        displayDate: `${String(vnTime.getDate()).padStart(2, '0')}/${String(vnTime.getMonth() + 1).padStart(2, '0')}`, // "DD/MM"
         rows: []
       };
       groupOrder.push(ymd);
@@ -345,16 +342,8 @@ export default function Prices() {
                   const buyVal = item.buy;
                   const sellVal = item.sell;
                   
-                  // Tìm biến động gần nhất từ history của sản phẩm này
-                  const pSnapshots = historyData.filter(s => s.source === key);
-                  let prevPrice = pSnapshots[pSnapshots.length - 2];
-                  
-                  let buyChange = 0;
-                  let sellChange = 0;
-                  if (prevPrice) {
-                    buyChange = buyVal - Number(prevPrice.buy_price_vnd);
-                    sellChange = sellVal - Number(prevPrice.sell_price_vnd);
-                  }
+                  const buyChange = item.buyChange || 0;
+                  const sellChange = item.sellChange || 0;
 
                   // Xu hướng
                   let trendText = "Ổn định";
@@ -367,9 +356,9 @@ export default function Prices() {
                     trendColor = "var(--ruby)";
                   }
 
-                  const timeStr = pSnapshots[pSnapshots.length - 1] 
-                    ? new Date(pSnapshots[pSnapshots.length - 1].recorded_at).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) + ' ' +
-                      new Date(pSnapshots[pSnapshots.length - 1].recorded_at).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' })
+                  const timeStr = item.recordedAt 
+                    ? new Date(item.recordedAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) + ' ' +
+                      new Date(item.recordedAt).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' })
                     : "00:00 09/07";
 
                   return (

@@ -10,7 +10,7 @@ export default function AdminInventory() {
 
   // States
   const [showAddInventory, setShowAddInventory] = useState(false);
-  const [newInvType, setNewInvType] = useState('sjc');
+  const [newInvType, setNewInvType] = useState('SJL1L10');
   const [newInvBrand, setNewInvBrand] = useState('SJC HCM');
   const [newInvWeight, setNewInvWeight] = useState('1'); // 1 chỉ = 3.75g
   const [newInvSerial, setNewInvSerial] = useState('');
@@ -101,14 +101,44 @@ export default function AdminInventory() {
     fetchDbInventory();
   }, []);
 
-  // Stats
-  const sjcStock = dbInventory.filter(i => i.gold_type === 'sjc' && i.status === 'AVAILABLE').length;
-  const pnjStock = dbInventory.filter(i => i.gold_type === 'pnj' && i.status === 'AVAILABLE').length;
-  const dojiStock = dbInventory.filter(i => i.gold_type === 'doji' && i.status === 'AVAILABLE').length;
+  // Name mapping helper
+  const getGoldTypeName = (goldType) => {
+    const targetMap = {
+      "SJL1L10": "SJC 9999",
+      "SJ9999": "Nhẫn SJC",
+      "BTSJC": "Bảo Tín SJC",
+      "BT9999NTT": "Bảo Tín 9999",
+      "DOHNL": "DOJI Hà Nội",
+      "DOHCML": "DOJI HCM",
+      "DOJINHTV": "DOJI Nữ Trang",
+      "PQHNVM": "PNJ Hà Nội",
+      "PQHN24NTT": "PNJ 24K",
+      "VNGSJC": "VN Gold SJC",
+      "VIETTINMSJC": "Viettin SJC"
+    };
+    return targetMap[goldType] || goldType;
+  };
 
-  const sjcWeight = dbInventory.filter(i => i.gold_type === 'sjc' && i.status === 'AVAILABLE').reduce((sum, i) => sum + Number(i.weight_grams), 0);
-  const pnjWeight = dbInventory.filter(i => i.gold_type === 'pnj' && i.status === 'AVAILABLE').reduce((sum, i) => sum + Number(i.weight_grams), 0);
-  const dojiWeight = dbInventory.filter(i => i.gold_type === 'doji' && i.status === 'AVAILABLE').reduce((sum, i) => sum + Number(i.weight_grams), 0);
+  // Helper to check brand categories of keys
+  const isSjcCategory = (goldType) => {
+    const code = goldType.toUpperCase();
+    return code.startsWith('SJ') || code === 'BTSJC' || code === 'VNGSJC' || code === 'VIETTINMSJC';
+  };
+  const isPnjCategory = (goldType) => {
+    return goldType.toUpperCase().startsWith('PQ') || goldType.toLowerCase() === 'pnj';
+  };
+  const isDojiCategory = (goldType) => {
+    return goldType.toUpperCase().startsWith('DOJI') || goldType.toLowerCase() === 'doji';
+  };
+
+  // Stats
+  const sjcStock = dbInventory.filter(i => (isSjcCategory(i.gold_type) || i.gold_type.toLowerCase() === 'sjc') && i.status === 'AVAILABLE').length;
+  const pnjStock = dbInventory.filter(i => isPnjCategory(i.gold_type) && i.status === 'AVAILABLE').length;
+  const dojiStock = dbInventory.filter(i => isDojiCategory(i.gold_type) && i.status === 'AVAILABLE').length;
+
+  const sjcWeight = dbInventory.filter(i => (isSjcCategory(i.gold_type) || i.gold_type.toLowerCase() === 'sjc') && i.status === 'AVAILABLE').reduce((sum, i) => sum + Number(i.weight_grams), 0);
+  const pnjWeight = dbInventory.filter(i => isPnjCategory(i.gold_type) && i.status === 'AVAILABLE').reduce((sum, i) => sum + Number(i.weight_grams), 0);
+  const dojiWeight = dbInventory.filter(i => isDojiCategory(i.gold_type) && i.status === 'AVAILABLE').reduce((sum, i) => sum + Number(i.weight_grams), 0);
 
   const filteredInventory = dbInventory.filter(item => {
     if (invFilterType !== 'all' && item.gold_type !== invFilterType) return false;
@@ -196,14 +226,28 @@ export default function AdminInventory() {
                   const val = e.target.value;
                   setNewInvType(val);
                   setNewInvWeight('1');
-                  if (val === 'sjc') setNewInvBrand('SJC HCM');
-                  else if (val === 'pnj') setNewInvBrand('PNJ Hà Nội');
-                  else if (val === 'doji') setNewInvBrand('DOJI Hà Nội');
+                  if (val.startsWith('SJ') || val === 'BTSJC' || val === 'VNGSJC' || val === 'VIETTINMSJC') {
+                    setNewInvBrand('SJC HCM');
+                  } else if (val.startsWith('DOJI')) {
+                    setNewInvBrand('DOJI Hà Nội');
+                  } else if (val.startsWith('PQ')) {
+                    setNewInvBrand('PNJ Hà Nội');
+                  } else if (val.startsWith('BT')) {
+                    setNewInvBrand('Bảo Tín 9999');
+                  }
                 }}
               >
-                <option value="sjc">SJC 1 Chỉ</option>
-                <option value="pnj">PNJ 9999</option>
-                <option value="doji">DOJI 999.9</option>
+                <option value="SJL1L10">SJC 9999</option>
+                <option value="SJ9999">Nhẫn SJC</option>
+                <option value="BTSJC">Bảo Tín SJC</option>
+                <option value="BT9999NTT">Bảo Tín 9999</option>
+                <option value="DOHNL">DOJI Hà Nội</option>
+                <option value="DOHCML">DOJI HCM</option>
+                <option value="DOJINHTV">DOJI Nữ Trang</option>
+                <option value="PQHNVM">PNJ Hà Nội</option>
+                <option value="PQHN24NTT">PNJ 24K</option>
+                <option value="VNGSJC">VN Gold SJC</option>
+                <option value="VIETTINMSJC">Viettin SJC</option>
               </select>
             </div>
             <div className="form-group" style={{ marginBottom: 0 }}>
@@ -216,6 +260,7 @@ export default function AdminInventory() {
                 <option value="SJC HCM">SJC HCM</option>
                 <option value="PNJ Hà Nội">PNJ Hà Nội</option>
                 <option value="DOJI Hà Nội">DOJI Hà Nội</option>
+                <option value="Bảo Tín 9999">Bảo Tín 9999</option>
               </select>
             </div>
             <div className="form-group" style={{ marginBottom: 0 }}>
@@ -272,7 +317,7 @@ export default function AdminInventory() {
                   return (
                     <tr key={item.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
                       <td style={{ padding: '12px 8px', fontFamily: 'monospace', fontWeight: 'bold' }}>{item.gold_serial}</td>
-                      <td style={{ padding: '12px 8px' }}>{item.gold_type.toUpperCase()}</td>
+                      <td style={{ padding: '12px 8px' }}>{getGoldTypeName(item.gold_type).toUpperCase()}</td>
                       <td style={{ padding: '12px 8px' }}>{(Number(item.weight_grams) / 3.75).toFixed(2)} chỉ ({item.weight_grams}g)</td>
                       <td style={{ padding: '12px 8px' }}>{item.bar_brand}</td>
                       <td style={{ padding: '12px 8px' }}>

@@ -207,7 +207,7 @@ export default function Register() {
       }
       
       // 2. Lưu thông tin vào bảng user_profiles ở public schema
-      const { error: dbError } = await supabase.from('user_profiles').upsert({
+      const { data: profileRecord, error: dbError } = await supabase.from('user_profiles').upsert({
         auth_user_id: currentUserId,
         full_name: name,
         phone: phone,
@@ -216,13 +216,13 @@ export default function Register() {
         role: 'guest',
         id_card_front_url: frontUrl,
         id_card_back_url: backUrl
-      }, { onConflict: 'auth_user_id' });
+      }, { onConflict: 'auth_user_id' }).select().single();
       
       if (dbError) {
         console.error("Lỗi khi lưu vào public schema:", dbError);
-      } else {
+      } else if (profileRecord) {
         await supabase.from('notifications').insert({
-          user_id: currentUserId,
+          user_id: profileRecord.id,
           type: 'system',
           title: 'Hồ sơ KYC đã được gửi',
           desc: 'Yêu cầu định danh điện tử của bạn đã được gửi thành công. Vui lòng chờ quản trị viên phê duyệt.',

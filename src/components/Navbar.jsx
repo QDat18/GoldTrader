@@ -72,6 +72,16 @@ export function UserNavbar() {
     const val = parseInt(depositAmount.toString().replace(/[^0-9]/g, ''), 10);
     if (!Number.isNaN(val) && val > 0) {
       depositMoney(val);
+      
+      if (user?.id) {
+        supabase.schema('financial_ledgers').from('fiat_deposits').insert({
+          user_id: user.id,
+          amount_vnd: val
+        }).then(({ error }) => {
+          if (error) console.error('Lỗi khi lưu lịch sử nạp tiền:', error);
+        });
+      }
+
       alert(`Nạp thành công ${val.toLocaleString('vi-VN')} đ vào ví.`);
       setIsDepositModalOpen(false);
       setDepositAmount('5000000');

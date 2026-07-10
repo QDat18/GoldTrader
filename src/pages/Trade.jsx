@@ -1,13 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import useStore from '../store/useStore';
 import { supabase } from '../supabaseClient';
-import { createClient } from '@supabase/supabase-js';
+import { useNavigate } from 'react-router-dom';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
-const supabaseLedger = createClient(supabaseUrl, supabaseAnonKey, {
-  db: { schema: 'financial_ledgers' }
-});
+const supabaseLedger = supabase.schema('financial_ledgers');
 
 export default function Trade() {
   const prices = useStore((state) => state.goldPrices);
@@ -17,6 +13,7 @@ export default function Trade() {
   const fetchGoldPrices = useStore((state) => state.fetchGoldPrices);
   const fetchUserBalances = useStore((state) => state.fetchUserBalances);
   const currentUser = useStore((state) => state.currentUser);
+  const navigate = useNavigate();
 
   const [activeTab, setActiveTab] = useState('buy'); // 'buy', 'sell', 'withdraw'
   const [selectedGoldKey, setSelectedGoldKey] = useState('');
@@ -25,11 +22,23 @@ export default function Trade() {
   const [timeframe, setTimeframe] = useState('1D'); // '1H', '1D', '1W', '1M'
   const [timeLeft, setTimeLeft] = useState(60);
   const [orderStatus, setOrderStatus] = useState({ show: false, success: true, message: '' });
+  const [showConfirmBuy, setShowConfirmBuy] = useState(false);
+  const [showInvoiceOpen, setShowInvoiceOpen] = useState(false);
+  const [invoiceDetails, setInvoiceDetails] = useState(null);
   const [chartData, setChartData] = useState([]);
   const [visibleCount, setVisibleCount] = useState(24);
 
   // Kho hàng vật lý của cửa hàng - được lấy trực tiếp từ database
-  const [storeStock, setStoreStock] = useState({ sjc: 0, pnj: 0, doji: 0 });
+  const [storeStock, setStoreStock] = useState({});
+
+  const getBrandCategory = (key) => {
+    if (!key) return 'sjc';
+    const lowerKey = key.toLowerCase();
+    const name = prices[key]?.name?.toLowerCase() || '';
+    if (name.includes('pnj') || lowerKey.includes('pnj')) return 'pnj';
+    if (name.includes('doji') || lowerKey.includes('doji')) return 'doji';
+    return 'sjc';
+  };
 
   const fetchStoreStock = async () => {
     try {
@@ -38,15 +47,23 @@ export default function Trade() {
         .select('gold_type, status, weight_grams');
       if (error) throw error;
       
-      const weights = { sjc: 0, pnj: 0, doji: 0 };
+      const weights = {};
+      const keys = Object.keys(prices);
+      keys.forEach(k => { weights[k] = 0; });
+
       if (data) {
         data.forEach(item => {
           if (item.status === 'AVAILABLE') {
-            const type = item.gold_type.toLowerCase();
+            const key = item.gold_type; // e.g. "SJL1L10"
             const w = Number(item.weight_grams) || 0;
-            if (type.includes('sjc')) weights.sjc += w;
-            else if (type.includes('pnj')) weights.pnj += w;
-            else if (type.includes('doji')) weights.doji += w;
+            if (weights[key] !== undefined) {
+              weights[key] += w;
+            } else {
+              // Hỗ trợ dự phòng các mã cũ
+              const typeLower = key.toLowerCase();
+              if (typeLower.includes('sjc')) weights['SJL1L10'] = (weights['SJL1L10'] || 0) + w;
+              else if (typeLower.includes('pnj')) weights['PQHNVM'] = (weights['PQHNVM'] || 0) + w;
+            }
           }
         });
       }
@@ -241,10 +258,18 @@ export default function Trade() {
   const activeItem = prices[selectedGoldKey] || { name: 'Đang tải...', buy: 0, sell: 0, diff: 0, change: '▲ +0.00%', up: true };
   const currentPrice = activeTab === 'sell' ? activeItem.buy : activeItem.sell;
 
+  const getParentWalletBrand = (key) => {
+    if (!key) return 'sjc';
+    const k = key.toLowerCase();
+    if (k.startsWith('sj')) return 'sjc';
+    if (k.startsWith('pm') || k.startsWith('pq') || k.startsWith('pn')) return 'pnj';
+    if (k.startsWith('do')) return 'doji';
+    return 'sjc';
+  };
+
   const getGoldBalance = () => {
-    // Tạm thời giữ tương thích ngược: với các loại vàng mới, trả về tổng số dư vàng chung
-    const totalGold = (goldBalances.sjc || 0) + (goldBalances.pnj || 0) + (goldBalances.doji || 0);
-    return totalGold;
+    const parentBrand = getParentWalletBrand(selectedGoldKey);
+    return goldBalances[parentBrand] || 0;
   };
 
   const handleQuantityChange = (val) => {
@@ -322,15 +347,15 @@ export default function Trade() {
       
       if (userErr || !dbUser) throw new Error('Không tìm thấy thông tin hồ sơ của bạn.');
 
-      // Sử dụng selectedGoldKey trực tiếp làm goldType (giờ là mã vang.today như SJL1L10)
-      let goldType = selectedGoldKey;
+      // Sử dụng selectedGoldKey và map sang nhãn hiệu cha để làm việc với ví ví dụ: sjc, pnj, doji
+      const parentBrand = getParentWalletBrand(selectedGoldKey);
 
       // Lấy ví vàng của khách hàng trong CSDL
       const { data: wallets } = await supabase
         .from('gold_wallets')
         .select('*')
         .eq('user_id', dbUser.id)
-        .eq('gold_type', goldType);
+        .eq('gold_type', parentBrand);
 
       let currentGrams = 0;
       if (wallets && wallets.length > 0) {
@@ -339,12 +364,13 @@ export default function Trade() {
 
       if (activeTab === 'buy') {
         // MUA VÀNG (Dữ liệu trừ Ví tiền VND, cộng Ví vàng online ngay lập tức)
-        const currentStoreStock = storeStock[selectedGoldKey];
-        if (qtyVal > currentStoreStock) {
+        const currentStoreStock = storeStock[selectedGoldKey] || 0; // grams
+        const stockQtyChi = currentStoreStock / 3.75; // 3.75g = 1 chỉ
+        if (qtyVal > stockQtyChi) {
           setOrderStatus({ 
             show: true, 
             success: false, 
-            message: `Kho hàng của cửa hàng chỉ còn ${currentStoreStock} chỉ/lượng. Không đủ đáp ứng.` 
+            message: `Kho hàng của cửa hàng chỉ còn ${stockQtyChi.toFixed(2)} chỉ. Không đủ đáp ứng.` 
           });
           return;
         }
@@ -354,13 +380,12 @@ export default function Trade() {
           return;
         }
 
-        // 1. Trừ Ví tiền VND cục bộ & cộng ví vàng
+        // 1. Trừ Ví tiền VND cục bộ & cộng ví vàng theo nhãn hiệu cha
         depositMoney(-amountVal);
-        const sourceKey = selectedGoldKey;
         useStore.setState((state) => ({
           goldBalances: {
             ...state.goldBalances,
-            [sourceKey]: parseFloat((state.goldBalances[sourceKey] + qtyVal).toFixed(4))
+            [parentBrand]: parseFloat((state.goldBalances[parentBrand] + qtyVal).toFixed(4))
           }
         }));
 
@@ -370,7 +395,47 @@ export default function Trade() {
           .from('gold_wallets')
           .update({ quantity_grams: newGrams })
           .eq('user_id', dbUser.id)
-          .eq('gold_type', goldType);
+          .eq('gold_type', parentBrand);
+
+        // 2.5. Trừ tồn kho vật lý tương ứng trong Database (vault_inventory)
+        const { data: availableBars, error: fetchErr } = await supabase
+          .from('vault_inventory')
+          .select('*')
+          .eq('gold_type', selectedGoldKey)
+          .eq('status', 'AVAILABLE')
+          .order('id', { ascending: true });
+
+        if (fetchErr) throw fetchErr;
+
+        let gramsToDeduct = qtyVal * 3.75;
+        if (availableBars && availableBars.length > 0) {
+          for (const bar of availableBars) {
+            if (gramsToDeduct <= 0) break;
+            const barWeight = Number(bar.weight_grams);
+            if (barWeight <= gramsToDeduct) {
+              gramsToDeduct -= barWeight;
+              const { error: updErr } = await supabase
+                .from('vault_inventory')
+                .update({
+                  status: 'RESERVED',
+                  order_id: ordId
+                })
+                .eq('id', bar.id);
+              if (updErr) throw updErr;
+            } else {
+              const newGrams = barWeight - gramsToDeduct;
+              gramsToDeduct = 0;
+              const { error: updErr } = await supabase
+                .from('vault_inventory')
+                .update({
+                  weight_grams: newGrams,
+                  order_id: ordId
+                })
+                .eq('id', bar.id);
+              if (updErr) throw updErr;
+            }
+          }
+        }
 
         // 3. Ghi log order hoàn thành lập tức lên Supabase
         await supabase
@@ -384,8 +449,21 @@ export default function Trade() {
             quantity_grams: qtyVal * 3.75,
             unit_price_vnd: Math.round(currentPrice / 3.75),
             total_amount_vnd: amountVal,
-            status: 'COMPLETED'
+            order_status: 'COMPLETED',
+            payment_status: 'PAID',
+            secure_token: 'TOK-' + Math.random().toString(36).substr(2, 9).toUpperCase(),
+            pdf_hash: 'HASH-' + Math.random().toString(36).substr(2, 9).toUpperCase()
           });
+
+        const invoiceInfo = {
+          name: dbUser.full_name || session.user.email.split('@')[0],
+          contractId: ordId,
+          goldType: activeItem.name,
+          quantity: qtyVal.toString(),
+          price: currentPrice.toLocaleString('vi-VN'),
+          total: amountVal.toLocaleString('vi-VN'),
+          date: new Date().toLocaleString('vi-VN')
+        };
 
         // Hợp đồng mua điện tử qua SMTP
         try {
@@ -396,15 +474,7 @@ export default function Trade() {
               to: session.user.email,
               subject: `[GoldChain] Hợp đồng mua vàng tích lũy điện tử #${ordId}`,
               templateName: 'HopDongMua',
-              templateData: {
-                name: dbUser.full_name || session.user.email.split('@')[0],
-                contractId: ordId,
-                goldType: activeItem.name,
-                quantity: qtyVal.toString(),
-                price: currentPrice.toLocaleString('vi-VN'),
-                total: amountVal.toLocaleString('vi-VN'),
-                date: new Date().toLocaleString('vi-VN')
-              }
+              templateData: invoiceInfo
             })
           });
         } catch (mailErr) {
@@ -434,11 +504,8 @@ export default function Trade() {
           [selectedGoldKey]: Math.max(0, Number((prev[selectedGoldKey] - qtyVal).toFixed(2)))
         }));
 
-        setOrderStatus({ 
-          show: true, 
-          success: true, 
-          message: `Mua tích lũy thành công! Trừ ví VND và cộng ${qtyVal} chỉ vào ví vàng tích lũy online của bạn.` 
-        });
+        setInvoiceDetails(invoiceInfo);
+        setShowInvoiceOpen(true);
 
       } else if (activeTab === 'sell') {
         // BÁN VÀNG (Trừ Ví vàng online và cộng tiền vào Ví VND trực tuyến ngay lập tức)
@@ -452,12 +519,11 @@ export default function Trade() {
           return;
         }
 
-        // 1. Trừ Ví vàng cục bộ & cộng Ví VND
-        const sourceKey = selectedGoldKey;
+        // 1. Trừ Ví vàng cục bộ & cộng Ví VND theo nhãn hiệu cha
         useStore.setState((state) => ({
           goldBalances: {
             ...state.goldBalances,
-            [sourceKey]: Math.max(0, parseFloat((state.goldBalances[sourceKey] - qtyVal).toFixed(4)))
+            [parentBrand]: Math.max(0, parseFloat((state.goldBalances[parentBrand] - qtyVal).toFixed(4)))
           }
         }));
         depositMoney(amountVal);
@@ -468,7 +534,7 @@ export default function Trade() {
           .from('gold_wallets')
           .update({ quantity_grams: newGrams })
           .eq('user_id', dbUser.id)
-          .eq('gold_type', goldType);
+          .eq('gold_type', parentBrand);
 
         // 3. Ghi log order hoàn thành lập tức lên Supabase
         await supabase
@@ -482,7 +548,10 @@ export default function Trade() {
             quantity_grams: qtyVal * 3.75,
             unit_price_vnd: Math.round(currentPrice / 3.75),
             total_amount_vnd: amountVal,
-            status: 'COMPLETED'
+            order_status: 'COMPLETED',
+            payment_status: 'PAID',
+            secure_token: 'TOK-' + Math.random().toString(36).substr(2, 9).toUpperCase(),
+            pdf_hash: 'HASH-' + Math.random().toString(36).substr(2, 9).toUpperCase()
           });
 
         // Hợp đồng bán điện tử qua SMTP
@@ -559,7 +628,7 @@ export default function Trade() {
           .from('gold_wallets')
           .update({ quantity_grams: newGrams })
           .eq('user_id', dbUser.id)
-          .eq('gold_type', goldType);
+          .eq('gold_type', parentBrand);
 
         // 3. Đăng ký một đơn rút vàng vật chất PENDING (Chờ quét QR tại quầy)
         await supabase
@@ -573,7 +642,10 @@ export default function Trade() {
             quantity_grams: qtyVal * 3.75,
             unit_price_vnd: Math.round(currentPrice / 3.75),
             total_amount_vnd: amountVal,
-            status: 'PENDING' // Chờ ra quầy nhận
+            order_status: 'WAITING_PICKUP',
+            payment_status: 'PAID',
+            secure_token: 'TOK-' + Math.random().toString(36).substr(2, 9).toUpperCase(),
+            pdf_hash: 'HASH-' + Math.random().toString(36).substr(2, 9).toUpperCase()
           });
 
         // 4. Tạo lịch sử giao dịch ở dạng PENDING (Chờ nhận vàng)
@@ -876,7 +948,43 @@ export default function Trade() {
           height: 'fit-content',
           position: 'relative'
         }}>
-          {currentUser?.kycStatus !== 'verified' && (
+          {(!currentUser || !currentUser.email) ? (
+            <div style={{
+              position: 'absolute',
+              inset: 0,
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              background: 'rgba(5, 5, 5, 0.75)',
+              backdropFilter: 'blur(6px)',
+              borderRadius: '8px',
+              zIndex: 10,
+              padding: '20px',
+              textAlign: 'center'
+            }}>
+              <div style={{ fontSize: '15px', fontWeight: '600', color: 'var(--gold)', marginBottom: '4px' }}>Chưa đăng nhập</div>
+              <div style={{ fontSize: '13px', color: '#fff', fontWeight: '500', marginBottom: '16px' }}>Vui lòng đăng nhập để bắt đầu giao dịch</div>
+              <button 
+                type="button"
+                className="btn"
+                onClick={() => navigate('/login')}
+                style={{
+                  padding: '10px 24px',
+                  background: 'var(--gold-gradient)',
+                  border: 'none',
+                  borderRadius: '6px',
+                  color: '#000',
+                  fontSize: '13px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  transition: '0.2s all'
+                }}
+              >
+                Đăng nhập ngay
+              </button>
+            </div>
+          ) : currentUser.kycStatus !== 'verified' ? (
             <div style={{
               position: 'absolute',
               inset: 0,
@@ -913,7 +1021,7 @@ export default function Trade() {
                 Liên hệ trợ giúp
               </button>
             </div>
-          )}
+          ) : null}
           
           {/* Tabs */}
           <div style={{ display: 'flex', gap: '2px', background: 'rgba(255,255,255,0.02)', padding: '2px', borderRadius: '8px' }}>
@@ -991,6 +1099,11 @@ export default function Trade() {
                 ? `Kho cửa hàng còn: ${(storeStock[selectedGoldKey] / 3.75 || 0).toFixed(2)} chỉ (~ ${(storeStock[selectedGoldKey] / 37.5 || 0).toFixed(2)} lượng)`
                 : `Ví vàng tích lũy cá nhân: ${getGoldBalance().toFixed(3)} chỉ`}
             </div>
+            {activeTab === 'buy' && quantity && parseFloat(quantity) > (storeStock[selectedGoldKey] / 3.75 || 0) && (
+              <div style={{ color: 'var(--ruby)', fontSize: '12px', marginTop: '6px', fontWeight: 600 }}>
+                ⚠️ Số lượng mua vượt quá tồn kho khả dụng của cửa hàng!
+              </div>
+            )}
           </div>
 
           {/* Nút phần trăm */}
@@ -1064,15 +1177,31 @@ export default function Trade() {
 
           <button 
             className="btn" 
-            onClick={handleSubmitOrder}
-            disabled={!quantity || parseFloat(quantity) <= 0}
+            onClick={() => {
+              if (activeTab === 'buy') {
+                const currentStoreStock = storeStock[selectedGoldKey] || 0;
+                const stockQtyChi = currentStoreStock / 3.75;
+                if (parseFloat(quantity) > stockQtyChi) {
+                  setOrderStatus({ 
+                    show: true, 
+                    success: false, 
+                    message: `Kho hàng của cửa hàng chỉ còn ${stockQtyChi.toFixed(2)} chỉ. Không đủ đáp ứng.` 
+                  });
+                  return;
+                }
+                setShowConfirmBuy(true);
+              } else {
+                handleSubmitOrder();
+              }
+            }}
+            disabled={!quantity || parseFloat(quantity) <= 0 || (activeTab === 'buy' && parseFloat(quantity) > (storeStock[selectedGoldKey] / 3.75 || 0))}
             style={{ 
               width: '100%', padding: '12px', fontSize: '14px', fontWeight: 'bold',
               background: activeTab === 'buy' ? 'var(--emerald)' : (activeTab === 'sell' ? 'var(--ruby)' : 'var(--gold-gradient)'),
               color: activeTab === 'sell' ? '#fff' : '#000',
               border: 'none', borderRadius: '6px',
-              cursor: (!quantity || parseFloat(quantity) <= 0) ? 'not-allowed' : 'pointer',
-              opacity: (!quantity || parseFloat(quantity) <= 0) ? 0.45 : 1
+              cursor: (!quantity || parseFloat(quantity) <= 0 || (activeTab === 'buy' && parseFloat(quantity) > (storeStock[selectedGoldKey] / 3.75 || 0))) ? 'not-allowed' : 'pointer',
+              opacity: (!quantity || parseFloat(quantity) <= 0 || (activeTab === 'buy' && parseFloat(quantity) > (storeStock[selectedGoldKey] / 3.75 || 0))) ? 0.45 : 1
             }}
           >
             {activeTab === 'buy' ? 'MUA VÀO VÍ VÀNG' : (activeTab === 'sell' ? 'BÁN TRỰC TUYẾN' : 'TẠO YÊU CẦU RÚT VÀNG')}
@@ -1097,6 +1226,180 @@ export default function Trade() {
             >
               Đồng ý
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL XÁC NHẬN MUA VÀNG */}
+      {showConfirmBuy && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1100 }}>
+          <div className="neo-card" style={{ background: '#0A0A0A', border: '1px solid rgba(212, 175, 55, 0.3)', padding: '28px', maxWidth: '420px', width: '100%', borderRadius: '12px', display: 'flex', flexDirection: 'column', gap: '20px', boxShadow: '0 8px 30px rgba(0,0,0,0.5)' }}>
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ width: '56px', height: '56px', borderRadius: '50%', background: 'rgba(212,175,55,0.1)', border: '1px solid var(--gold)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginBottom: '12px' }}>
+                <span style={{ fontSize: '24px', color: 'var(--gold)', fontWeight: 'bold' }}>?</span>
+              </div>
+              <h3 style={{ margin: 0, color: '#FFFFFF', fontSize: '18px', fontWeight: '700' }}>Xác nhận Mua Vàng Tích Lũy</h3>
+              <p style={{ margin: '8px 0 0 0', fontSize: '13px', color: 'var(--text-muted)' }}>Vui lòng kiểm tra kỹ thông tin giao dịch bên dưới:</p>
+            </div>
+            
+            <div style={{ background: 'rgba(255,255,255,0.02)', padding: '16px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.06)', fontSize: '13px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ color: 'var(--text-muted)' }}>Loại vàng:</span>
+                <span style={{ color: '#fff', fontWeight: 'bold' }}>{activeItem.name}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ color: 'var(--text-muted)' }}>Số lượng:</span>
+                <span style={{ color: '#fff', fontWeight: 'bold' }}>{parseFloat(quantity).toFixed(2)} chỉ</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ color: 'var(--text-muted)' }}>Giá chốt mua:</span>
+                <span style={{ color: 'var(--gold)', fontWeight: 'bold' }}>₫{currentPrice.toLocaleString('vi-VN')} / chỉ</span>
+              </div>
+              <hr style={{ border: 'none', borderTop: '1px solid rgba(255,255,255,0.08)', margin: '4px 0' }} />
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px' }}>
+                <span style={{ color: 'var(--gold)', fontWeight: 'bold' }}>Tổng thanh toán:</span>
+                <span style={{ color: 'var(--gold)', fontWeight: '800' }}>₫{Math.round(parseFloat(amount || 0)).toLocaleString('vi-VN')}</span>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button 
+                className="btn btn-secondary" 
+                onClick={() => setShowConfirmBuy(false)} 
+                style={{ flex: 1, padding: '10px', background: 'rgba(255,255,255,0.05)', color: '#fff', border: '1px solid rgba(255,255,255,0.1)' }}
+              >
+                Hủy giao dịch
+              </button>
+              <button 
+                className="btn" 
+                onClick={() => {
+                  setShowConfirmBuy(false);
+                  handleSubmitOrder();
+                }}
+                style={{ flex: 1, padding: '10px', background: 'var(--gold)', color: '#000', border: 'none', fontWeight: 'bold' }}
+              >
+                Đồng ý mua
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* HÓA ĐƠN BIÊN NHẬN CHI TIẾT */}
+      {showInvoiceOpen && invoiceDetails && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.9)', backdropFilter: 'blur(5px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1200, padding: '16px' }}>
+          <div style={{ 
+            maxWidth: '440px', 
+            width: '100%', 
+            background: '#1E1E1E', 
+            border: '1px solid #2D3748', 
+            borderRadius: '12px', 
+            overflow: 'hidden', 
+            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.5)',
+            display: 'flex',
+            flexDirection: 'column'
+          }}>
+            {/* Header đồng bộ HopDongMua.html */}
+            <div style={{
+              padding: '24px 20px',
+              textAlign: 'center',
+              background: 'linear-gradient(135deg, #1A1A1A, #121212)',
+              borderBottom: '2px solid #B38728',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: '8px'
+            }}>
+              <div style={{
+                width: '42px',
+                height: '42px',
+                borderRadius: '50%',
+                background: 'linear-gradient(135deg, #BF953F, #FCF6BA, #B38728)',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontWeight: '800',
+                color: '#121212',
+                fontSize: '20px'
+              }}>G</div>
+              <div style={{
+                fontSize: '18px',
+                fontWeight: '750',
+                color: '#FFFFFF',
+                letterSpacing: '1px'
+              }}>GOLD<span style={{ color: '#B38728' }}>CHAIN</span></div>
+            </div>
+
+            {/* Content hóa đơn */}
+            <div style={{ padding: '24px', color: '#E2E8F0', fontSize: '13px', lineHeight: '1.5' }}>
+              <div style={{ fontSize: '18px', color: '#FFFFFF', fontWeight: '600', marginBottom: '4px', textAlign: 'center' }}>Giao Dịch Thành Công</div>
+              <div style={{ textAlign: 'center', fontSize: '13px', color: '#B38728', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '20px' }}>Hợp đồng mua vàng tích lũy điện tử</div>
+              
+              <p style={{ margin: '0 0 16px 0' }}>
+                Kính gửi quý khách <strong style={{ color: '#FFFFFF' }}>{invoiceDetails.name}</strong>,
+              </p>
+              <p style={{ margin: '0 0 16px 0' }}>
+                Hệ thống xác nhận lệnh Mua vàng tích lũy trực tuyến của quý khách đã được khớp lệnh thành công. Dưới đây là thông tin chi tiết hợp đồng giao dịch:
+              </p>
+
+              <table style={{ width: '100%', borderCollapse: 'collapse', background: '#121212', borderRadius: '8px', overflow: 'hidden', border: '1px solid #2D3748', marginBottom: '20px' }}>
+                <tbody>
+                  <tr>
+                    <td style={{ padding: '10px 14px', borderBottom: '1px solid #2D3748', color: '#A0AEC0', fontWeight: '550' }}>Mã hợp đồng (Order ID)</td>
+                    <td style={{ padding: '10px 14px', borderBottom: '1px solid #2D3748', color: '#B38728', fontWeight: 'bold', textAlign: 'right' }}>{invoiceDetails.contractId}</td>
+                  </tr>
+                  <tr>
+                    <td style={{ padding: '10px 14px', borderBottom: '1px solid #2D3748', color: '#A0AEC0', fontWeight: '550' }}>Sản phẩm vàng</td>
+                    <td style={{ padding: '10px 14px', borderBottom: '1px solid #2D3748', color: '#FFFFFF', fontWeight: 'bold', textAlign: 'right' }}>{invoiceDetails.goldType}</td>
+                  </tr>
+                  <tr>
+                    <td style={{ padding: '10px 14px', borderBottom: '1px solid #2D3748', color: '#A0AEC0', fontWeight: '550' }}>Số lượng vàng</td>
+                    <td style={{ padding: '10px 14px', borderBottom: '1px solid #2D3748', color: '#FFFFFF', fontWeight: 'bold', textAlign: 'right' }}>{invoiceDetails.quantity} chỉ</td>
+                  </tr>
+                  <tr>
+                    <td style={{ padding: '10px 14px', borderBottom: '1px solid #2D3748', color: '#A0AEC0', fontWeight: '550' }}>Đơn giá niêm yết</td>
+                    <td style={{ padding: '10px 14px', borderBottom: '1px solid #2D3748', color: '#FFFFFF', fontWeight: 'bold', textAlign: 'right' }}>₫{invoiceDetails.price} / chỉ</td>
+                  </tr>
+                  <tr>
+                    <td style={{ padding: '10px 14px', borderBottom: '1px solid #2D3748', color: '#A0AEC0', fontWeight: '550' }}>Thời gian giao dịch</td>
+                    <td style={{ padding: '10px 14px', borderBottom: '1px solid #2D3748', color: '#FFFFFF', fontWeight: 'bold', textAlign: 'right' }}>{invoiceDetails.date}</td>
+                  </tr>
+                  <tr style={{ background: 'rgba(179, 135, 40, 0.08)' }}>
+                    <td style={{ padding: '10px 14px', color: '#B38728', fontWeight: '700' }}>Tổng tiền thanh toán</td>
+                    <td style={{ padding: '10px 14px', color: '#B38728', fontSize: '15px', fontWeight: '800', textAlign: 'right' }}>₫{invoiceDetails.total}</td>
+                  </tr>
+                </tbody>
+              </table>
+
+              <div style={{
+                textAlign: 'center',
+                padding: '12px',
+                background: 'rgba(16, 185, 129, 0.05)',
+                border: '1px solid rgba(16, 185, 129, 0.2)',
+                borderRadius: '8px',
+                color: '#10B981',
+                fontSize: '12px',
+                fontWeight: '600',
+                marginBottom: '16px'
+              }}>
+                🛡️ Chứng nhận quyền sở hữu vàng vật chất 1:1 trong kho ký gửi của GoldChain.
+              </div>
+
+              <p style={{ fontSize: '11px', color: '#A0AEC0', textAlign: 'center', margin: '0 0 16px 0' }}>
+                Hóa đơn và bằng chứng số (SHA-256 Hash) của hợp đồng này đã được lưu trữ bảo vệ trên sổ cái Blockchain. Bản sao PDF đã được gửi qua email của quý khách.
+              </p>
+
+              <button 
+                className="btn btn-gold" 
+                onClick={() => {
+                  setShowInvoiceOpen(false);
+                  setInvoiceDetails(null);
+                }}
+                style={{ width: '100%', padding: '10px', fontSize: '13px', fontWeight: 'bold' }}
+              >
+                Hoàn tất & Đóng
+              </button>
+            </div>
           </div>
         </div>
       )}

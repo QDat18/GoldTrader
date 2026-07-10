@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import useStore from '../store/useStore';
 
 export default function History() {
@@ -7,6 +7,14 @@ export default function History() {
   const [searchQuery, setSearchQuery] = useState('');
 
   const transactions = useStore(state => state.transactions);
+  const currentUser = useStore(state => state.currentUser);
+  const fetchTransactions = useStore(state => state.fetchTransactions);
+
+  useEffect(() => {
+    if (currentUser?.id) {
+      fetchTransactions(currentUser.id);
+    }
+  }, [currentUser, fetchTransactions]);
 
   // Filter logic
   const filteredTxns = transactions.filter(txn => {
@@ -77,6 +85,13 @@ export default function History() {
               style={{ background: selectedType === 'dca' ? 'rgba(255,255,255,0.1)' : 'transparent', textAlign: 'left', padding: '10px 16px', borderRadius: '12px', color: selectedType === 'dca' ? 'var(--text-main)' : 'var(--text-muted)' }}
             >
               <i className="ti ti-repeat" style={{ marginRight: '8px', color: 'var(--gold)' }}></i> DCA tự động
+            </button>
+            <button 
+              className="btn" 
+              onClick={() => setSelectedType('deposit')}
+              style={{ background: selectedType === 'deposit' ? 'rgba(255,255,255,0.1)' : 'transparent', textAlign: 'left', padding: '10px 16px', borderRadius: '12px', color: selectedType === 'deposit' ? 'var(--text-main)' : 'var(--text-muted)' }}
+            >
+              <i className="ti ti-wallet" style={{ marginRight: '8px', color: '#3b82f6' }}></i> Lịch sử Nạp tiền
             </button>
           </div>
         </div>
@@ -185,16 +200,20 @@ export default function History() {
                       <td style={{ padding: '16px 24px' }}>
                         {txn.type === 'buy' ? (
                           <span style={{ fontSize: '11px', padding: '4px 8px', borderRadius: '4px', background: 'rgba(16, 185, 129, 0.1)', color: 'var(--emerald)', fontWeight: 600 }}>Mua</span>
+                        ) : txn.type === 'deposit' ? (
+                          <span style={{ fontSize: '11px', padding: '4px 8px', borderRadius: '4px', background: 'rgba(59, 130, 246, 0.1)', color: '#3b82f6', fontWeight: 600 }}>Nạp tiền</span>
                         ) : txn.type === 'dca' ? (
                           <span style={{ fontSize: '11px', padding: '4px 8px', borderRadius: '4px', background: 'var(--gold-gradient)', color: '#000', fontWeight: 600 }}>DCA</span>
                         ) : (
                           <span style={{ fontSize: '11px', padding: '4px 8px', borderRadius: '4px', background: 'rgba(239, 68, 68, 0.1)', color: 'var(--ruby)', fontWeight: 600 }}>Bán</span>
                         )}
                       </td>
-                      <td style={{ padding: '16px 24px', fontWeight: 500, fontSize: '14px' }}>{txn.goldTypeName}</td>
-                      <td style={{ padding: '16px 24px', textAlign: 'right', fontSize: '14px' }}>{txn.quantity.toFixed(4)} chỉ</td>
-                      <td style={{ padding: '16px 24px', textAlign: 'right', fontSize: '14px', color: 'var(--text-muted)' }}>₫{txn.price.toLocaleString('vi-VN')}</td>
-                      <td style={{ padding: '16px 24px', textAlign: 'right', fontSize: '14px', fontWeight: 500 }}>₫{txn.total.toLocaleString('vi-VN')}</td>
+                      <td style={{ padding: '16px 24px', fontWeight: 500, fontSize: '14px' }}>{txn.type === 'deposit' ? 'Nạp tiền VNĐ' : txn.goldTypeName}</td>
+                      <td style={{ padding: '16px 24px', textAlign: 'right', fontSize: '14px' }}>{txn.type === 'deposit' ? '—' : `${txn.quantity.toFixed(4)} chỉ`}</td>
+                      <td style={{ padding: '16px 24px', textAlign: 'right', fontSize: '14px', color: 'var(--text-muted)' }}>{txn.type === 'deposit' ? '—' : `₫${txn.price.toLocaleString('vi-VN')}`}</td>
+                      <td style={{ padding: '16px 24px', textAlign: 'right', fontSize: '14px', fontWeight: 500 }}>
+                        {txn.type === 'deposit' ? <span style={{ color: 'var(--emerald)' }}>+ ₫{txn.total.toLocaleString('vi-VN')}</span> : `₫${txn.total.toLocaleString('vi-VN')}`}
+                      </td>
                       <td style={{ padding: '16px 24px', fontSize: '13px', color: 'var(--text-muted)' }}>{txn.time}</td>
                       <td style={{ padding: '16px 24px' }}>
                         <span style={{ fontSize: '11px', padding: '4px 8px', borderRadius: '4px', background: 'rgba(16, 185, 129, 0.1)', color: 'var(--emerald)', fontWeight: 600 }}>{txn.status}</span>

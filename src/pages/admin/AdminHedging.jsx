@@ -4,11 +4,7 @@ import { supabase } from '../../supabaseClient';
 import { createClient } from '@supabase/supabase-js';
 import { Layers, Plus } from 'lucide-react';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
-const supabaseLedger = createClient(supabaseUrl, supabaseAnonKey, {
-  db: { schema: 'financial_ledgers' }
-});
+const supabaseLedger = supabase.schema('financial_ledgers');
 
 export default function AdminHedging() {
   const dbHedges = useStore(state => state.adminHedges);

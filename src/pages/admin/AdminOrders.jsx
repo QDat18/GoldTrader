@@ -5,11 +5,7 @@ import { supabase } from '../../supabaseClient';
 import { createClient } from '@supabase/supabase-js';
 import { CheckCircle2, RotateCw } from 'lucide-react';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
-const supabaseLedger = createClient(supabaseUrl, supabaseAnonKey, {
-  db: { schema: 'financial_ledgers' }
-});
+const supabaseLedger = supabase.schema('financial_ledgers');
 
 export default function AdminOrders() {
   const navigate = useNavigate();
@@ -149,7 +145,7 @@ export default function AdminOrders() {
       // 3. Cập nhật trạng thái đơn hàng
       const { error: ordErr } = await supabaseLedger
         .from('orders')
-        .update({ status: 'COMPLETED', completed_at: new Date().toISOString() })
+        .update({ order_status: 'COMPLETED', payment_status: 'PAID', completed_at: new Date().toISOString() })
         .eq('id', order.id);
       if (ordErr) throw ordErr;
 

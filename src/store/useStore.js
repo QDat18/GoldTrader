@@ -2,11 +2,7 @@ import { create } from "zustand";
 import { createClient } from "@supabase/supabase-js";
 import { supabase } from '../supabaseClient';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || "";
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || "";
-const supabaseLedger = createClient(supabaseUrl, supabaseAnonKey, {
-  db: { schema: "financial_ledgers" }
-});
+const supabaseLedger = supabase.schema('financial_ledgers');
 
 // Initial state with local storage cache support - Stale While Revalidate
 const initialState = {
@@ -560,6 +556,9 @@ const useStore = create((set, get) => ({
             change,
             up,
             sourceCode, // Mã gốc vang.today (VD: SJL1L10) để truy vấn lịch sử
+            recordedAt: latest.recorded_at,
+            buyChange: previous ? buy - Number(previous.buy_price_vnd) : 0,
+            sellChange: previous ? sell - Number(previous.sell_price_vnd) : 0,
           };
         }
 
@@ -624,7 +623,8 @@ const useStore = create((set, get) => ({
 
   fetchTransactions: async (userId) => {
     try {
-      const { data, error } = await supabaseLedger
+      const { data, error } = await supabase
+        .schema('financial_ledgers')
         .from('orders')
         .select('*')
         .eq('user_id', userId)
@@ -633,7 +633,7 @@ const useStore = create((set, get) => ({
       if (error) throw error;
 
       if (data) {
-        const loadedTxns = data.map(order => {
+        let loadedTxns = data.map(order => {
           let type = 'buy';
           if (order.order_type === 'SELL_ONLINE') {
             type = 'sell';
@@ -647,6 +647,9 @@ const useStore = create((set, get) => ({
           const qty = Number(order.quantity_grams) / 3.75;
           const price = Math.round(Number(order.unit_price_vnd) * 3.75);
 
+          let mappedStatus = order.order_status || 'OK';
+          if (mappedStatus === 'WAITING_PICKUP') mappedStatus = 'PENDING';
+
           return {
             id: order.id,
             type: type,
@@ -656,9 +659,43 @@ const useStore = create((set, get) => ({
             total: Number(order.total_amount_vnd),
             pnl: '—',
             time: timeStr,
-            status: order.status || order.order_status || 'OK'
+            status: mappedStatus,
+            rawTime: date.getTime()
           };
         });
+
+        // 2. Tải lịch sử nạp tiền từ fiat_deposits
+        try {
+          const { data: deposits, error: depErr } = await supabaseLedger
+            .from('fiat_deposits')
+            .select('*')
+            .eq('user_id', userId)
+            .order('created_at', { ascending: false });
+
+          if (!depErr && deposits) {
+            const mappedDep = deposits.map(d => {
+              const date = new Date(d.created_at);
+              const timeStr = `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')} ${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear()}`;
+              return {
+                id: `DEP-${d.id.substring(0, 7).toUpperCase()}`,
+                type: 'deposit',
+                goldTypeName: 'VND',
+                quantity: 0,
+                price: Number(d.amount_vnd),
+                total: Number(d.amount_vnd),
+                pnl: '—',
+                time: timeStr,
+                status: d.status === 'COMPLETED' ? 'Hoàn tất' : 'Đang xử lý',
+                rawTime: date.getTime()
+              };
+            });
+            loadedTxns = [...loadedTxns, ...mappedDep];
+          }
+        } catch (e) {
+          console.warn('Bạn chưa tạo bảng fiat_deposits', e);
+        }
+
+        loadedTxns.sort((a, b) => b.rawTime - a.rawTime);
 
         localStorage.setItem('cached_transactions', JSON.stringify(loadedTxns));
         set({ transactions: loadedTxns });
@@ -686,11 +723,18 @@ const useStore = create((set, get) => ({
 
   fetchAdminOrders: async () => {
     try {
-      const { data: dbOrdersData, error: ordErr } = await supabaseLedger
+      const { data: dbOrdersData, error: ordErr } = await supabase
+        .schema('financial_ledgers')
         .from('orders')
         .select('*')
         .order('created_at', { ascending: false });
       if (ordErr) throw ordErr;
+
+      if (dbOrdersData) {
+        dbOrdersData.forEach(o => {
+          o.status = o.order_status === 'WAITING_PICKUP' ? 'PENDING' : (o.order_status || 'OK');
+        });
+      }
 
       const { data: usersData, error: usrErr } = await supabase
         .from('user_profiles')

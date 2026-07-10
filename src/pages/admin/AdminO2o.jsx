@@ -5,11 +5,7 @@ import { supabase } from '../../supabaseClient';
 import { createClient } from '@supabase/supabase-js';
 import { QrCode, Search, Check, ShieldAlert, XCircle } from 'lucide-react';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
-const supabaseLedger = createClient(supabaseUrl, supabaseAnonKey, {
-  db: { schema: 'financial_ledgers' }
-});
+const supabaseLedger = supabase.schema('financial_ledgers');
 
 export default function AdminO2o() {
   const navigate = useNavigate();
@@ -88,12 +84,38 @@ export default function AdminO2o() {
     }
 
     // Auto select matching bar
-    let goldType = 'sjc';
-    const nameLower = order.gold_type.toLowerCase();
-    if (nameLower.includes('pnj')) goldType = 'pnj';
-    else if (nameLower.includes('doji')) goldType = 'doji';
+    const getGoldTypeCode = (name) => {
+      if (!name) return '';
+      const reverseMap = {
+        "sjc 9999": "SJL1L10",
+        "nhẫn sjc": "SJ9999",
+        "bảo tín sjc": "BTSJC",
+        "bảo tín 9999": "BT9999NTT",
+        "doji hà nội": "DOHNL",
+        "doji hcm": "DOHCML",
+        "doji nữ trang": "DOJINHTV",
+        "pnj hà nội": "PQHNVM",
+        "pnj 24k": "PQHN24NTT",
+        "vn gold sjc": "VNGSJC",
+        "viettin sjc": "VIETTINMSJC"
+      };
+      return reverseMap[name.toLowerCase()] || '';
+    };
 
-    const matchingBar = dbInventory.find(i => i.gold_type === goldType && i.status === 'AVAILABLE');
+    const isLegacyTypeMatch = (legacyType, orderName) => {
+      const l = legacyType.toLowerCase();
+      const o = orderName.toLowerCase();
+      if (l === 'sjc') return o.includes('sjc') || o.includes('viettin') || o.includes('vn gold');
+      if (l === 'pnj') return o.includes('pnj');
+      if (l === 'doji') return o.includes('doji');
+      return false;
+    };
+
+    const goldTypeCode = getGoldTypeCode(order.gold_type);
+    const matchingBar = dbInventory.find(i => 
+      (i.gold_type === goldTypeCode || isLegacyTypeMatch(i.gold_type, order.gold_type)) && 
+      i.status === 'AVAILABLE'
+    );
     if (matchingBar) {
       setSelectedInventoryBar(matchingBar.gold_serial);
     } else {
@@ -108,7 +130,7 @@ export default function AdminO2o() {
       const { error: ordErr } = await supabaseLedger
         .from('orders')
         .update({
-          status: 'COMPLETED',
+          payment_status: 'PAID',
           completed_at: new Date().toISOString(),
           order_status: 'COMPLETED'
         })
@@ -306,11 +328,35 @@ export default function AdminO2o() {
                 <option value="">-- Tự động phân bổ thỏi ngẫu nhiên --</option>
                 {availableInventory
                   .filter(i => {
-                    const targetGoldType = matchedOrder.gold_type.toLowerCase();
-                    if (targetGoldType.includes('sjc') && i.gold_type === 'sjc') return true;
-                    if (targetGoldType.includes('pnj') && i.gold_type === 'pnj') return true;
-                    if (targetGoldType.includes('doji') && i.gold_type === 'doji') return true;
-                    return false;
+                    const getGoldTypeCode = (name) => {
+                      if (!name) return '';
+                      const reverseMap = {
+                        "sjc 9999": "SJL1L10",
+                        "nhẫn sjc": "SJ9999",
+                        "bảo tín sjc": "BTSJC",
+                        "bảo tín 9999": "BT9999NTT",
+                        "doji hà nội": "DOHNL",
+                        "doji hcm": "DOHCML",
+                        "doji nữ trang": "DOJINHTV",
+                        "pnj hà nội": "PQHNVM",
+                        "pnj 24k": "PQHN24NTT",
+                        "vn gold sjc": "VNGSJC",
+                        "viettin sjc": "VIETTINMSJC"
+                      };
+                      return reverseMap[name.toLowerCase()] || '';
+                    };
+
+                    const isLegacyTypeMatch = (legacyType, orderName) => {
+                      const l = legacyType.toLowerCase();
+                      const o = orderName.toLowerCase();
+                      if (l === 'sjc') return o.includes('sjc') || o.includes('viettin') || o.includes('vn gold');
+                      if (l === 'pnj') return o.includes('pnj');
+                      if (l === 'doji') return o.includes('doji');
+                      return false;
+                    };
+
+                    const targetGoldTypeCode = getGoldTypeCode(matchedOrder.gold_type);
+                    return i.gold_type === targetGoldTypeCode || isLegacyTypeMatch(i.gold_type, matchedOrder.gold_type);
                   })
                   .map(i => (
                     <option key={i.gold_serial} value={i.gold_serial}>
