@@ -35,21 +35,22 @@ export default function Trade() {
     try {
       const { data, error } = await supabase
         .from('vault_inventory')
-        .select('gold_type, status');
+        .select('gold_type, status, weight_grams');
       if (error) throw error;
       
-      const counts = { sjc: 0, pnj: 0, doji: 0 };
+      const weights = { sjc: 0, pnj: 0, doji: 0 };
       if (data) {
         data.forEach(item => {
           if (item.status === 'AVAILABLE') {
             const type = item.gold_type.toLowerCase();
-            if (type.includes('sjc')) counts.sjc += 1;
-            else if (type.includes('pnj')) counts.pnj += 1;
-            else if (type.includes('doji')) counts.doji += 1;
+            const w = Number(item.weight_grams) || 0;
+            if (type.includes('sjc')) weights.sjc += w;
+            else if (type.includes('pnj')) weights.pnj += w;
+            else if (type.includes('doji')) weights.doji += w;
           }
         });
       }
-      setStoreStock(counts);
+      setStoreStock(weights);
     } catch (err) {
       console.error('Lỗi khi tải kho cửa hàng từ database:', err);
     }
@@ -848,13 +849,14 @@ export default function Trade() {
               {goldListKeys.map((key) => {
                 const item = prices[key];
                 if (!item) return null;
-                const stockQty = storeStock[key] || 0;
+                const totalWeightGrams = storeStock[key] || 0;
+                const stockQtyLuot = totalWeightGrams / 37.5; // 37.5g = 1 lượng
                 const unit = 'lượng';
-                const isLow = stockQty < 60;
+                const isLow = stockQtyLuot < 6.0; // low stock below 6 lượng
                 return (
                   <div key={key} style={{ padding: '10px 12px', background: selectedGoldKey === key ? 'rgba(212, 175, 55, 0.04)' : 'rgba(255,255,255,0.01)', border: selectedGoldKey === key ? '1px solid rgba(212, 175, 55, 0.2)' : '1px solid rgba(255,255,255,0.04)', borderRadius: '8px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
                     <div style={{ fontSize: '11px', color: 'var(--text-muted)', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>{item.name}</div>
-                    <div style={{ fontSize: '15px', fontWeight: 'bold', color: isLow ? '#F59E0B' : '#fff' }}>{stockQty} <span style={{ fontSize: '11px', fontWeight: 'normal', color: 'var(--text-muted)' }}>{unit}</span></div>
+                    <div style={{ fontSize: '15px', fontWeight: 'bold', color: isLow ? '#F59E0B' : '#fff' }}>{stockQtyLuot.toFixed(2)} <span style={{ fontSize: '11px', fontWeight: 'normal', color: 'var(--text-muted)' }}>{unit}</span></div>
                   </div>
                 );
               })}
@@ -986,7 +988,7 @@ export default function Trade() {
             />
             <div className="form-hint" style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px' }}>
               {activeTab === 'buy'
-                ? `Kho cửa hàng còn: ${storeStock[selectedGoldKey] || 0} lượng`
+                ? `Kho cửa hàng còn: ${(storeStock[selectedGoldKey] / 3.75 || 0).toFixed(2)} chỉ (~ ${(storeStock[selectedGoldKey] / 37.5 || 0).toFixed(2)} lượng)`
                 : `Ví vàng tích lũy cá nhân: ${getGoldBalance().toFixed(3)} chỉ`}
             </div>
           </div>

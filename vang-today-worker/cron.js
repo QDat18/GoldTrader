@@ -32,6 +32,10 @@ const NAME_VI = {
 async function main() {
   console.log(`[${new Date().toISOString()}] Đang lấy dữ liệu từ vang.today...`);
 
+  // Lấy ngày hiện tại theo giờ Việt Nam (UTC+7)
+  const nowVN = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Ho_Chi_Minh" }));
+  const nowDateStr = nowVN.toLocaleDateString("en-US");
+
   const response = await fetch(VANG_TODAY_API);
   if (!response.ok) throw new Error(`API lỗi: ${response.status}`);
 
@@ -46,10 +50,10 @@ async function main() {
       const spreadVnd = Math.max(0, sellVnd - buyVnd);
       const goldType = NAME_VI[item.name] || item.name;
 
-      // Query bản ghi cuối cùng của loại vàng này trong DB
+      // Truy vấn bản ghi gần nhất của loại vàng này kèm theo mốc thời gian recorded_at
       const { data, error } = await supabase
         .from("gold_price_snapshots")
-        .select("buy_price_vnd, sell_price_vnd")
+        .select("buy_price_vnd, sell_price_vnd, recorded_at")
         .eq("source", type_code)
         .order("recorded_at", { ascending: false })
         .limit(1);
@@ -59,11 +63,24 @@ async function main() {
       }
 
       const lastRecord = data && data[0];
+      
+      // Kiểm tra xem đã sang ngày mới (so với bản ghi gần nhất) chưa
+      let isNewDay = false;
+      if (lastRecord) {
+        const lastRecordVN = new Date(new Date(lastRecord.recorded_at).toLocaleString("en-US", { timeZone: "Asia/Ho_Chi_Minh" }));
+        isNewDay = lastRecordVN.toLocaleDateString("en-US") !== nowDateStr;
+      }
+
+      // Lưu khi không có bản ghi cũ, khi đã sang ngày mới, hoặc khi giá thay đổi
       const changed = !lastRecord || 
+                      isNewDay ||
                       Number(lastRecord.buy_price_vnd) !== buyVnd || 
                       Number(lastRecord.sell_price_vnd) !== sellVnd;
 
       if (changed) {
+        if (isNewDay) {
+          console.log(`🌅 Chuyển sang ngày mới (${nowDateStr}) — Buộc lưu giá vàng ${goldType} làm mốc.`);
+        }
         return {
           source: type_code,
           gold_type: goldType,

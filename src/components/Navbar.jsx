@@ -127,9 +127,7 @@ export function UserNavbar() {
         <div className="nav-links">
           {isLoggedIn && user.role === 'admin' ? (
             <>
-              <Link to="/admin" className={`nav-link ${activePage === 'admin' ? 'active' : ''}`}>Trung tâm Quản trị</Link>
-              <Link to="/admin" className="nav-link">Quản lý Đơn hàng</Link>
-              <Link to="/admin" className="nav-link">Kho quỹ & Hedging</Link>
+              <Link to="/admin" className={`nav-link ${location.pathname.startsWith('/admin') ? 'active' : ''}`}>Trung tâm Quản trị</Link>
             </>
           ) : (
             <>

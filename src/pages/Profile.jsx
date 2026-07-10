@@ -107,7 +107,7 @@ export default function Profile() {
     setIsPasswordModalOpen(true);
   };
 
-  const submitChangePassword = () => {
+  const submitChangePassword = async () => {
     if (!pwdForm.old || !pwdForm.new || !pwdForm.confirm) {
       showToast('Vui lòng điền đầy đủ thông tin', 'error');
       return;
@@ -116,9 +116,20 @@ export default function Profile() {
       showToast('Mật khẩu mới không khớp', 'error');
       return;
     }
-    showToast('Đổi mật khẩu thành công!', 'success');
-    setIsPasswordModalOpen(false);
-    setPwdForm({ old: '', new: '', confirm: '' });
+    
+    try {
+      const { error } = await supabase.auth.updateUser({
+        password: pwdForm.new
+      });
+      if (error) throw error;
+      
+      showToast('Đổi mật khẩu thành công!', 'success');
+      setIsPasswordModalOpen(false);
+      setPwdForm({ old: '', new: '', confirm: '' });
+    } catch (err) {
+      console.error("Lỗi khi thay đổi mật khẩu:", err);
+      showToast('Lỗi đổi mật khẩu: ' + err.message, 'error');
+    }
   };
 
   const getKycStatusConfig = (status) => {

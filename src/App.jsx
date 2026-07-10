@@ -8,7 +8,12 @@ import Trade from './pages/Trade';
 import Dca from './pages/Dca';
 import History from './pages/History';
 import Profile from './pages/Profile';
-import Admin from './pages/Admin';
+import AdminLayout from './pages/admin/AdminLayout';
+import AdminKyc from './pages/admin/AdminKyc';
+import AdminOrders from './pages/admin/AdminOrders';
+import AdminO2o from './pages/admin/AdminO2o';
+import AdminInventory from './pages/admin/AdminInventory';
+import AdminHedging from './pages/admin/AdminHedging';
 import Login from './pages/Login';
 import Notifications from './pages/Notifications';
 import Register from './pages/Register';
@@ -135,7 +140,9 @@ function App() {
           }
  
           // Đồng bộ số dư ví VND của người dùng từ CSDL vào Zustand Store
-          useStore.setState({ walletBalance: Number(dbUser.wallet_balance_vnd) || 0 });
+          const balanceVal = Number(dbUser.wallet_balance_vnd) || 0;
+          localStorage.setItem('cached_wallet_balance', String(balanceVal));
+          useStore.setState({ walletBalance: balanceVal });
           // Đồng bộ số dư vàng của người dùng từ CSDL vào Zustand Store
           await fetchUserBalances(dbUser.id);
           // Tải thông báo từ CSDL
@@ -227,7 +234,14 @@ function App() {
 
         {/* Admin Routes */}
         <Route element={<UserLayout />}>
-          <Route path="/admin" element={currentUser.role === 'admin' ? <Admin /> : <Navigate to="/" />} />
+          <Route path="/admin" element={currentUser.role === 'admin' ? <AdminLayout /> : <Navigate to="/" />}>
+            <Route index element={<Navigate to="/admin/kyc" replace />} />
+            <Route path="kyc" element={<AdminKyc />} />
+            <Route path="orders" element={<AdminOrders />} />
+            <Route path="o2o" element={<AdminO2o />} />
+            <Route path="inventory" element={<AdminInventory />} />
+            <Route path="hedging" element={<AdminHedging />} />
+          </Route>
           <Route path="/inventory" element={<Placeholder title="Inventory Management" />} />
         </Route>
         

@@ -8,27 +8,113 @@ const supabaseLedger = createClient(supabaseUrl, supabaseAnonKey, {
   db: { schema: "financial_ledgers" }
 });
 
-// Initial state from the old vanilla store
+// Initial state with local storage cache support - Stale While Revalidate
 const initialState = {
-  currentUser: {
-    name: "Khách hàng",
-    phone: "",
-    email: "",
-    cccd: "",
-    role: "guest", // 'guest', 'user' or 'admin'
-    kycStep: 1,
-    kycStatus: "unverified", // 'verified', 'pending', 'rejected', 'unverified'
-  },
-  walletBalance: 0,
-  goldBalances: {
-    sjc: 0.0,
-    pnj: 0.0,
-    doji: 0.0,
-  },
-  goldPrices: {}, // Dynamic: Tự động nạp từ Database
+  currentUser: (() => {
+    try {
+      const cached = localStorage.getItem('cached_current_user');
+      return cached ? JSON.parse(cached) : {
+        name: "Khách hàng",
+        phone: "",
+        email: "",
+        cccd: "",
+        role: "guest",
+        kycStep: 1,
+        kycStatus: "unverified",
+      };
+    } catch {
+      return {
+        name: "Khách hàng",
+        phone: "",
+        email: "",
+        cccd: "",
+        role: "guest",
+        kycStep: 1,
+        kycStatus: "unverified",
+      };
+    }
+  })(),
+  walletBalance: (() => {
+    try {
+      const cached = localStorage.getItem('cached_wallet_balance');
+      return cached ? Number(cached) : 0;
+    } catch {
+      return 0;
+    }
+  })(),
+  goldBalances: (() => {
+    try {
+      const cached = localStorage.getItem('cached_gold_balances');
+      return cached ? JSON.parse(cached) : { sjc: 0, pnj: 0, doji: 0 };
+    } catch {
+      return { sjc: 0, pnj: 0, doji: 0 };
+    }
+  })(),
+  goldPrices: (() => {
+    try {
+      const cached = localStorage.getItem('cached_gold_prices');
+      return cached ? JSON.parse(cached) : {};
+    } catch {
+      return {};
+    }
+  })(),
   orders: [],
-  transactions: [],
-  notifications: [],
+  transactions: (() => {
+    try {
+      const cached = localStorage.getItem('cached_transactions');
+      return cached ? JSON.parse(cached) : [];
+    } catch {
+      return [];
+    }
+  })(),
+  notifications: (() => {
+    try {
+      const cached = localStorage.getItem('cached_notifications');
+      return cached ? JSON.parse(cached) : [];
+    } catch {
+      return [];
+    }
+  })(),
+  adminKycList: (() => {
+    try {
+      const cached = localStorage.getItem('cached_admin_kyc_list');
+      return cached ? JSON.parse(cached) : [];
+    } catch {
+      return [];
+    }
+  })(),
+  adminOrders: (() => {
+    try {
+      const cached = localStorage.getItem('cached_admin_orders');
+      return cached ? JSON.parse(cached) : [];
+    } catch {
+      return [];
+    }
+  })(),
+  adminUsersMap: (() => {
+    try {
+      const cached = localStorage.getItem('cached_admin_users_map');
+      return cached ? JSON.parse(cached) : {};
+    } catch {
+      return {};
+    }
+  })(),
+  adminInventory: (() => {
+    try {
+      const cached = localStorage.getItem('cached_admin_inventory');
+      return cached ? JSON.parse(cached) : [];
+    } catch {
+      return [];
+    }
+  })(),
+  adminHedges: (() => {
+    try {
+      const cached = localStorage.getItem('cached_admin_hedges');
+      return cached ? JSON.parse(cached) : [];
+    } catch {
+      return [];
+    }
+  })(),
   dcaPlans: [],
   inventory: [],
   kycSubmissions: [],
@@ -43,17 +129,20 @@ const useStore = create((set, get) => ({
     })),
 
   updateKycStatus: (status) =>
-    set((state) => ({
-      currentUser: {
+    set((state) => {
+      const nextUser = {
         ...state.currentUser,
         kycStatus: status,
         kycStep: status === "verified" ? 3 : state.currentUser.kycStep,
-      },
-    })),
+      };
+      localStorage.setItem('cached_current_user', JSON.stringify(nextUser));
+      return { currentUser: nextUser };
+    }),
 
   depositMoney: async (amount) => {
     const state = get();
     const newBalance = state.walletBalance + amount;
+    localStorage.setItem('cached_wallet_balance', String(newBalance));
     set({ walletBalance: newBalance });
     const userId = state.currentUser?.id;
     if (userId) {
@@ -68,17 +157,64 @@ const useStore = create((set, get) => ({
     }
   },
 
-  setCurrentUser: (user) =>
-    set((state) => ({
-      currentUser: user,
-    })),
+  setCurrentUser: (user) => {
+    localStorage.setItem('cached_current_user', JSON.stringify(user));
+    set({ currentUser: user });
+  },
 
-  updateProfile: (updates) =>
-    set((state) => ({
-      currentUser: { ...state.currentUser, ...updates }
-    })),
+  updateProfile: async (updates) => {
+    // 1. Quick local state update
+    set((state) => {
+      const nextUser = { ...state.currentUser, ...updates };
+      localStorage.setItem('cached_current_user', JSON.stringify(nextUser));
+      return { currentUser: nextUser };
+    });
 
-  logout: () =>
+    // 2. Persist to database if authenticated
+    const state = get();
+    const userId = state.currentUser?.id;
+    if (userId) {
+      try {
+        const dbUpdates = {};
+        if (updates.name !== undefined) dbUpdates.full_name = updates.name;
+        if (updates.phone !== undefined) dbUpdates.phone = updates.phone;
+        if (updates.cccd !== undefined) dbUpdates.id_card_number = updates.cccd;
+
+        if (Object.keys(dbUpdates).length > 0) {
+          const { error } = await supabase
+            .from('user_profiles')
+            .update(dbUpdates)
+            .eq('id', userId);
+
+          if (error) throw error;
+
+          // Insert system notification for profile modifications
+          await supabase.from('notifications').insert({
+            user_id: userId,
+            type: 'system',
+            title: 'Cập nhật thông tin cá nhân',
+            desc: 'Thông tin tài khoản (Họ tên/Số điện thoại) của bạn đã được cập nhật thành công trên hệ thống.',
+            unread: true,
+            date: new Date().toLocaleString('vi-VN')
+          });
+        }
+      } catch (err) {
+        console.error("Lỗi khi cập nhật hồ sơ cá nhân lên database:", err);
+      }
+    }
+  },
+
+  logout: () => {
+    localStorage.removeItem('cached_current_user');
+    localStorage.removeItem('cached_wallet_balance');
+    localStorage.removeItem('cached_gold_balances');
+    localStorage.removeItem('cached_notifications');
+    localStorage.removeItem('cached_transactions');
+    localStorage.removeItem('cached_admin_kyc_list');
+    localStorage.removeItem('cached_admin_orders');
+    localStorage.removeItem('cached_admin_users_map');
+    localStorage.removeItem('cached_admin_inventory');
+    localStorage.removeItem('cached_admin_hedges');
     set((state) => ({
       currentUser: {
         name: '',
@@ -92,20 +228,28 @@ const useStore = create((set, get) => ({
       walletBalance: 0,
       goldBalances: { sjc: 0, pnj: 0, doji: 0 },
       transactions: [],
-      orders: []
-    })),
+      orders: [],
+      adminKycList: [],
+      adminOrders: [],
+      adminUsersMap: {},
+      adminInventory: [],
+      adminHedges: []
+    }));
+  },
 
   updateGoldPrice: (goldType, newSell, newBuy) =>
-    set((state) => ({
-      goldPrices: {
+    set((state) => {
+      const nextPrices = {
         ...state.goldPrices,
         [goldType]: {
           ...state.goldPrices[goldType],
           sell: newSell,
           buy: newBuy,
         }
-      }
-    })),
+      };
+      localStorage.setItem('cached_gold_prices', JSON.stringify(nextPrices));
+      return { goldPrices: nextPrices };
+    }),
 
   buyGold: (goldType, quantity, price) => {
     const state = get();
@@ -322,7 +466,9 @@ const useStore = create((set, get) => ({
     set((state) => {
       const exists = state.notifications.find(n => n.id === notification.id);
       if (exists) return state;
-      return { notifications: [notification, ...state.notifications] };
+      const nextNotifs = [notification, ...state.notifications];
+      localStorage.setItem('cached_notifications', JSON.stringify(nextNotifs));
+      return { notifications: nextNotifs };
     }),
 
   fetchNotifications: async (userId) => {
@@ -333,6 +479,7 @@ const useStore = create((set, get) => ({
         .eq('user_id', userId)
         .order('created_at', { ascending: false });
       if (!error && data) {
+        localStorage.setItem('cached_notifications', JSON.stringify(data));
         set({ notifications: data });
       }
     } catch (err) {
@@ -417,6 +564,7 @@ const useStore = create((set, get) => ({
         }
 
         console.log("📊 useStore: fetchGoldPrices success, count = ", data.length, "groups = ", Object.keys(nextPrices));
+        localStorage.setItem('cached_gold_prices', JSON.stringify(nextPrices));
         set({ goldPrices: nextPrices });
       } else {
         console.warn("⚠️ useStore: fetchGoldPrices returned empty data.");
@@ -441,6 +589,7 @@ const useStore = create((set, get) => ({
           else if (type.includes('pnj')) balances.pnj = Number(w.quantity_grams) / 3.75;
           else if (type.includes('doji')) balances.doji = Number(w.quantity_grams) / 3.75;
         });
+        localStorage.setItem('cached_gold_balances', JSON.stringify(balances));
         set({ goldBalances: balances });
       }
     } catch (err) {
@@ -511,10 +660,94 @@ const useStore = create((set, get) => ({
           };
         });
 
+        localStorage.setItem('cached_transactions', JSON.stringify(loadedTxns));
         set({ transactions: loadedTxns });
       }
     } catch (err) {
       console.error("Lỗi khi tải lịch sử giao dịch:", err);
+    }
+  },
+
+  fetchAdminKycList: async () => {
+    try {
+      const { data, error } = await supabase
+        .from('user_profiles')
+        .select('*')
+        .eq('kyc_status', 'PENDING')
+        .order('updated_at', { ascending: false });
+      if (!error && data) {
+        localStorage.setItem('cached_admin_kyc_list', JSON.stringify(data));
+        set({ adminKycList: data });
+      }
+    } catch (err) {
+      console.error("Lỗi tải kyc list admin:", err);
+    }
+  },
+
+  fetchAdminOrders: async () => {
+    try {
+      const { data: dbOrdersData, error: ordErr } = await supabaseLedger
+        .from('orders')
+        .select('*')
+        .order('created_at', { ascending: false });
+      if (ordErr) throw ordErr;
+
+      const { data: usersData, error: usrErr } = await supabase
+        .from('user_profiles')
+        .select('id, full_name, phone, id_card_number');
+      if (usrErr) throw usrErr;
+
+      const uMap = {};
+      if (usersData) {
+        usersData.forEach(u => {
+          uMap[u.id] = u;
+        });
+      }
+
+      const { data: invData, error: invErr } = await supabase
+        .from('vault_inventory')
+        .select('*');
+
+      localStorage.setItem('cached_admin_orders', JSON.stringify(dbOrdersData || []));
+      localStorage.setItem('cached_admin_users_map', JSON.stringify(uMap));
+      if (!invErr && invData) {
+        localStorage.setItem('cached_admin_inventory', JSON.stringify(invData));
+        set({ adminOrders: dbOrdersData || [], adminUsersMap: uMap, adminInventory: invData });
+      } else {
+        set({ adminOrders: dbOrdersData || [], adminUsersMap: uMap });
+      }
+    } catch (err) {
+      console.error("Lỗi tải đơn hàng admin:", err);
+    }
+  },
+
+  fetchAdminInventory: async () => {
+    try {
+      const { data, error } = await supabase
+        .from('vault_inventory')
+        .select('*')
+        .order('stored_at', { ascending: false });
+      if (!error && data) {
+        localStorage.setItem('cached_admin_inventory', JSON.stringify(data));
+        set({ adminInventory: data });
+      }
+    } catch (err) {
+      console.error("Lỗi tải kho vàng admin:", err);
+    }
+  },
+
+  fetchAdminHedges: async () => {
+    try {
+      const { data, error } = await supabaseLedger
+        .from('hedge_positions')
+        .select('*')
+        .order('opened_at', { ascending: false });
+      if (!error && data) {
+        localStorage.setItem('cached_admin_hedges', JSON.stringify(data));
+        set({ adminHedges: data });
+      }
+    } catch (err) {
+      console.error("Lỗi tải vị thế hedges admin:", err);
     }
   },
 }));
