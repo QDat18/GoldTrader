@@ -15,6 +15,8 @@ CREATE TABLE public.user_profiles (
   created_at timestamp with time zone NOT NULL DEFAULT now(),
   updated_at timestamp with time zone NOT NULL DEFAULT now(),
   role character varying NOT NULL DEFAULT 'guest'::character varying CHECK (role::text = ANY (ARRAY['guest'::character varying::text, 'user'::character varying::text, 'admin'::character varying::text])),
+  wallet_balance_vnd numeric NOT NULL DEFAULT 0,
+  kyc_rejection_reason text,
   CONSTRAINT user_profiles_pkey PRIMARY KEY (id),
   CONSTRAINT user_profiles_auth_user_id_fkey FOREIGN KEY (auth_user_id) REFERENCES auth.users(id)
 );
@@ -49,11 +51,13 @@ CREATE TABLE public.vault_inventory (
   gold_serial character varying NOT NULL UNIQUE,
   gold_type character varying NOT NULL,
   weight_grams numeric NOT NULL CHECK (weight_grams > 0::numeric),
-  bar_brand character varying NOT NULL,
   status character varying NOT NULL DEFAULT 'AVAILABLE'::character varying CHECK (status::text = ANY (ARRAY['AVAILABLE'::character varying, 'RESERVED'::character varying, 'DISPATCHED'::character varying]::text[])),
   order_id character varying,
   stored_at timestamp with time zone NOT NULL DEFAULT now(),
   dispatched_at timestamp with time zone,
+  import_source text,
+  cost_price_vnd numeric,
+  receipt_id text,
   CONSTRAINT vault_inventory_pkey PRIMARY KEY (id)
 );
 CREATE TABLE public.storage_contracts (
@@ -69,6 +73,24 @@ CREATE TABLE public.storage_contracts (
   CONSTRAINT storage_contracts_pkey PRIMARY KEY (id),
   CONSTRAINT storage_contracts_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.user_profiles(id),
   CONSTRAINT storage_contracts_wallet_id_fkey FOREIGN KEY (wallet_id) REFERENCES public.gold_wallets(id)
+);
+CREATE TABLE public.notifications (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  user_id uuid,
+  type character varying NOT NULL,
+  title text NOT NULL,
+  desc text,
+  time character varying,
+  date character varying,
+  unread boolean DEFAULT true,
+  goldTypeName character varying,
+  qty character varying,
+  price character varying,
+  total character varying,
+  orderId character varying,
+  created_at timestamp with time zone DEFAULT timezone('utc'::text, now()),
+  CONSTRAINT notifications_pkey PRIMARY KEY (id),
+  CONSTRAINT notifications_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.user_profiles(id)
 );
 
 
@@ -540,5 +562,13 @@ CREATE TABLE financial_ledgers.blockchain_proofs (
   block_number bigint,
   confirmed_at timestamp with time zone,
   CONSTRAINT blockchain_proofs_pkey PRIMARY KEY (id)
-);A L T E R   T A B L E   v a u l t _ i n v e n t o r y   A D D   C O L U M N   i m p o r t _ s o u r c e   T E X T ;   A D D   C O L U M N   c o s t _ p r i c e _ v n d   N U M E R I C ;   A D D   C O L U M N   r e c e i p t _ i d   T E X T ;  
- 
+);
+CREATE TABLE financial_ledgers.fiat_deposits (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  user_id uuid,
+  amount_vnd numeric NOT NULL CHECK (amount_vnd > 0::numeric),
+  status character varying NOT NULL DEFAULT 'COMPLETED'::character varying,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT fiat_deposits_pkey PRIMARY KEY (id),
+  CONSTRAINT fiat_deposits_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.user_profiles(id)
+);

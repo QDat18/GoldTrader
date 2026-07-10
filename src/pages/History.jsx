@@ -24,6 +24,8 @@ export default function History() {
       if (selectedType === 'buy' && txn.type !== 'buy') return false;
       if (selectedType === 'sell' && txn.type !== 'sell') return false;
       if (selectedType === 'dca' && txn.type !== 'dca') return false;
+      if (selectedType === 'withdraw' && txn.type !== 'withdraw') return false;
+      if (selectedType === 'deposit' && txn.type !== 'deposit') return false;
     }
     if (selectedGold !== 'all') {
       const brandStr = selectedGold.toUpperCase();
@@ -87,6 +89,13 @@ export default function History() {
               style={{ background: selectedType === 'dca' ? 'rgba(255,255,255,0.1)' : 'transparent', textAlign: 'left', padding: '10px 16px', borderRadius: '12px', color: selectedType === 'dca' ? 'var(--text-main)' : 'var(--text-muted)' }}
             >
               <i className="ti ti-repeat" style={{ marginRight: '8px', color: 'var(--gold)' }}></i> DCA tự động
+            </button>
+            <button 
+              className="btn" 
+              onClick={() => setSelectedType('withdraw')}
+              style={{ background: selectedType === 'withdraw' ? 'rgba(255,255,255,0.1)' : 'transparent', textAlign: 'left', padding: '10px 16px', borderRadius: '12px', color: selectedType === 'withdraw' ? 'var(--text-main)' : 'var(--text-muted)' }}
+            >
+              <i className="ti ti-file-export" style={{ marginRight: '8px', color: '#eab308' }}></i> Lịch sử Rút vàng
             </button>
             <button 
               className="btn" 
@@ -207,6 +216,8 @@ export default function History() {
                           <span style={{ fontSize: '11px', padding: '4px 8px', borderRadius: '4px', background: 'rgba(59, 130, 246, 0.1)', color: '#3b82f6', fontWeight: 600 }}>Nạp tiền</span>
                         ) : txn.type === 'dca' ? (
                           <span style={{ fontSize: '11px', padding: '4px 8px', borderRadius: '4px', background: 'var(--gold-gradient)', color: '#000', fontWeight: 600 }}>DCA</span>
+                        ) : txn.type === 'withdraw' ? (
+                          <span style={{ fontSize: '11px', padding: '4px 8px', borderRadius: '4px', background: 'rgba(234, 179, 8, 0.1)', color: '#eab308', fontWeight: 600 }}>Rút</span>
                         ) : (
                           <span style={{ fontSize: '11px', padding: '4px 8px', borderRadius: '4px', background: 'rgba(239, 68, 68, 0.1)', color: 'var(--ruby)', fontWeight: 600 }}>Bán</span>
                         )}
@@ -326,7 +337,7 @@ export default function History() {
             <div style={{ padding: '24px', color: '#E2E8F0', fontSize: '13px', lineHeight: '1.5' }}>
               <div style={{ fontSize: '18px', color: '#FFFFFF', fontWeight: '600', marginBottom: '4px', textAlign: 'center' }}>Chi tiết Giao Dịch</div>
               <div style={{ textAlign: 'center', fontSize: '13px', color: '#B38728', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '20px' }}>
-                Hóa đơn {invoiceDetails.type === 'buy' || invoiceDetails.type === 'dca' ? 'Mua' : 'Bán'} vàng điện tử
+                {invoiceDetails.type === 'withdraw' ? 'Lệnh Rút vàng vật chất' : `Hóa đơn ${invoiceDetails.type === 'buy' || invoiceDetails.type === 'dca' ? 'Mua' : 'Bán'} vàng điện tử`}
               </div>
               
               <p style={{ margin: '0 0 16px 0' }}>
@@ -360,7 +371,7 @@ export default function History() {
                   </tr>
                   <tr style={{ background: 'rgba(179, 135, 40, 0.08)' }}>
                     <td style={{ padding: '10px 14px', color: '#B38728', fontWeight: '700' }}>
-                      {invoiceDetails.type === 'sell' ? 'Tổng tiền nhận (Ví VND)' : 'Tổng thanh toán'}
+                      {invoiceDetails.type === 'sell' ? 'Tổng tiền nhận (Ví VND)' : invoiceDetails.type === 'withdraw' ? 'Trị giá tương đương' : 'Tổng thanh toán'}
                     </td>
                     <td style={{ padding: '10px 14px', color: '#B38728', fontSize: '15px', fontWeight: '800', textAlign: 'right' }}>₫{invoiceDetails.total}</td>
                   </tr>
@@ -378,7 +389,9 @@ export default function History() {
                 fontWeight: '600',
                 marginBottom: '16px'
               }}>
-                🛡️ Chứng nhận quyền sở hữu vàng vật chất 1:1 trong kho ký gửi của GoldChain.
+                {invoiceDetails.type === 'withdraw' 
+                  ? '🛡️ Thư mời & Mã bảo mật quét QR nhận vàng đã được gửi qua Email.' 
+                  : '🛡️ Chứng nhận quyền sở hữu vàng vật chất 1:1 trong kho ký gửi của GoldChain.'}
               </div>
 
               <p style={{ fontSize: '11px', color: '#A0AEC0', textAlign: 'center', margin: '0 0 16px 0' }}>

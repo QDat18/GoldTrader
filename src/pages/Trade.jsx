@@ -5,6 +5,19 @@ import { useNavigate } from 'react-router-dom';
 
 const supabaseLedger = supabase.schema('financial_ledgers');
 
+const generateBlockchainHash = async (payloadStr) => {
+  try {
+    const encoder = new TextEncoder();
+    const data = encoder.encode(payloadStr);
+    const hashBuffer = await window.crypto.subtle.digest('SHA-256', data);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+  } catch (err) {
+    console.error('Lỗi khi băm SHA-256:', err);
+    return 'HASH-' + Math.random().toString(36).substr(2, 9).toUpperCase();
+  }
+};
+
 export default function Trade() {
   const prices = useStore((state) => state.goldPrices);
   const walletBalance = useStore((state) => state.walletBalance);
@@ -450,6 +463,8 @@ export default function Trade() {
         }
 
         // 3. Ghi log order hoàn thành lập tức lên Supabase
+        const payloadStrBuy = `${ordId}|BUY|${dbUser.id}|${exactGoldType}|${qtyVal}|${amountVal}|${new Date().toISOString()}`;
+        const pdfHashBuy = await generateBlockchainHash(payloadStrBuy);
         await supabase
           .schema('financial_ledgers')
           .from('orders')
@@ -464,7 +479,7 @@ export default function Trade() {
             order_status: 'COMPLETED',
             payment_status: 'PAID',
             secure_token: 'TOK-' + Math.random().toString(36).substr(2, 9).toUpperCase(),
-            pdf_hash: 'HASH-' + Math.random().toString(36).substr(2, 9).toUpperCase()
+            pdf_hash: pdfHashBuy
           });
 
         const invoiceInfo = {
@@ -545,6 +560,8 @@ export default function Trade() {
           .eq('id', wallets[0].id);
 
         // 3. Ghi log order hoàn thành lập tức lên Supabase
+        const payloadStrSell = `${ordId}|SELL|${dbUser.id}|${exactGoldType}|${qtyVal}|${amountVal}|${new Date().toISOString()}`;
+        const pdfHashSell = await generateBlockchainHash(payloadStrSell);
         await supabase
           .schema('financial_ledgers')
           .from('orders')
@@ -559,7 +576,7 @@ export default function Trade() {
             order_status: 'COMPLETED',
             payment_status: 'PAID',
             secure_token: 'TOK-' + Math.random().toString(36).substr(2, 9).toUpperCase(),
-            pdf_hash: 'HASH-' + Math.random().toString(36).substr(2, 9).toUpperCase()
+            pdf_hash: pdfHashSell
           });
 
         // Hợp đồng bán điện tử qua SMTP (Chạy ngầm không await)
@@ -639,6 +656,8 @@ export default function Trade() {
           .eq('id', wallets[0].id);
 
         // 3. Đăng ký một đơn rút vàng vật chất PENDING (Chờ quét QR tại quầy)
+        const payloadStrWithdraw = `${ordId}|WITHDRAW|${dbUser.id}|${exactGoldType}|${qtyVal}|${amountVal}|${new Date().toISOString()}`;
+        const pdfHashWithdraw = await generateBlockchainHash(payloadStrWithdraw);
         await supabase
           .schema('financial_ledgers')
           .from('orders')
@@ -653,7 +672,7 @@ export default function Trade() {
             order_status: 'WAITING_PICKUP',
             payment_status: 'PAID',
             secure_token: 'TOK-' + Math.random().toString(36).substr(2, 9).toUpperCase(),
-            pdf_hash: 'HASH-' + Math.random().toString(36).substr(2, 9).toUpperCase()
+            pdf_hash: pdfHashWithdraw
           });
 
         const storeNameMap = {
