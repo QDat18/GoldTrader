@@ -18,6 +18,7 @@ export default function Trade() {
   const [activeTab, setActiveTab] = useState('buy'); // 'buy', 'sell', 'withdraw'
   const [selectedGoldKey, setSelectedGoldKey] = useState('');
   const [quantity, setQuantity] = useState('');
+  const [pickupStore, setPickupStore] = useState('');
   const [amount, setAmount] = useState('');
   const [timeframe, setTimeframe] = useState('1D'); // '1H', '1D', '1W', '1M'
   const [timeLeft, setTimeLeft] = useState(60);
@@ -32,12 +33,7 @@ export default function Trade() {
   const [storeStock, setStoreStock] = useState({});
 
   const getBrandCategory = (key) => {
-    if (!key) return 'sjc';
-    const lowerKey = key.toLowerCase();
-    const name = prices[key]?.name?.toLowerCase() || '';
-    if (name.includes('pnj') || lowerKey.includes('pnj')) return 'pnj';
-    if (name.includes('doji') || lowerKey.includes('doji')) return 'doji';
-    return 'sjc';
+    return key;
   };
 
   const fetchStoreStock = async () => {
@@ -255,22 +251,33 @@ export default function Trade() {
     setVisibleCount(chartData.length);
   }, [chartData]);
 
+  const getGoldBalance = (keyOverride) => {
+    return goldBalances[keyOverride || selectedGoldKey] || 0;
+  };
+
+  const goldListKeys = Object.keys(prices);
+
+  const availableGoldListKeys = (activeTab === 'sell' || activeTab === 'withdraw')
+    ? goldListKeys.filter(key => getGoldBalance(key) > 0)
+    : goldListKeys;
+
+  useEffect(() => {
+    if (activeTab === 'sell' || activeTab === 'withdraw') {
+      const available = goldListKeys.filter(k => getGoldBalance(k) > 0);
+      if (available.length > 0 && !available.includes(selectedGoldKey)) {
+        setSelectedGoldKey(available[0]);
+        setQuantity('');
+        setAmount('');
+      } else if (available.length === 0 && selectedGoldKey !== '') {
+        setSelectedGoldKey('');
+        setQuantity('');
+        setAmount('');
+      }
+    }
+  }, [activeTab, goldBalances, selectedGoldKey]);
+
   const activeItem = prices[selectedGoldKey] || { name: 'Đang tải...', buy: 0, sell: 0, diff: 0, change: '▲ +0.00%', up: true };
   const currentPrice = activeTab === 'sell' ? activeItem.buy : activeItem.sell;
-
-  const getParentWalletBrand = (key) => {
-    if (!key) return 'sjc';
-    const k = key.toLowerCase();
-    if (k.startsWith('sj')) return 'sjc';
-    if (k.startsWith('pm') || k.startsWith('pq') || k.startsWith('pn')) return 'pnj';
-    if (k.startsWith('do')) return 'doji';
-    return 'sjc';
-  };
-
-  const getGoldBalance = () => {
-    const parentBrand = getParentWalletBrand(selectedGoldKey);
-    return goldBalances[parentBrand] || 0;
-  };
 
   const handleQuantityChange = (val) => {
     setQuantity(val);
@@ -347,15 +354,15 @@ export default function Trade() {
       
       if (userErr || !dbUser) throw new Error('Không tìm thấy thông tin hồ sơ của bạn.');
 
-      // Sử dụng selectedGoldKey và map sang nhãn hiệu cha để làm việc với ví ví dụ: sjc, pnj, doji
-      const parentBrand = getParentWalletBrand(selectedGoldKey);
+      // Sử dụng selectedGoldKey tương ứng với mã nguyên bản (VD: SJL1L10)
+      const exactGoldType = selectedGoldKey;
 
       // Lấy ví vàng của khách hàng trong CSDL
       const { data: wallets } = await supabase
         .from('gold_wallets')
         .select('*')
         .eq('user_id', dbUser.id)
-        .eq('gold_type', parentBrand);
+        .eq('gold_type', exactGoldType);
 
       let currentGrams = 0;
       if (wallets && wallets.length > 0) {
@@ -380,22 +387,27 @@ export default function Trade() {
           return;
         }
 
-        // 1. Trừ Ví tiền VND cục bộ & cộng ví vàng theo nhãn hiệu cha
+        // 1. Trừ Ví tiền VND cục bộ & cộng ví vàng
         depositMoney(-amountVal);
         useStore.setState((state) => ({
           goldBalances: {
             ...state.goldBalances,
-            [parentBrand]: parseFloat((state.goldBalances[parentBrand] + qtyVal).toFixed(4))
+            [exactGoldType]: parseFloat(((state.goldBalances[exactGoldType] || 0) + qtyVal).toFixed(4))
           }
         }));
 
         // 2. Cập nhật Ví vàng trong cơ sở dữ liệu Supabase lập tức
-        const newGrams = currentGrams + (qtyVal * 3.75);
-        await supabase
-          .from('gold_wallets')
-          .update({ quantity_grams: newGrams })
-          .eq('user_id', dbUser.id)
-          .eq('gold_type', parentBrand);
+        const newGrams = Number((currentGrams + (qtyVal * 3.75)).toFixed(4));
+        if (wallets && wallets.length > 0) {
+          await supabase
+            .from('gold_wallets')
+            .update({ quantity_grams: newGrams })
+            .eq('id', wallets[0].id);
+        } else {
+          await supabase
+            .from('gold_wallets')
+            .insert({ user_id: dbUser.id, gold_type: exactGoldType, quantity_grams: newGrams });
+        }
 
         // 2.5. Trừ tồn kho vật lý tương ứng trong Database (vault_inventory)
         const { data: availableBars, error: fetchErr } = await supabase
@@ -444,9 +456,9 @@ export default function Trade() {
           .insert({
             id: ordId,
             user_id: dbUser.id,
-            gold_type: activeItem.name,
+            gold_type: exactGoldType,
             order_type: 'BUY_ONLINE',
-            quantity_grams: qtyVal * 3.75,
+            quantity_grams: Number((qtyVal * 3.75).toFixed(4)),
             unit_price_vnd: Math.round(currentPrice / 3.75),
             total_amount_vnd: amountVal,
             order_status: 'COMPLETED',
@@ -459,27 +471,24 @@ export default function Trade() {
           name: dbUser.full_name || session.user.email.split('@')[0],
           contractId: ordId,
           goldType: activeItem.name,
-          quantity: qtyVal.toString(),
+          quantity: `${qtyVal.toString()} (${Number((qtyVal * 3.75).toFixed(4))}g)`,
           price: currentPrice.toLocaleString('vi-VN'),
           total: amountVal.toLocaleString('vi-VN'),
-          date: new Date().toLocaleString('vi-VN')
+          date: new Date().toLocaleString('vi-VN'),
+          type: activeTab
         };
 
-        // Hợp đồng mua điện tử qua SMTP
-        try {
-          await fetch('/api/send-email', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              to: session.user.email,
-              subject: `[GoldChain] Hợp đồng mua vàng tích lũy điện tử #${ordId}`,
-              templateName: 'HopDongMua',
-              templateData: invoiceInfo
-            })
-          });
-        } catch (mailErr) {
-          console.error("Lỗi gửi email hợp đồng mua qua SMTP:", mailErr);
-        }
+        // Hợp đồng mua điện tử qua SMTP (Chạy ngầm không await)
+        fetch('/api/send-email', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            to: session.user.email,
+            subject: `[GoldChain] Hợp đồng mua vàng tích lũy điện tử #${ordId}`,
+            templateName: 'HopDongMua',
+            templateData: invoiceInfo
+          })
+        }).catch(mailErr => console.error("Lỗi gửi email hợp đồng mua qua SMTP:", mailErr));
 
         // 4. Tạo lịch sử giao dịch local
         const newTxn = {
@@ -519,22 +528,21 @@ export default function Trade() {
           return;
         }
 
-        // 1. Trừ Ví vàng cục bộ & cộng Ví VND theo nhãn hiệu cha
+        // 1. Trừ Ví vàng cục bộ & cộng Ví VND
         useStore.setState((state) => ({
           goldBalances: {
             ...state.goldBalances,
-            [parentBrand]: Math.max(0, parseFloat((state.goldBalances[parentBrand] - qtyVal).toFixed(4)))
+            [exactGoldType]: Math.max(0, parseFloat((state.goldBalances[exactGoldType] - qtyVal).toFixed(4)))
           }
         }));
         depositMoney(amountVal);
 
         // 2. Trừ Ví vàng trong cơ sở dữ liệu Supabase
-        const newGrams = Math.max(0, currentGrams - (qtyVal * 3.75));
+        const newGrams = Math.max(0, Number((currentGrams - (qtyVal * 3.75)).toFixed(4)));
         await supabase
           .from('gold_wallets')
           .update({ quantity_grams: newGrams })
-          .eq('user_id', dbUser.id)
-          .eq('gold_type', parentBrand);
+          .eq('id', wallets[0].id);
 
         // 3. Ghi log order hoàn thành lập tức lên Supabase
         await supabase
@@ -543,9 +551,9 @@ export default function Trade() {
           .insert({
             id: ordId,
             user_id: dbUser.id,
-            gold_type: activeItem.name,
+            gold_type: exactGoldType,
             order_type: 'SELL_ONLINE',
-            quantity_grams: qtyVal * 3.75,
+            quantity_grams: Number((qtyVal * 3.75).toFixed(4)),
             unit_price_vnd: Math.round(currentPrice / 3.75),
             total_amount_vnd: amountVal,
             order_status: 'COMPLETED',
@@ -554,29 +562,26 @@ export default function Trade() {
             pdf_hash: 'HASH-' + Math.random().toString(36).substr(2, 9).toUpperCase()
           });
 
-        // Hợp đồng bán điện tử qua SMTP
-        try {
-          await fetch('/api/send-email', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              to: session.user.email,
-              subject: `[GoldChain] Hợp đồng bán vàng tích lũy trực tuyến #${ordId}`,
-              templateName: 'HopDongBan',
-              templateData: {
-                name: dbUser.full_name || session.user.email.split('@')[0],
-                contractId: ordId,
-                goldType: activeItem.name,
-                quantity: qtyVal.toString(),
-                price: currentPrice.toLocaleString('vi-VN'),
-                total: amountVal.toLocaleString('vi-VN'),
-                date: new Date().toLocaleString('vi-VN')
-              }
-            })
-          });
-        } catch (mailErr) {
-          console.error("Lỗi gửi email hợp đồng bán qua SMTP:", mailErr);
-        }
+        // Hợp đồng bán điện tử qua SMTP (Chạy ngầm không await)
+        fetch('/api/send-email', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            to: session.user.email,
+            subject: `[GoldChain] Hợp đồng bán vàng tích lũy trực tuyến #${ordId}`,
+            templateName: 'HopDongBan',
+            templateData: {
+              name: dbUser.full_name || session.user.email.split('@')[0],
+              contractId: ordId,
+              goldType: activeItem.name,
+              quantity: `${qtyVal.toString()} (${Number((qtyVal * 3.75).toFixed(4))}g)`,
+              price: currentPrice.toLocaleString('vi-VN'),
+              total: amountVal.toLocaleString('vi-VN'),
+              date: new Date().toLocaleString('vi-VN'),
+              type: activeTab
+            }
+          })
+        }).catch(mailErr => console.error("Lỗi gửi email hợp đồng bán qua SMTP:", mailErr));
 
         // 4. Giao dịch local
         const newTxn = {
@@ -603,6 +608,10 @@ export default function Trade() {
 
       } else if (activeTab === 'withdraw') {
         // RÚT VÀNG VẬT CHẤT (Chờ duyệt và quét mã QR tại quầy để bàn giao vàng vật chất)
+        if (!pickupStore) {
+          setOrderStatus({ show: true, success: false, message: 'Vui lòng chọn chi nhánh cửa hàng để nhận vàng.' });
+          return;
+        }
         const availableGold = getGoldBalance();
         if (qtyVal > availableGold) {
           setOrderStatus({ 
@@ -623,12 +632,11 @@ export default function Trade() {
         }));
 
         // 2. Trừ Ví vàng trong CSDL Supabase
-        const newGrams = Math.max(0, currentGrams - (qtyVal * 3.75));
+        const newGrams = Math.max(0, Number((currentGrams - (qtyVal * 3.75)).toFixed(4)));
         await supabase
           .from('gold_wallets')
           .update({ quantity_grams: newGrams })
-          .eq('user_id', dbUser.id)
-          .eq('gold_type', parentBrand);
+          .eq('id', wallets[0].id);
 
         // 3. Đăng ký một đơn rút vàng vật chất PENDING (Chờ quét QR tại quầy)
         await supabase
@@ -637,9 +645,9 @@ export default function Trade() {
           .insert({
             id: ordId,
             user_id: dbUser.id,
-            gold_type: activeItem.name,
+            gold_type: exactGoldType,
             order_type: 'WITHDRAW_PHYSICAL',
-            quantity_grams: qtyVal * 3.75,
+            quantity_grams: Number((qtyVal * 3.75).toFixed(4)),
             unit_price_vnd: Math.round(currentPrice / 3.75),
             total_amount_vnd: amountVal,
             order_status: 'WAITING_PICKUP',
@@ -647,6 +655,34 @@ export default function Trade() {
             secure_token: 'TOK-' + Math.random().toString(36).substr(2, 9).toUpperCase(),
             pdf_hash: 'HASH-' + Math.random().toString(36).substr(2, 9).toUpperCase()
           });
+
+        const storeNameMap = {
+          'HN_123_THAIHA': 'Hà Nội: 123 Thái Hà, Quận Đống Đa',
+          'HCM_456_NTMK': 'TP.HCM: 456 Nguyễn Thị Minh Khai, Quận 3',
+          'DN_789_NVL': 'Đà Nẵng: 789 Nguyễn Văn Linh, Quận Hải Châu'
+        };
+
+        const secretToken = 'TOK-' + Math.random().toString(36).substr(2, 9).toUpperCase();
+
+        // Gửi Thư mời nhận vàng qua Email (Kèm Mã QR / Mã bảo mật)
+        fetch('/api/send-email', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            to: session.user.email,
+            subject: `[GoldChain] Thư mời nhận bàn giao vàng vật chất #${ordId}`,
+            templateName: 'ThuMoiNhanVang',
+            templateData: {
+              name: dbUser.full_name || session.user.email.split('@')[0],
+              contractId: ordId,
+              goldType: activeItem.name,
+              quantity: `${qtyVal.toString()} (${Number((qtyVal * 3.75).toFixed(4))}g)`,
+              pickupStore: storeNameMap[pickupStore] || pickupStore,
+              secureToken: secretToken,
+              date: new Date().toLocaleString('vi-VN')
+            }
+          })
+        }).catch(mailErr => console.error("Lỗi gửi email thư mời nhận vàng qua SMTP:", mailErr));
 
         // 4. Tạo lịch sử giao dịch ở dạng PENDING (Chờ nhận vàng)
         const newTxn = {
@@ -660,6 +696,7 @@ export default function Trade() {
           time: new Date().toLocaleTimeString('vi-VN') + ' hôm nay',
           status: 'Chờ nhận tại quầy'
         };
+
 
         const newOrder = {
           id: ordId,
@@ -679,7 +716,7 @@ export default function Trade() {
         setOrderStatus({ 
           show: true, 
           success: true, 
-          message: `Yêu cầu rút vàng vật chất thành công! Số dư ví vàng đã đóng băng ${qtyVal} chỉ. Vui lòng mang CCCD và mã hợp đồng ${ordId} ra quầy để quét mã nhận vàng thật.` 
+          message: `Yêu cầu rút vàng thành công! Hệ thống đã gửi THƯ MỜI NHẬN VÀNG kèm MÃ BẢO MẬT (QR) tới Email của bạn. Vui lòng mang CCCD đến chi nhánh đã chọn để nhận vàng.` 
         });
       }
 
@@ -772,8 +809,6 @@ export default function Trade() {
       </>
     );
   };
-
-  const goldListKeys = Object.keys(prices);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', padding: '16px' }}>
@@ -1074,26 +1109,69 @@ export default function Trade() {
               value={selectedGoldKey} 
               onChange={(e) => { setSelectedGoldKey(e.target.value); setQuantity(''); setAmount(''); }}
               style={{ background: '#000', color: '#fff', border: '1px solid rgba(255,255,255,0.1)', fontSize: '13px' }}
+              disabled={availableGoldListKeys.length === 0}
             >
-              {goldListKeys.map((key) => (
-                <option key={key} value={key}>
-                  {prices[key]?.name} (&bull; ₫{(activeTab === 'sell' ? prices[key]?.buy : prices[key]?.sell)?.toLocaleString('vi-VN')}/chỉ)
-                </option>
-              ))}
+              {availableGoldListKeys.map((key) => {
+                const balText = activeTab !== 'buy' ? ` - Có sẵn: ${getGoldBalance(key).toFixed(3)} chỉ` : '';
+                return (
+                  <option key={key} value={key}>
+                    {prices[key]?.name}{balText} (&bull; ₫{(activeTab === 'sell' ? prices[key]?.buy : prices[key]?.sell)?.toLocaleString('vi-VN')}/chỉ)
+                  </option>
+                );
+              })}
+              {availableGoldListKeys.length === 0 && (
+                <option value="">Bạn chưa sở hữu loại vàng nào</option>
+              )}
             </select>
           </div>
 
           <div className="form-group">
-            <label className="form-label" style={{ color: 'var(--text-muted)', fontSize: '12px' }}>Số lượng giao dịch (chỉ)</label>
-            <input 
-              className="form-input" 
-              placeholder="0.00" 
-              type="number" 
-              step="0.01" 
-              value={quantity}
-              onChange={(e) => handleQuantityChange(e.target.value)}
-              style={{ background: '#000', color: '#fff', border: '1px solid rgba(255,255,255,0.1)' }}
-            />
+            <label className="form-label" style={{ color: 'var(--text-muted)', fontSize: '12px' }}>
+              Số lượng giao dịch (chỉ)
+              {quantity && <span style={{ marginLeft: '6px', color: 'var(--gold)' }}>(~ {(parseFloat(quantity) * 3.75).toFixed(4)} gram)</span>}
+            </label>
+            {activeTab === 'withdraw' ? (
+              <select
+                className="form-input"
+                value={quantity}
+                onChange={(e) => handleQuantityChange(e.target.value)}
+                style={{ background: '#000', color: '#fff', border: '1px solid rgba(255,255,255,0.1)' }}
+              >
+                <option value="">Chọn định mức thỏi/nhẫn vàng...</option>
+                <option value="0.5">0.5 chỉ (1.875g)</option>
+                <option value="1">1.0 chỉ (3.75g)</option>
+                <option value="1.5">1.5 chỉ (5.625g)</option>
+                <option value="2">2.0 chỉ (7.5g)</option>
+                <option value="5">5.0 chỉ (18.75g)</option>
+                <option value="10">10 chỉ (1 lượng / 37.5g)</option>
+              </select>
+            ) : (
+              <input 
+                className="form-input" 
+                placeholder="0.00" 
+                type="number" 
+                step="0.01" 
+                value={quantity}
+                onChange={(e) => handleQuantityChange(e.target.value)}
+                style={{ background: '#000', color: '#fff', border: '1px solid rgba(255,255,255,0.1)' }}
+              />
+            )}
+            {activeTab === 'withdraw' && (
+              <div style={{ marginTop: '16px' }}>
+                <label className="form-label" style={{ color: 'var(--text-muted)', fontSize: '12px' }}>Chi nhánh nhận vàng vật chất</label>
+                <select
+                  className="form-input"
+                  value={pickupStore}
+                  onChange={(e) => setPickupStore(e.target.value)}
+                  style={{ background: '#000', color: '#fff', border: '1px solid rgba(255,255,255,0.1)' }}
+                >
+                  <option value="">Chọn chi nhánh gần khối bạn...</option>
+                  <option value="HN_123_THAIHA">Hà Nội: 123 Thái Hà, Quận Đống Đa</option>
+                  <option value="HCM_456_NTMK">TP.HCM: 456 Nguyễn Thị Minh Khai, Quận 3</option>
+                  <option value="DN_789_NVL">Đà Nẵng: 789 Nguyễn Văn Linh, Quận Hải Châu</option>
+                </select>
+              </div>
+            )}
             <div className="form-hint" style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px' }}>
               {activeTab === 'buy'
                 ? `Kho cửa hàng còn: ${(storeStock[selectedGoldKey] / 3.75 || 0).toFixed(2)} chỉ (~ ${(storeStock[selectedGoldKey] / 37.5 || 0).toFixed(2)} lượng)`
@@ -1365,7 +1443,9 @@ export default function Trade() {
                     <td style={{ padding: '10px 14px', borderBottom: '1px solid #2D3748', color: '#FFFFFF', fontWeight: 'bold', textAlign: 'right' }}>{invoiceDetails.date}</td>
                   </tr>
                   <tr style={{ background: 'rgba(179, 135, 40, 0.08)' }}>
-                    <td style={{ padding: '10px 14px', color: '#B38728', fontWeight: '700' }}>Tổng tiền thanh toán</td>
+                    <td style={{ padding: '10px 14px', color: '#B38728', fontWeight: '700' }}>
+                      {invoiceDetails.type === 'sell' ? 'Tổng tiền nhận (Ví VND)' : 'Tổng tiền thanh toán'}
+                    </td>
                     <td style={{ padding: '10px 14px', color: '#B38728', fontSize: '15px', fontWeight: '800', textAlign: 'right' }}>₫{invoiceDetails.total}</td>
                   </tr>
                 </tbody>

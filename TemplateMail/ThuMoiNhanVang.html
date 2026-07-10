@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Thư mời nhận vàng vật chất</title>
+  <style>
+    body {
+      font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      background-color: #f4f4f4;
+      color: #333;
+    }
+    .email-container {
+      max-width: 600px;
+      margin: 40px auto;
+      background-color: #ffffff;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    }
+    .header {
+      background-color: #000000;
+      color: #dfb162;
+      text-align: center;
+      padding: 20px 0;
+    }
+    .header h1 {
+      margin: 0;
+      font-size: 24px;
+      letter-spacing: 1px;
+    }
+    .content {
+      padding: 30px;
+      line-height: 1.6;
+    }
+    .content h2 {
+      color: #000;
+      margin-top: 0;
+    }
+    .details-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+    }
+    .details-table th, .details-table td {
+      padding: 12px;
+      border-bottom: 1px solid #eeeeee;
+      text-align: left;
+    }
+    .details-table th {
+      color: #666;
+      width: 40%;
+      font-weight: normal;
+    }
+    .details-table td {
+      font-weight: bold;
+      color: #000;
+    }
+    .token-box {
+      background-color: #dfb162;
+      color: #000;
+      text-align: center;
+      padding: 15px;
+      font-size: 20px;
+      font-weight: bold;
+      letter-spacing: 2px;
+      border-radius: 6px;
+      margin: 25px 0;
+    }
+    .footer {
+      background-color: #f9f9f9;
+      color: #888;
+      text-align: center;
+      padding: 20px;
+      font-size: 13px;
+    }
+  </style>
+</head>
+<body>
+  <div class="email-container">
+    <div class="header">
+      <h1>GOLDCHAIN O2O</h1>
+    </div>
+    <div class="content">
+      <h2>Kính chào {{name}},</h2>
+      <p>Yêu cầu rút vàng vật chất của quý khách đã được ghi nhận thành công trên hệ thống. Số lượng vàng tương ứng trong Ví vàng trực tuyến đã được đóng băng.</p>
+      
+      <p>Xin trân trọng kính mời quý khách đến chi nhánh để thực hiện thủ tục nhận bàn giao vàng. Vui lòng xuất trình Căn cước công dân và <strong>Mã bảo mật nhận vàng</strong> dưới đây cho nhân viên thu ngân tạị quầy.</p>
+      
+      <div class="token-box">
+        {{secureToken}}
+      </div>
+      
+      <table class="details-table">
+        <tr>
+          <th>Mã hợp đồng rút</th>
+          <td>{{contractId}}</td>
+        </tr>
+        <tr>
+          <th>Sản phẩm vàng</th>
+          <td>{{goldType}}</td>
+        </tr>
+        <tr>
+          <th>Định lượng Rút</th>
+          <td>{{quantity}}</td>
+        </tr>
+        <tr>
+          <th>Chi nhánh tiếp nhận</th>
+          <td>{{pickupStore}}</td>
+        </tr>
+        <tr>
+          <th>Thời gian lên lệnh</th>
+          <td>{{date}}</td>
+        </tr>
+      </table>
+      
+      <p><em>Lưu ý: Mã bảo mật này là duy nhất và đại diện cho tài sản của quý khách. Tuyệt đối không chia sẻ mã này cho bất kỳ ai khác ngoài nhân viên GoldChain tại quầy.</em></p>
+    </div>
+    <div class="footer">
+      <p>&copy; 2026 GoldChain. Nền tảng giao dịch vàng vật chất số hóa.</p>
+      <p>Cần hỗ trợ? Vui lòng liên hệ Hotline: 1900 xxxx.</p>
+    </div>
+  </div>
+</body>
+</html>

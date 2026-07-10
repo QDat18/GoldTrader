@@ -5,6 +5,8 @@ export default function History() {
   const [selectedType, setSelectedType] = useState('all');
   const [selectedGold, setSelectedGold] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [invoiceDetails, setInvoiceDetails] = useState(null);
+  const [showInvoiceOpen, setShowInvoiceOpen] = useState(false);
 
   const transactions = useStore(state => state.transactions);
   const currentUser = useStore(state => state.currentUser);
@@ -187,6 +189,7 @@ export default function History() {
                   <th style={{ padding: '16px 24px', textAlign: 'right', fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>Tổng tiền</th>
                   <th style={{ padding: '16px 24px', textAlign: 'left', fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>Thời gian</th>
                   <th style={{ padding: '16px 24px', textAlign: 'left', fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>Trạng thái</th>
+                  <th style={{ padding: '16px 24px', textAlign: 'right', fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>Hành động</th>
                 </tr>
               </thead>
               <tbody>
@@ -209,7 +212,14 @@ export default function History() {
                         )}
                       </td>
                       <td style={{ padding: '16px 24px', fontWeight: 500, fontSize: '14px' }}>{txn.type === 'deposit' ? 'Nạp tiền VNĐ' : txn.goldTypeName}</td>
-                      <td style={{ padding: '16px 24px', textAlign: 'right', fontSize: '14px' }}>{txn.type === 'deposit' ? '—' : `${txn.quantity.toFixed(4)} chỉ`}</td>
+                      <td style={{ padding: '16px 24px', textAlign: 'right', fontSize: '14px' }}>
+                        {txn.type === 'deposit' ? '—' : (
+                          <>
+                            {txn.quantity.toFixed(4)} chỉ
+                            <span style={{ fontSize: '12px', color: 'var(--text-muted)', marginLeft: '4px' }}>({Number((txn.quantity * 3.75).toFixed(4))}g)</span>
+                          </>
+                        )}
+                      </td>
                       <td style={{ padding: '16px 24px', textAlign: 'right', fontSize: '14px', color: 'var(--text-muted)' }}>{txn.type === 'deposit' ? '—' : `₫${txn.price.toLocaleString('vi-VN')}`}</td>
                       <td style={{ padding: '16px 24px', textAlign: 'right', fontSize: '14px', fontWeight: 500 }}>
                         {txn.type === 'deposit' ? <span style={{ color: 'var(--emerald)' }}>+ ₫{txn.total.toLocaleString('vi-VN')}</span> : `₫${txn.total.toLocaleString('vi-VN')}`}
@@ -217,6 +227,38 @@ export default function History() {
                       <td style={{ padding: '16px 24px', fontSize: '13px', color: 'var(--text-muted)' }}>{txn.time}</td>
                       <td style={{ padding: '16px 24px' }}>
                         <span style={{ fontSize: '11px', padding: '4px 8px', borderRadius: '4px', background: 'rgba(16, 185, 129, 0.1)', color: 'var(--emerald)', fontWeight: 600 }}>{txn.status}</span>
+                      </td>
+                      <td style={{ padding: '16px 24px', textAlign: 'right' }}>
+                        {txn.type !== 'deposit' && (
+                          <div style={{ display: 'inline-flex', gap: '8px' }}>
+                            <button 
+                              onClick={() => {
+                                setInvoiceDetails({
+                                  name: currentUser?.name || 'Khách hàng',
+                                  contractId: txn.id,
+                                  goldType: txn.goldTypeName,
+                                  quantity: `${txn.quantity.toString()} (${Number((txn.quantity * 3.75).toFixed(4))}g)`,
+                                  price: txn.price.toLocaleString('vi-VN'),
+                                  total: txn.total.toLocaleString('vi-VN'),
+                                  date: txn.time,
+                                  type: txn.type
+                                });
+                                setShowInvoiceOpen(true);
+                              }}
+                              style={{ padding: '6px 12px', fontSize: '12px', background: 'rgba(212,175,55,0.1)', color: 'var(--gold)', border: '1px solid var(--gold)', borderRadius: '6px', cursor: 'pointer', transition: '0.2s', fontWeight: 600 }}
+                            >
+                              Chi tiết hoá đơn
+                            </button>
+                            <button 
+                              onClick={() => {
+                                alert('Tính năng xem lại Hợp đồng PDF đang được hoàn thiện.');
+                              }}
+                              style={{ padding: '6px 12px', fontSize: '12px', background: 'rgba(255,255,255,0.05)', color: '#fff', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', cursor: 'pointer', transition: '0.2s' }}
+                            >
+                              Hợp đồng (PDF)
+                            </button>
+                          </div>
+                        )}
                       </td>
                     </tr>
                   );
@@ -234,6 +276,130 @@ export default function History() {
         </div>
 
       </div>
+
+      {/* HÓA ĐƠN BIÊN NHẬN CHI TIẾT */}
+      {showInvoiceOpen && invoiceDetails && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.9)', backdropFilter: 'blur(5px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1200, padding: '16px' }}>
+          <div style={{ 
+            maxWidth: '440px', 
+            width: '100%', 
+            background: '#1E1E1E', 
+            border: '1px solid #2D3748', 
+            borderRadius: '12px', 
+            overflow: 'hidden', 
+            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.5)',
+            display: 'flex',
+            flexDirection: 'column'
+          }}>
+            {/* Header đồng bộ HopDongMua.html */}
+            <div style={{
+              padding: '24px 20px',
+              textAlign: 'center',
+              background: 'linear-gradient(135deg, #1A1A1A, #121212)',
+              borderBottom: '2px solid #B38728',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: '8px'
+            }}>
+              <div style={{
+                width: '42px',
+                height: '42px',
+                borderRadius: '50%',
+                background: 'linear-gradient(135deg, #BF953F, #FCF6BA, #B38728)',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontWeight: '800',
+                color: '#121212',
+                fontSize: '20px'
+              }}>G</div>
+              <div style={{
+                fontSize: '18px',
+                fontWeight: '750',
+                color: '#FFFFFF',
+                letterSpacing: '1px'
+              }}>GOLD<span style={{ color: '#B38728' }}>CHAIN</span></div>
+            </div>
+
+            {/* Content hóa đơn */}
+            <div style={{ padding: '24px', color: '#E2E8F0', fontSize: '13px', lineHeight: '1.5' }}>
+              <div style={{ fontSize: '18px', color: '#FFFFFF', fontWeight: '600', marginBottom: '4px', textAlign: 'center' }}>Chi tiết Giao Dịch</div>
+              <div style={{ textAlign: 'center', fontSize: '13px', color: '#B38728', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '20px' }}>
+                Hóa đơn {invoiceDetails.type === 'buy' || invoiceDetails.type === 'dca' ? 'Mua' : 'Bán'} vàng điện tử
+              </div>
+              
+              <p style={{ margin: '0 0 16px 0' }}>
+                Kính gửi quý khách <strong style={{ color: '#FFFFFF' }}>{invoiceDetails.name}</strong>,
+              </p>
+              <p style={{ margin: '0 0 16px 0' }}>
+                Dưới đây là thông tin chi tiết hợp đồng giao dịch mà bạn đã thực hiện qua hệ thống GoldChain:
+              </p>
+
+              <table style={{ width: '100%', borderCollapse: 'collapse', background: '#121212', borderRadius: '8px', overflow: 'hidden', border: '1px solid #2D3748', marginBottom: '20px' }}>
+                <tbody>
+                  <tr>
+                    <td style={{ padding: '10px 14px', borderBottom: '1px solid #2D3748', color: '#A0AEC0', fontWeight: '550' }}>Mã hợp đồng (Order ID)</td>
+                    <td style={{ padding: '10px 14px', borderBottom: '1px solid #2D3748', color: '#B38728', fontWeight: 'bold', textAlign: 'right' }}>{invoiceDetails.contractId}</td>
+                  </tr>
+                  <tr>
+                    <td style={{ padding: '10px 14px', borderBottom: '1px solid #2D3748', color: '#A0AEC0', fontWeight: '550' }}>Sản phẩm vàng</td>
+                    <td style={{ padding: '10px 14px', borderBottom: '1px solid #2D3748', color: '#FFFFFF', fontWeight: 'bold', textAlign: 'right' }}>{invoiceDetails.goldType}</td>
+                  </tr>
+                  <tr>
+                    <td style={{ padding: '10px 14px', borderBottom: '1px solid #2D3748', color: '#A0AEC0', fontWeight: '550' }}>Số lượng vàng</td>
+                    <td style={{ padding: '10px 14px', borderBottom: '1px solid #2D3748', color: '#FFFFFF', fontWeight: 'bold', textAlign: 'right' }}>{invoiceDetails.quantity} chỉ</td>
+                  </tr>
+                  <tr>
+                    <td style={{ padding: '10px 14px', borderBottom: '1px solid #2D3748', color: '#A0AEC0', fontWeight: '550' }}>Đơn giá niêm yết</td>
+                    <td style={{ padding: '10px 14px', borderBottom: '1px solid #2D3748', color: '#FFFFFF', fontWeight: 'bold', textAlign: 'right' }}>₫{invoiceDetails.price} / chỉ</td>
+                  </tr>
+                  <tr>
+                    <td style={{ padding: '10px 14px', borderBottom: '1px solid #2D3748', color: '#A0AEC0', fontWeight: '550' }}>Thời gian giao dịch</td>
+                    <td style={{ padding: '10px 14px', borderBottom: '1px solid #2D3748', color: '#FFFFFF', fontWeight: 'bold', textAlign: 'right' }}>{invoiceDetails.date}</td>
+                  </tr>
+                  <tr style={{ background: 'rgba(179, 135, 40, 0.08)' }}>
+                    <td style={{ padding: '10px 14px', color: '#B38728', fontWeight: '700' }}>
+                      {invoiceDetails.type === 'sell' ? 'Tổng tiền nhận (Ví VND)' : 'Tổng thanh toán'}
+                    </td>
+                    <td style={{ padding: '10px 14px', color: '#B38728', fontSize: '15px', fontWeight: '800', textAlign: 'right' }}>₫{invoiceDetails.total}</td>
+                  </tr>
+                </tbody>
+              </table>
+
+              <div style={{
+                textAlign: 'center',
+                padding: '12px',
+                background: 'rgba(16, 185, 129, 0.05)',
+                border: '1px solid rgba(16, 185, 129, 0.2)',
+                borderRadius: '8px',
+                color: '#10B981',
+                fontSize: '12px',
+                fontWeight: '600',
+                marginBottom: '16px'
+              }}>
+                🛡️ Chứng nhận quyền sở hữu vàng vật chất 1:1 trong kho ký gửi của GoldChain.
+              </div>
+
+              <p style={{ fontSize: '11px', color: '#A0AEC0', textAlign: 'center', margin: '0 0 16px 0' }}>
+                Hóa đơn và bằng chứng số (SHA-256 Hash) của hợp đồng này đã được lưu trữ bảo vệ trên sổ cái Blockchain. Bản sao PDF đã được gửi qua email của quý khách.
+              </p>
+
+              <button 
+                className="btn btn-gold" 
+                onClick={() => {
+                  setShowInvoiceOpen(false);
+                  setInvoiceDetails(null);
+                }}
+                style={{ width: '100%', padding: '10px', fontSize: '13px', fontWeight: 'bold' }}
+              >
+                Đóng
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

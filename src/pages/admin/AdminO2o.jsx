@@ -24,13 +24,7 @@ export default function AdminO2o() {
   const [selectedInventoryBar, setSelectedInventoryBar] = useState('');
   const [totpVerificationResult, setTotpVerificationResult] = useState(null);
 
-  const fetchO2oData = async () => {
-    try {
-      await fetchAdminOrders();
-    } catch (err) {
-      console.error('Error fetching O2O counter data:', err);
-    }
-  };
+
 
   const handleVerifyO2oQr = (customInput) => {
     setO2oError('');
@@ -173,16 +167,14 @@ export default function AdminO2o() {
 
       // Clean path search queries
       navigate('/admin/o2o', { replace: true });
-      fetchO2oData();
+      fetchAdminOrders();
     } catch (err) {
       console.error('Lỗi khi bàn giao vàng:', err);
       alert('Không thể hoàn thành bàn giao: ' + err.message);
     }
   };
 
-  useEffect(() => {
-    fetchO2oData();
-  }, []);
+
 
   // Sync url order_id if redirected from Orders tab
   useEffect(() => {
@@ -360,7 +352,7 @@ export default function AdminO2o() {
                   })
                   .map(i => (
                     <option key={i.gold_serial} value={i.gold_serial}>
-                      {i.gold_serial} ({i.bar_brand} - {i.weight_grams}g)
+                      {i.gold_serial} ({i.weight_grams}g)
                     </option>
                   ))
                 }

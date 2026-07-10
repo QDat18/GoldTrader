@@ -61,8 +61,24 @@ function App() {
     // Tải giá vàng ban đầu từ Supabase và cập nhật định kỳ mỗi 30 giây
     fetchGoldPrices();
     const interval = setInterval(fetchGoldPrices, 30000);
-    return () => clearInterval(interval);
-  }, [fetchGoldPrices]);
+
+    let adminInterval;
+    if (currentUser?.role === 'admin') {
+      const fetchAllAdmin = () => {
+        useStore.getState().fetchAdminKycList();
+        useStore.getState().fetchAdminOrders();
+        useStore.getState().fetchAdminInventory();
+        useStore.getState().fetchAdminHedges();
+      };
+      fetchAllAdmin();
+      adminInterval = setInterval(fetchAllAdmin, 15000);
+    }
+
+    return () => {
+      clearInterval(interval);
+      if (adminInterval) clearInterval(adminInterval);
+    };
+  }, [fetchGoldPrices, currentUser?.role]);
 
   useEffect(() => {
     // 1. Khởi tạo session ban đầu từ LocalStorage/Supabase

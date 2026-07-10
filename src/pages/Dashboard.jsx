@@ -15,14 +15,14 @@ export default function Dashboard() {
   const avgBuyPrice = priceKeys.length > 0 
     ? priceKeys.reduce((sum, k) => sum + (prices[k]?.buy || 0), 0) / priceKeys.length 
     : 148000000;
-  const totalGoldQty = (balances.sjc || 0) + (balances.pnj || 0) + (balances.doji || 0);
+  let totalGoldQty = 0;
+  Object.values(balances).forEach(qty => { totalGoldQty += qty });
   const totalGoldValue = totalGoldQty * avgBuyPrice;
 
   const totalAssetsValue = wallet + totalGoldValue;
 
-  const sjcValue = (balances.sjc || 0) * avgBuyPrice;
-  const pnjValue = (balances.pnj || 0) * avgBuyPrice;
-  const dojiValue = (balances.doji || 0) * avgBuyPrice;
+  // Lọc ra các loại sản phẩm đang được sở hữu thực sự
+  const ownedGoldList = Object.keys(balances).filter(k => balances[k] > 0);
 
   // Lấy 3 giao dịch gần đây nhất
   const recentTxns = transactions.slice(0, 3);
@@ -80,29 +80,28 @@ export default function Dashboard() {
       </div>
 
       {/* CHI TIẾT TỪNG LOẠI VÀNG ĐANG SỞ HỮU */}
-      <div className="grid-3" style={{ marginBottom: '24px', gap: '16px' }}>
-        <div className="neo-card" style={{ padding: '20px 24px' }}>
-          <div className="body-sm" style={{ color: 'var(--text-muted)', fontWeight: 600 }}>SỐ DƯ SJC</div>
-          <div style={{ fontSize: '24px', fontWeight: 600, color: '#fff', marginTop: '8px' }}>{balances.sjc.toFixed(3)} chỉ</div>
-          <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '8px' }}>
-            Trị giá quy đổi: <span style={{ color: 'var(--gold)', fontWeight: '500' }}>₫{sjcValue.toLocaleString('vi-VN')}</span>
-          </div>
+      {ownedGoldList.length > 0 && (
+        <div className="grid-3" style={{ marginBottom: '24px', gap: '16px' }}>
+          {ownedGoldList.map(key => {
+            const qty = balances[key];
+            const val = qty * avgBuyPrice;
+            const targetPrice = prices[key];
+            const name = targetPrice ? targetPrice.name : key;
+            return (
+              <div key={key} className="neo-card" style={{ padding: '20px 24px' }}>
+                <div className="body-sm" style={{ color: 'var(--gold)', fontWeight: 600, textTransform: 'uppercase' }}>{name}</div>
+                <div style={{ fontSize: '24px', fontWeight: 600, color: '#fff', marginTop: '8px' }}>
+                  {qty.toFixed(3)} chỉ
+                  <span style={{ fontSize: '14px', color: 'var(--text-muted)', marginLeft: '8px', fontWeight: 'normal' }}>({Number((qty * 3.75).toFixed(4))}g)</span>
+                </div>
+                <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '8px' }}>
+                  Trị giá tham khảo: <span style={{ color: 'var(--emerald)', fontWeight: '500' }}>₫{val.toLocaleString('vi-VN')}</span>
+                </div>
+              </div>
+            );
+          })}
         </div>
-        <div className="neo-card" style={{ padding: '20px 24px' }}>
-          <div className="body-sm" style={{ color: 'var(--text-muted)', fontWeight: 600 }}>SỐ DƯ PNJ</div>
-          <div style={{ fontSize: '24px', fontWeight: 600, color: '#fff', marginTop: '8px' }}>{balances.pnj.toFixed(3)} chỉ</div>
-          <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '8px' }}>
-            Trị giá quy đổi: <span style={{ color: 'var(--gold)', fontWeight: '500' }}>₫{pnjValue.toLocaleString('vi-VN')}</span>
-          </div>
-        </div>
-        <div className="neo-card" style={{ padding: '20px 24px' }}>
-          <div className="body-sm" style={{ color: 'var(--text-muted)', fontWeight: 600 }}>SỐ DƯ DOJI</div>
-          <div style={{ fontSize: '24px', fontWeight: 600, color: '#fff', marginTop: '8px' }}>{balances.doji.toFixed(3)} chỉ</div>
-          <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '8px' }}>
-            Trị giá quy đổi: <span style={{ color: 'var(--gold)', fontWeight: '500' }}>₫{dojiValue.toLocaleString('vi-VN')}</span>
-          </div>
-        </div>
-      </div>
+      )}
 
       <div className="grid-2" style={{ gap: '16px' }}>
         

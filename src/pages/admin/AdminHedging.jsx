@@ -24,14 +24,7 @@ export default function AdminHedging() {
     setTimeout(() => setToast(null), 3500);
   };
 
-  const fetchDbHedges = async () => {
-    try {
-      await fetchAdminHedges();
-    } catch (err) {
-      console.error('Lỗi khi tải vị thế hedging:', err);
-      showToast('Lỗi tải vị thế hedging: ' + err.message, 'error');
-    }
-  };
+
 
   const handleAddHedge = async (e) => {
     e.preventDefault();
@@ -69,7 +62,7 @@ export default function AdminHedging() {
       setShowAddHedge(false);
       setNewHedgeQty('1');
       setNewHedgePrice('');
-      fetchDbHedges();
+      fetchAdminHedges();
     } catch (err) {
       console.error('Lỗi khi mở vị thế hedging:', err);
       showToast('Lỗi mở vị thế: ' + err.message, 'error');
@@ -121,16 +114,14 @@ export default function AdminHedging() {
 
       if (error) throw error;
       showToast(`Đã đóng vị thế ${id}! Lãi/Lỗ tất toán: ₫${pnlVnd.toLocaleString('vi-VN')}`, 'success');
-      fetchDbHedges();
+      fetchAdminHedges();
     } catch (err) {
       console.error('Lỗi khi tất toán vị thế:', err);
       showToast('Lỗi đóng vị thế: ' + err.message, 'error');
     }
   };
 
-  useEffect(() => {
-    fetchDbHedges();
-  }, []);
+
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>

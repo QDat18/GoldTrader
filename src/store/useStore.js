@@ -41,7 +41,7 @@ const initialState = {
   goldBalances: (() => {
     try {
       const cached = localStorage.getItem('cached_gold_balances');
-      return cached ? JSON.parse(cached) : { sjc: 0, pnj: 0, doji: 0 };
+      return cached ? JSON.parse(cached) : {};
     } catch {
       return { sjc: 0, pnj: 0, doji: 0 };
     }
@@ -222,7 +222,7 @@ const useStore = create((set, get) => ({
         kycStatus: 'pending'
       },
       walletBalance: 0,
-      goldBalances: { sjc: 0, pnj: 0, doji: 0 },
+      goldBalances: {},
       transactions: [],
       orders: [],
       adminKycList: [],
@@ -334,7 +334,7 @@ const useStore = create((set, get) => ({
       walletBalance: state.walletBalance - totalCost,
       goldBalances: {
         ...state.goldBalances,
-        [goldType]: parseFloat((state.goldBalances[goldType] + quantity).toFixed(4))
+        [goldType]: parseFloat(((state.goldBalances[goldType] || 0) + quantity).toFixed(4))
       },
       orders: [newOrder, ...state.orders],
       transactions: [newTxn, ...state.transactions],
@@ -347,7 +347,7 @@ const useStore = create((set, get) => ({
   sellGold: (goldType, quantity, price) => {
     const state = get();
     const item = state.goldPrices[goldType];
-    const userBalance = state.goldBalances[goldType];
+    const userBalance = state.goldBalances[goldType] || 0;
 
     if (userBalance < quantity) {
       throw new Error(`Số lượng vàng ${item.name} trong kho không đủ để bán.`);
@@ -581,12 +581,10 @@ const useStore = create((set, get) => ({
         .eq('user_id', userId);
       if (error) throw error;
       if (data && data.length > 0) {
-        const balances = { sjc: 0, pnj: 0, doji: 0 };
+        const balances = {};
         data.forEach(w => {
-          const type = w.gold_type.toLowerCase();
-          if (type.includes('sjc')) balances.sjc = Number(w.quantity_grams) / 3.75;
-          else if (type.includes('pnj')) balances.pnj = Number(w.quantity_grams) / 3.75;
-          else if (type.includes('doji')) balances.doji = Number(w.quantity_grams) / 3.75;
+          const type = w.gold_type;
+          balances[type] = (balances[type] || 0) + (Number(w.quantity_grams) / 3.75);
         });
         localStorage.setItem('cached_gold_balances', JSON.stringify(balances));
         set({ goldBalances: balances });
@@ -644,7 +642,7 @@ const useStore = create((set, get) => ({
           const date = new Date(order.created_at);
           const timeStr = `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')} ${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear()}`;
 
-          const qty = Number(order.quantity_grams) / 3.75;
+          const qty = Number((Number(order.quantity_grams) / 3.75).toFixed(4));
           const price = Math.round(Number(order.unit_price_vnd) * 3.75);
 
           let mappedStatus = order.order_status || 'OK';
@@ -653,7 +651,7 @@ const useStore = create((set, get) => ({
           return {
             id: order.id,
             type: type,
-            goldTypeName: order.gold_type,
+            goldTypeName: get().goldPrices[order.gold_type]?.name || order.gold_type,
             quantity: qty,
             price: price,
             total: Number(order.total_amount_vnd),

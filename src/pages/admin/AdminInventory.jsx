@@ -6,14 +6,17 @@ import { Plus } from 'lucide-react';
 export default function AdminInventory() {
   const dbInventory = useStore(state => state.adminInventory);
   const fetchAdminInventory = useStore(state => state.fetchAdminInventory);
+  const currentUser = useStore(state => state.currentUser);
   const [toast, setToast] = useState(null);
 
   // States
   const [showAddInventory, setShowAddInventory] = useState(false);
   const [newInvType, setNewInvType] = useState('SJL1L10');
-  const [newInvBrand, setNewInvBrand] = useState('SJC HCM');
   const [newInvWeight, setNewInvWeight] = useState('1'); // 1 chỉ = 3.75g
   const [newInvSerial, setNewInvSerial] = useState('');
+  const [newInvImportSource, setNewInvImportSource] = useState('');
+  const [newInvCostPrice, setNewInvCostPrice] = useState('');
+  const [newInvReceiptId, setNewInvReceiptId] = useState('');
   const [invFilterType, setInvFilterType] = useState('all');
   const [invFilterStatus, setInvFilterStatus] = useState('all');
   const [invSearchQuery, setInvSearchQuery] = useState('');
@@ -23,14 +26,7 @@ export default function AdminInventory() {
     setTimeout(() => setToast(null), 3500);
   };
 
-  const fetchDbInventory = async () => {
-    try {
-      await fetchAdminInventory();
-    } catch (err) {
-      console.error('Lỗi khi tải kho vật chất:', err);
-      showToast('Lỗi tải kho vàng: ' + err.message, 'error');
-    }
-  };
+
 
   const handleAddInventory = async (e) => {
     e.preventDefault();
@@ -54,8 +50,10 @@ export default function AdminInventory() {
           gold_serial: serialUpper,
           gold_type: newInvType,
           weight_grams: weightVal * 3.75, // convert input chỉ to grams for db storage
-          bar_brand: newInvBrand,
-          status: 'AVAILABLE'
+          status: 'AVAILABLE',
+          import_source: newInvImportSource,
+          cost_price_vnd: newInvCostPrice ? parseFloat(newInvCostPrice) : null,
+          receipt_id: newInvReceiptId
         });
 
       if (error) {
@@ -68,38 +66,33 @@ export default function AdminInventory() {
       }
 
       showToast(`Nhập kho thỏi vàng ${serialUpper} thành công!`, 'success');
+      alert(`Nhập kho thỏi vàng ${serialUpper} thành công!`);
+
+      if (currentUser?.id) {
+        await supabase.from('notifications').insert({
+          user_id: currentUser.id,
+          title: 'Nhập Kho',
+          desc: `Bạn đã nhập thành công thỏi vàng ${serialUpper} vào kho (Nguồn: ${newInvImportSource || 'Không rõ'}).`,
+          type: 'system',
+          date: new Date().toISOString(),
+          unread: true
+        });
+      }
       setShowAddInventory(false);
       setNewInvSerial(''); // reset
-      fetchDbInventory();
+      setNewInvImportSource('');
+      setNewInvCostPrice('');
+      setNewInvReceiptId('');
+
     } catch (err) {
       console.error('Lỗi khi nhập kho:', err);
       showToast('Lỗi nhập kho: ' + err.message, 'error');
     }
   };
 
-  const handleDeleteInventoryRow = async (serial) => {
-    if (!window.confirm(`Bạn có chắc chắn muốn xóa thỏi vàng ${serial} khỏi kho?`)) {
-      return;
-    }
-    try {
-      const { error } = await supabase
-        .from('vault_inventory')
-        .delete()
-        .eq('gold_serial', serial)
-        .eq('status', 'AVAILABLE');
 
-      if (error) throw error;
-      showToast(`Đã xóa thỏi vàng ${serial} khỏi kho!`, 'success');
-      fetchDbInventory();
-    } catch (err) {
-      console.error('Lỗi khi xóa thỏi vàng:', err);
-      showToast('Lỗi khi xóa thỏi vàng: ' + err.message, 'error');
-    }
-  };
 
-  useEffect(() => {
-    fetchDbInventory();
-  }, []);
+
 
   // Name mapping helper
   const getGoldTypeName = (goldType) => {
@@ -226,15 +219,6 @@ export default function AdminInventory() {
                   const val = e.target.value;
                   setNewInvType(val);
                   setNewInvWeight('1');
-                  if (val.startsWith('SJ') || val === 'BTSJC' || val === 'VNGSJC' || val === 'VIETTINMSJC') {
-                    setNewInvBrand('SJC HCM');
-                  } else if (val.startsWith('DOJI')) {
-                    setNewInvBrand('DOJI Hà Nội');
-                  } else if (val.startsWith('PQ')) {
-                    setNewInvBrand('PNJ Hà Nội');
-                  } else if (val.startsWith('BT')) {
-                    setNewInvBrand('Bảo Tín 9999');
-                  }
                 }}
               >
                 <option value="SJL1L10">SJC 9999</option>
@@ -250,19 +234,7 @@ export default function AdminInventory() {
                 <option value="VIETTINMSJC">Viettin SJC</option>
               </select>
             </div>
-            <div className="form-group" style={{ marginBottom: 0 }}>
-              <label className="form-label">Nhãn hiệu đúc</label>
-              <select
-                className="form-input"
-                value={newInvBrand}
-                onChange={e => setNewInvBrand(e.target.value)}
-              >
-                <option value="SJC HCM">SJC HCM</option>
-                <option value="PNJ Hà Nội">PNJ Hà Nội</option>
-                <option value="DOJI Hà Nội">DOJI Hà Nội</option>
-                <option value="Bảo Tín 9999">Bảo Tín 9999</option>
-              </select>
-            </div>
+
             <div className="form-group" style={{ marginBottom: 0 }}>
               <label className="form-label">Trọng lượng (chỉ)</label>
               <input className="form-input" type="number" step="0.01" value={newInvWeight} onChange={e => setNewInvWeight(e.target.value)} required />
@@ -275,6 +247,34 @@ export default function AdminInventory() {
                 value={newInvSerial}
                 onChange={e => setNewInvSerial(e.target.value)}
                 required
+              />
+            </div>
+            <div className="form-group" style={{ marginBottom: 0 }}>
+              <label className="form-label">Nguồn nhập (Tùy chọn)</label>
+              <input
+                className="form-input"
+                placeholder="VD: Chi nhánh Quận 1"
+                value={newInvImportSource}
+                onChange={e => setNewInvImportSource(e.target.value)}
+              />
+            </div>
+            <div className="form-group" style={{ marginBottom: 0 }}>
+              <label className="form-label">Mã biên nhận (Tùy chọn)</label>
+              <input
+                className="form-input"
+                placeholder="VD: RC12356"
+                value={newInvReceiptId}
+                onChange={e => setNewInvReceiptId(e.target.value)}
+              />
+            </div>
+            <div className="form-group" style={{ marginBottom: 0 }}>
+              <label className="form-label">Giá vốn - VNĐ (Tùy chọn)</label>
+              <input
+                className="form-input"
+                type="number"
+                placeholder="Giá nhập kho..."
+                value={newInvCostPrice}
+                onChange={e => setNewInvCostPrice(e.target.value)}
               />
             </div>
             <div style={{ display: 'flex', gap: '10px' }}>
@@ -296,11 +296,12 @@ export default function AdminInventory() {
                 <th style={{ textAlign: 'left', padding: '12px 8px', color: 'var(--text-muted)' }}>Mã Serial</th>
                 <th style={{ textAlign: 'left', padding: '12px 8px', color: 'var(--text-muted)' }}>Loại vàng</th>
                 <th style={{ textAlign: 'left', padding: '12px 8px', color: 'var(--text-muted)' }}>Trọng lượng</th>
-                <th style={{ textAlign: 'left', padding: '12px 8px', color: 'var(--text-muted)' }}>Thương hiệu đúc</th>
+
                 <th style={{ textAlign: 'left', padding: '12px 8px', color: 'var(--text-muted)' }}>Trạng thái</th>
                 <th style={{ textAlign: 'left', padding: '12px 8px', color: 'var(--text-muted)' }}>Hợp đồng/Đơn gán</th>
+                <th style={{ textAlign: 'left', padding: '12px 8px', color: 'var(--text-muted)' }}>Mã biên nhận</th>
+                <th style={{ textAlign: 'left', padding: '12px 8px', color: 'var(--text-muted)' }}>Nguồn nhập</th>
                 <th style={{ textAlign: 'left', padding: '12px 8px', color: 'var(--text-muted)' }}>Ngày nhập</th>
-                <th style={{ textAlign: 'right', padding: '12px 8px', color: 'var(--text-muted)' }}>Thao tác</th>
               </tr>
             </thead>
             <tbody>
@@ -319,27 +320,20 @@ export default function AdminInventory() {
                       <td style={{ padding: '12px 8px', fontFamily: 'monospace', fontWeight: 'bold' }}>{item.gold_serial}</td>
                       <td style={{ padding: '12px 8px' }}>{getGoldTypeName(item.gold_type).toUpperCase()}</td>
                       <td style={{ padding: '12px 8px' }}>{(Number(item.weight_grams) / 3.75).toFixed(2)} chỉ ({item.weight_grams}g)</td>
-                      <td style={{ padding: '12px 8px' }}>{item.bar_brand}</td>
+
                       <td style={{ padding: '12px 8px' }}>
                         <span className={`badge ${badgeClass}`} style={{ fontSize: '10px', padding: '4px 8px', borderRadius: '4px', background: 'rgba(255,255,255,0.1)' }}>{item.status}</span>
                       </td>
                       <td style={{ padding: '12px 8px', fontFamily: 'monospace', fontSize: '11px', color: 'var(--text-muted)' }}>
                         {item.order_id ? item.order_id : '—'}
                       </td>
-                      <td className="body-sm" style={{ padding: '12px 8px' }}>{new Date(item.stored_at).toLocaleDateString('vi-VN')}</td>
-                      <td style={{ padding: '12px 8px', textAlign: 'right' }}>
-                        {item.status === 'AVAILABLE' ? (
-                          <button
-                            onClick={() => handleDeleteInventoryRow(item.gold_serial)}
-                            className="btn btn-sm btn-outline"
-                            style={{ padding: '4px 10px', fontSize: '11px', borderRadius: '4px', borderColor: 'var(--ruby)', color: 'var(--ruby)', cursor: 'pointer' }}
-                          >
-                            Xóa thỏi
-                          </button>
-                        ) : (
-                          <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Đã bị khóa</span>
-                        )}
+                      <td style={{ padding: '12px 8px', fontSize: '13px' }}>{item.receipt_id || '—'}</td>
+                      <td style={{ padding: '12px 8px', fontSize: '13px' }}>
+                        {item.import_source || '—'}
+                        {item.cost_price_vnd && <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Giá vốn: {Number(item.cost_price_vnd).toLocaleString('vi-VN')} đ</div>}
                       </td>
+                      <td className="body-sm" style={{ padding: '12px 8px' }}>{new Date(item.stored_at).toLocaleDateString('vi-VN')}</td>
+
                     </tr>
                   );
                 })

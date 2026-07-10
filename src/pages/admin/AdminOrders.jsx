@@ -14,6 +14,7 @@ export default function AdminOrders() {
   const usersMap = useStore(state => state.adminUsersMap);
   const dbInventory = useStore(state => state.adminInventory);
   const fetchAdminOrders = useStore(state => state.fetchAdminOrders);
+  const prices = useStore(state => state.goldPrices);
 
   const [toast, setToast] = useState(null);
 
@@ -27,21 +28,12 @@ export default function AdminOrders() {
     setTimeout(() => setToast(null), 3500);
   };
 
-  const fetchOrdersAndUsers = async () => {
-    try {
-      await fetchAdminOrders();
-    } catch (err) {
-      console.error('Error fetching admin orders data:', err);
-      showToast('Lỗi tải dữ liệu đơn hàng: ' + err.message, 'error');
-    }
-  };
+
 
   const handleApproveOrder = async (order) => {
     try {
-      let goldType = 'sjc';
-      const nameLower = order.gold_type.toLowerCase();
-      if (nameLower.includes('pnj')) goldType = 'pnj';
-      else if (nameLower.includes('doji')) goldType = 'doji';
+      // Tìm mã định danh gốc (VD: SJL1L10) từ tên tiếng Việt lưu trong đơn hàng
+      const goldType = Object.keys(prices).find(k => prices[k].name === order.gold_type) || order.gold_type;
 
       // 1. Lấy ví vàng của khách hàng trong CSDL
       const { data: wallets, error: walletErr } = await supabase
@@ -176,16 +168,14 @@ export default function AdminOrders() {
         storeState.fetchUserBalances(order.user_id);
       }
 
-      fetchOrdersAndUsers();
+      fetchAdminOrders();
     } catch (err) {
       console.error('Lỗi khi duyệt đơn hàng:', err);
       showToast('Không thể khớp lệnh đơn hàng: ' + err.message, 'error');
     }
   };
 
-  useEffect(() => {
-    fetchOrdersAndUsers();
-  }, []);
+
 
   const pendingOrders = dbOrders.filter(o => o.status === 'PENDING');
   const availableInventory = dbInventory.filter(i => i.status === 'AVAILABLE');
@@ -216,7 +206,7 @@ export default function AdminOrders() {
     return true;
   });
 
-  const sjcStock = dbInventory.filter(i => i.gold_type === 'sjc' && i.status === 'AVAILABLE').length;
+  const sjcStock = dbInventory.filter(i => (i.gold_type.toLowerCase().startsWith('sj') || i.gold_type.toLowerCase().includes('sjc')) && i.status === 'AVAILABLE').length;
 
   return (
     <>
@@ -266,7 +256,7 @@ export default function AdminOrders() {
               <CheckCircle2 size={20} color="var(--gold)" /> Quản lý Đơn hàng Giao dịch
             </div>
             <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
-              <button className="btn btn-outline" onClick={fetchOrdersAndUsers} style={{ borderRadius: '8px', padding: '6px 12px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px', height: '34px' }}>
+              <button className="btn btn-outline" onClick={fetchAdminOrders} style={{ borderRadius: '8px', padding: '6px 12px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px', height: '34px' }}>
                 <RotateCw size={14} /> Làm mới
               </button>
               <select
@@ -341,7 +331,7 @@ export default function AdminOrders() {
                             {o.order_type.toUpperCase()}
                           </span>
                           <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px' }}>
-                            Vàng {o.gold_type.toUpperCase()}
+                            Vàng {(prices[o.gold_type]?.name || o.gold_type).toUpperCase()}
                           </div>
                         </td>
                         <td style={{ padding: '12px 18px', fontWeight: 600 }}>

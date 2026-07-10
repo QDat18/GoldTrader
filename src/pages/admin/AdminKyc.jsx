@@ -20,11 +20,7 @@ export default function AdminKyc() {
     setTimeout(() => setToast(null), 3500);
   };
 
-  const fetchDbKycList = async () => {
-    setIsFetchingKyc(true);
-    await fetchAdminKycList();
-    setIsFetchingKyc(false);
-  };
+
 
   const handleScrollKyc = (e) => {
     // Scroll disabled, since whole list loads instantly
@@ -69,7 +65,7 @@ export default function AdminKyc() {
         storeState.updateKycStatus('verified');
       }
 
-      fetchDbKycList();
+
     } catch (err) {
       console.error('Lỗi phê duyệt eKYC:', err);
       showToast('Lỗi phê duyệt: ' + err.message, 'error');
@@ -111,7 +107,7 @@ export default function AdminKyc() {
       }
 
       setRejectModal({ isOpen: false, id: null, reason: '' });
-      fetchDbKycList();
+      fetchAdminKycList();
     } catch (err) {
       console.error('Lỗi từ chối eKYC:', err);
       showToast('Lỗi từ chối eKYC: ' + err.message, 'error');
@@ -119,8 +115,6 @@ export default function AdminKyc() {
   };
 
   useEffect(() => {
-    fetchDbKycList();
-
     // Lắng nghe realtime từ bảng user_profiles
     const kycSubscription = supabase
       .channel('admin-kyc-changes-sub')
@@ -129,7 +123,7 @@ export default function AdminKyc() {
         { event: '*', schema: 'public', table: 'user_profiles' },
         (payload) => {
           console.log('Realtime KYC update received in split page!', payload);
-          fetchDbKycList(false);
+          fetchAdminKycList();
         }
       )
       .subscribe();
@@ -147,7 +141,7 @@ export default function AdminKyc() {
           <div className="h3" style={{ fontSize: '18px', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
             <ShieldAlert size={20} color="var(--gold)" /> Danh sách KYC chờ duyệt
           </div>
-          {isFetchingKyc && <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Đang tải...</span>}
+
         </div>
         <div style={{ overflowX: 'auto', maxHeight: '500px', overflowY: 'auto' }} onScroll={handleScrollKyc}>
           <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>

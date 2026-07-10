@@ -4,12 +4,6 @@ import useStore from '../store/useStore';
 export default function Dca() {
   const [showCreateForm, setShowCreateForm] = useState(false);
   
-  // Form State
-  const [goldType, setGoldType] = useState('sjc');
-  const [amount, setAmount] = useState('1000000');
-  const [frequency, setFrequency] = useState('Hàng tháng');
-  const [day, setDay] = useState('Ngày 1');
-
   const plans = useStore(state => state.dcaPlans);
   const prices = useStore(state => state.goldPrices);
   const createDcaPlan = useStore(state => state.createDcaPlan);
@@ -17,9 +11,15 @@ export default function Dca() {
   const resumeDcaPlan = useStore(state => state.resumeDcaPlan);
   const cancelDcaPlan = useStore(state => state.cancelDcaPlan);
 
+  // Form State
+  const priceKeys = Object.keys(prices);
+  const [goldType, setGoldType] = useState(priceKeys[0] || 'SJ9999');
+  const [amount, setAmount] = useState('1000000');
+  const [frequency, setFrequency] = useState('Hàng tháng');
+  const [day, setDay] = useState('Ngày 1');
+
   // Calculate aggregated stats
   const totalAccumulated = plans.reduce((acc, p) => acc + (p.status === 'running' ? p.amount : 0), 13000000);
-  const priceKeys = Object.keys(prices);
   const firstSellPrice = priceKeys.length > 0 ? (prices[priceKeys[0]]?.sell || 148000000) : 148000000;
   const avgGoldEstimate = (totalAccumulated / firstSellPrice).toFixed(2);
 
@@ -57,9 +57,9 @@ export default function Dca() {
             <div className="form-group">
               <label className="form-label" style={{ color: 'var(--text-muted)' }}>Chọn Loại Vàng</label>
               <select className="form-input" value={goldType} onChange={(e) => setGoldType(e.target.value)} style={{ borderRadius: '12px', padding: '14px', background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.05)', color: '#fff' }}>
-                <option value="sjc" style={{ background: '#272729', color: '#fff' }}>SJC 1 Chỉ</option>
-                <option value="pnj" style={{ background: '#272729', color: '#fff' }}>PNJ 9999</option>
-                <option value="doji" style={{ background: '#272729', color: '#fff' }}>DOJI 999.9</option>
+                {Object.keys(prices).map(key => (
+                  <option key={key} value={key} style={{ background: '#272729', color: '#fff' }}>{prices[key].name}</option>
+                ))}
               </select>
             </div>
             <div className="form-group">
