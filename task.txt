@@ -49,9 +49,10 @@ Tệp tin này lưu trữ các yêu cầu công việc hiện tại, danh sách 
 - [x] **Task 38:** Hoàn thiện trang Hướng dẫn sử dụng chi tiết theo workflow Guest/User/Admin, bao phủ đăng ký/đăng nhập, eKYC, dashboard, giá vàng, nạp ví, mua/bán/rút vàng O2O, DCA, lịch sử, thông báo, profile/bảo mật, admin, xử lý lỗi/FAQ, tooltip thuật ngữ, mục lục active, tiến độ đọc, nút trở về đầu trang và nối route `/guide`.
 - [x] **Task 39:** Hoàn thiện trang Phí & biểu giá theo pháp luật Việt Nam hiện hành và workflow GoldChain, tách rõ khác biệt với trang Bảng giá vàng, bổ sung bảng phí chi tiết, tooltip thuật ngữ, bộ ước tính phí, ví dụ đối soát, hạn mức/điều kiện, mục lục active, tiến độ đọc, nút trở về đầu trang, route `/fees` và sửa footer `Bảng giá` sang `/prices`.
 - [x] **Task 40:** Bổ sung liên kết thực tế cho mục Hỗ trợ ở footer gồm gọi hotline, gửi email, Facebook và Zalo OA.
+- [x] **Task 41:** Nâng cấp nhận diện logo GoldChain, tách component `BrandLogo` dùng chung cho Navbar/Footer/Login/Register và bổ sung CSS mark vàng cao cấp có chi tiết chain.
 
 ---
 
 ## 📈 TIẾN ĐỘ THỰC HIỆN (PROGRESS)
-- **Trạng thái:** Đã bổ sung liên kết thực tế cho mục Hỗ trợ ở footer: hotline dùng `tel:`, email dùng `mailto:`, Facebook trỏ tới trang được cung cấp và Zalo OA trỏ theo số hotline hiện có (Task 40).
-- **Cập nhật lần cuối:** 2026-07-11 20:25.
+- **Trạng thái:** Đã nâng cấp logo GoldChain thành component dùng chung, đồng bộ trên Navbar, Footer, Login và Register; mark mới có nền vàng nhiều lớp, highlight, viền sâu, monogram và chi tiết chain nhỏ để nhận diện thương hiệu rõ hơn (Task 41).
+- **Cập nhật lần cuối:** 2026-07-11 20:40.

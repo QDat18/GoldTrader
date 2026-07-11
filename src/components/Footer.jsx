@@ -1,15 +1,13 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import BrandLogo from './BrandLogo';
 
 export default function Footer() {
   return (
     <div className="footer">
       <div className="footer-grid">
         <div className="footer-brand">
-          <Link to="/" className="logo">
-            <div className="logo-mark"><span>G</span></div>
-            <span className="logo-text" style={{color: 'var(--white)'}}>GOLD<em>CHAIN</em></span>
-          </Link>
+          <BrandLogo />
           <p>Nền tảng giao dịch vàng O2O uy tín — mua bán, tích lũy và rút vàng vật chất an toàn.</p>
         </div>
         <div className="footer-col">

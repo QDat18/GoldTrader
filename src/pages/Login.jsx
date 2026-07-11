@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import useStore from '../store/useStore';
 import { supabase } from '../supabaseClient';
+import BrandLogo from '../components/BrandLogo';
 
 const VALID_ROLES = ['guest', 'user', 'admin'];
 
@@ -193,10 +194,7 @@ export default function Login() {
   return (
     <>
       <div className="nav-bar">
-        <Link to="/" className="logo">
-          <div className="logo-mark"><span>G</span></div>
-          <span className="logo-text">GOLD<em>CHAIN</em></span>
-        </Link>
+        <BrandLogo />
         <div></div>
         <div className="nav-actions">
           <span className="body-sm">Chưa có tài khoản?</span>
@@ -207,10 +205,7 @@ export default function Login() {
       <div style={{ minHeight: '560px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--gray-50)', padding: '40px 24px', flex: 1 }}>
         <div style={{ width: '380px' }}>
           <div style={{ textAlign: 'center', marginBottom: '28px' }}>
-            <div className="logo" style={{ justifyContent: 'center', marginBottom: '12px' }}>
-              <div className="logo-mark"><span>G</span></div>
-              <span className="logo-text">GOLD<em>CHAIN</em></span>
-            </div>
+            <BrandLogo className="auth-logo" />
             <div className="h2">
               {authMode === 'login' && 'Đăng nhập'}
               {authMode === 'forgotPassword' && 'Quên mật khẩu'}

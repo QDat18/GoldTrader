@@ -15,6 +15,7 @@ import {
   X
 } from 'lucide-react';
 import { supabase } from '../supabaseClient';
+import BrandLogo from './BrandLogo';
 
 const getInitials = (name = '') => {
   const initials = name
@@ -129,10 +130,7 @@ export function UserNavbar() {
   return (
     <>
       <div className="nav-bar">
-        <Link to="/" className="logo">
-          <div className="logo-mark"><span>G</span></div>
-          <span className="logo-text">GOLD<em>CHAIN</em></span>
-        </Link>
+        <BrandLogo />
 
         <div className="nav-links">
           {isLoggedIn && user.role === 'admin' ? (
