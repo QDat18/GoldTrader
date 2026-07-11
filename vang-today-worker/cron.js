@@ -16,17 +16,17 @@ const supabase = createClient(supabaseUrl, supabaseKey, {
 const VANG_TODAY_API = "https://www.vang.today/api/prices";
 
 const NAME_VI = {
-  "SJC 9999":             "SJC 9999",
-  "SJC Ring":             "Nhẫn SJC 9999",
-  "Bao Tin SJC":          "Bảo Tín SJC",
-  "Bao Tin 9999":         "Bảo Tín 9999",
-  "DOJI Hanoi":           "DOJI Hà Nội",
-  "DOJI HCM":             "DOJI TP.HCM",
-  "DOJI Jewelry":         "DOJI Nữ Trang",
-  "PNJ Hanoi":            "PNJ Hà Nội",
-  "PNJ 24K":              "PNJ 24K",
-  "VN Gold SJC":          "VN Gold SJC",
-  "Viettin SJC":          "Viettin SJC",
+  "SJC 9999": "SJC 9999",
+  "SJC Ring": "Nhẫn SJC 9999",
+  "Bao Tin SJC": "Bảo Tín SJC",
+  "Bao Tin 9999": "Bảo Tín 9999",
+  "DOJI Hanoi": "DOJI Hà Nội",
+  "DOJI HCM": "DOJI TP.HCM",
+  "DOJI Jewelry": "DOJI Nữ Trang",
+  "PNJ Hanoi": "PNJ Hà Nội",
+  "PNJ 24K": "PNJ 24K",
+  "VN Gold SJC": "VN Gold SJC",
+  "Viettin SJC": "Viettin SJC",
 };
 
 async function main() {

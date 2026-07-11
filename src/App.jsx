@@ -18,6 +18,10 @@ import Login from './pages/Login';
 import Notifications from './pages/Notifications';
 import Register from './pages/Register';
 import Prices from './pages/Prices';
+import TradingTerms from './pages/TradingTerms';
+import PrivacyPolicy from './pages/PrivacyPolicy';
+import UsageGuide from './pages/UsageGuide';
+import FeesAndPricing from './pages/FeesAndPricing';
 import { supabase } from './supabaseClient';
 import useStore from './store/useStore';
 
@@ -47,6 +51,25 @@ const Placeholder = ({ title }) => (
   </div>
 );
 
+const AdminOnly = ({ currentUser, children }) => {
+  if (!currentUser?.email) return <Navigate to="/login" replace />;
+  return currentUser.role === 'admin' ? children : <Navigate to="/" replace />;
+};
+
+const CustomerOnly = ({ currentUser, children }) => {
+  if (!currentUser?.email) return <Navigate to="/login" replace />;
+  return currentUser.role === 'admin' ? <Navigate to="/admin" replace /> : children;
+};
+
+const NonAdminOnly = ({ currentUser, children }) => (
+  currentUser?.role === 'admin' ? <Navigate to="/admin" replace /> : children
+);
+
+const AuthenticatedOnly = ({ currentUser, children }) => {
+  if (!currentUser?.email) return <Navigate to="/login" replace />;
+  return children;
+};
+
 function App() {
   const [loadingSession, setLoadingSession] = useState(true);
   const currentUser = useStore(state => state.currentUser);
@@ -56,6 +79,8 @@ function App() {
   const fetchUserBalances = useStore(state => state.fetchUserBalances);
   const fetchNotifications = useStore(state => state.fetchNotifications);
   const fetchTransactions = useStore(state => state.fetchTransactions);
+  const isLoggedIn = Boolean(currentUser.email);
+  const roleHomePath = currentUser.role === 'admin' ? '/admin' : '/dashboard';
 
   useEffect(() => {
     // Tải giá vàng ban đầu từ Supabase và cập nhật định kỳ mỗi 30 giây
@@ -224,33 +249,37 @@ function App() {
       <Routes>
         <Route element={<UserLayout />}>
           <Route path="/" element={
-            currentUser.email ? (
-              currentUser.role === 'admin' ? <Navigate to="/admin" replace /> : <Navigate to="/dashboard" replace />
+            isLoggedIn ? (
+              <Navigate to={roleHomePath} replace />
             ) : (
               <Home />
             )
           } />
           
           {/* User Routes */}
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/trade" element={<Trade />} />
-          <Route path="/dca" element={<Dca />} />
-          <Route path="/history" element={<History />} />
-          <Route path="/profile" element={<Profile />} />
-          <Route path="/prices" element={<Prices />} />
-          <Route path="/order" element={<Placeholder title="Order Details" />} />
-          <Route path="/notifications" element={<Notifications />} />
+          <Route path="/dashboard" element={<CustomerOnly currentUser={currentUser}><Dashboard /></CustomerOnly>} />
+          <Route path="/trade" element={<NonAdminOnly currentUser={currentUser}><Trade /></NonAdminOnly>} />
+          <Route path="/dca" element={<CustomerOnly currentUser={currentUser}><Dca /></CustomerOnly>} />
+          <Route path="/history" element={<CustomerOnly currentUser={currentUser}><History /></CustomerOnly>} />
+          <Route path="/profile" element={<AuthenticatedOnly currentUser={currentUser}><Profile /></AuthenticatedOnly>} />
+          <Route path="/prices" element={<NonAdminOnly currentUser={currentUser}><Prices /></NonAdminOnly>} />
+          <Route path="/terms" element={<TradingTerms />} />
+          <Route path="/privacy" element={<PrivacyPolicy />} />
+          <Route path="/guide" element={<UsageGuide />} />
+          <Route path="/fees" element={<FeesAndPricing />} />
+          <Route path="/order" element={<CustomerOnly currentUser={currentUser}><Placeholder title="Order Details" /></CustomerOnly>} />
+          <Route path="/notifications" element={<AuthenticatedOnly currentUser={currentUser}><Notifications /></AuthenticatedOnly>} />
         </Route>
 
         {/* Auth Routes */}
         <Route element={<BlankLayout />}>
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
+          <Route path="/login" element={isLoggedIn ? <Navigate to={roleHomePath} replace /> : <Login />} />
+          <Route path="/register" element={isLoggedIn ? <Navigate to={roleHomePath} replace /> : <Register />} />
         </Route>
 
         {/* Admin Routes */}
         <Route element={<UserLayout />}>
-          <Route path="/admin" element={currentUser.role === 'admin' ? <AdminLayout /> : <Navigate to="/" />}>
+          <Route path="/admin" element={<AdminOnly currentUser={currentUser}><AdminLayout /></AdminOnly>}>
             <Route index element={<Navigate to="/admin/kyc" replace />} />
             <Route path="kyc" element={<AdminKyc />} />
             <Route path="orders" element={<AdminOrders />} />
@@ -258,7 +287,7 @@ function App() {
             <Route path="inventory" element={<AdminInventory />} />
             <Route path="hedging" element={<AdminHedging />} />
           </Route>
-          <Route path="/inventory" element={<Placeholder title="Inventory Management" />} />
+          <Route path="/inventory" element={<AdminOnly currentUser={currentUser}><Placeholder title="Inventory Management" /></AdminOnly>} />
         </Route>
         
         {/* Fallback */}

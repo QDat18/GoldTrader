@@ -17,21 +17,21 @@ export default function Footer() {
           <Link to="/trade">Mua vàng online</Link>
           <Link to="/dca">Tích lũy DCA</Link>
           <Link to="#">Gửi giữ hộ</Link>
-          <Link to="/trade">Bảng giá</Link>
+          <Link to="/prices">Bảng giá</Link>
         </div>
         <div className="footer-col">
           <h4>PHÁP LÝ</h4>
-          <Link to="#">Điều khoản giao dịch</Link>
-          <Link to="#">Chính sách bảo mật</Link>
-          <Link to="#">Hướng dẫn sử dụng</Link>
-          <Link to="#">Phí & biểu giá</Link>
+          <Link to="/terms">Điều khoản giao dịch</Link>
+          <Link to="/privacy">Chính sách bảo mật</Link>
+          <Link to="/guide">Hướng dẫn sử dụng</Link>
+          <Link to="/fees">Phí & biểu giá</Link>
         </div>
         <div className="footer-col">
           <h4>HỖ TRỢ</h4>
-          <Link to="#">Hotline: 1800-6789</Link>
-          <Link to="#">Email: cs@goldchain.vn</Link>
-          <Link to="#">Facebook</Link>
-          <Link to="#">Zalo OA</Link>
+          <a href="tel:18006789">Hotline: 1800-6789</a>
+          <a href="mailto:cs@goldchain.vn">Email: cs@goldchain.vn</a>
+          <a href="https://web.facebook.com/tanloc240105" target="_blank" rel="noreferrer">Facebook</a>
+          <a href="https://zalo.me/18006789" target="_blank" rel="noreferrer">Zalo OA</a>
         </div>
       </div>
       <div className="footer-bottom">
