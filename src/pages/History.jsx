@@ -1,12 +1,20 @@
 import React, { useState } from 'react';
 import useStore from '../store/useStore';
+import ContractModal from '../components/ContractModal';
+import { generateContractPDF } from '../utils/contractService';
 
 export default function History() {
   const [selectedType, setSelectedType] = useState('all');
   const [selectedGold, setSelectedGold] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
+  
+  // Contract Modal states
+  const [modalOpen, setModalOpen] = useState(false);
+  const [activeContract, setActiveContract] = useState(null);
+  const [activePdfDoc, setActivePdfDoc] = useState(null);
 
   const transactions = useStore(state => state.transactions);
+  const currentUser = useStore(state => state.currentUser);
 
   // Filter logic
   const filteredTxns = transactions.filter(txn => {
@@ -37,6 +45,49 @@ export default function History() {
     .filter(t => t.type === 'sell')
     .reduce((sum, t) => sum + t.total, 0);
   const realizedPnl = Math.round(totalSell * 0.08); // Mock dynamic PNL
+
+  const handleViewContract = async (txn) => {
+    // 1. Tìm hợp đồng đã lưu trong localStorage
+    let contract = null;
+    try {
+      const arr = JSON.parse(localStorage.getItem('goldchain_contracts') || '[]');
+      contract = arr.find(c => c.orderId === txn.id || c.txnId === txn.id);
+    } catch {}
+
+    // 2. Nếu không tìm thấy, tự động sinh lại dữ liệu hợp đồng
+    if (!contract) {
+      contract = {
+        contractNumber: txn.contractNumber || `GC-RE-${txn.id.substring(0,8).toUpperCase()}`,
+        contractDate: new Date(),
+        transactionType: txn.type, // 'buy' | 'sell' | 'dca'
+        orderId: txn.id,
+        txnId: txn.id,
+        goldType: txn.goldTypeName.toLowerCase().includes('sjc') ? 'sjc' : txn.goldTypeName.toLowerCase().includes('pnj') ? 'pnj' : 'doji',
+        goldName: txn.goldTypeName,
+        quantityChi: txn.quantity,
+        quantityGrams: txn.quantity * 3.75,
+        unitPrice: txn.price,
+        totalAmount: txn.total,
+        buyer: {
+          name: currentUser?.name || 'Khách hàng',
+          email: currentUser?.email || 'khachhang@email.com',
+          phone: currentUser?.phone || 'Chưa cập nhật',
+          cccd: currentUser?.cccd || 'Chưa cập nhật',
+          id: currentUser?.id || ''
+        }
+      };
+    }
+
+    setActiveContract(contract);
+    setModalOpen(true);
+
+    try {
+      const doc = await generateContractPDF(contract);
+      setActivePdfDoc(doc);
+    } catch (e) {
+      console.error('Error generating PDF:', e);
+    }
+  };
 
   const handleExport = () => {
     alert('Tải xuống báo cáo giao dịch (CSV) thành công!');
@@ -172,6 +223,7 @@ export default function History() {
                   <th style={{ padding: '16px 24px', textAlign: 'right', fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>Tổng tiền</th>
                   <th style={{ padding: '16px 24px', textAlign: 'left', fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>Thời gian</th>
                   <th style={{ padding: '16px 24px', textAlign: 'left', fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>Trạng thái</th>
+                  <th style={{ padding: '16px 24px', textAlign: 'center', fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>Hợp đồng</th>
                 </tr>
               </thead>
               <tbody>
@@ -199,11 +251,20 @@ export default function History() {
                       <td style={{ padding: '16px 24px' }}>
                         <span style={{ fontSize: '11px', padding: '4px 8px', borderRadius: '4px', background: 'rgba(16, 185, 129, 0.1)', color: 'var(--emerald)', fontWeight: 600 }}>{txn.status}</span>
                       </td>
+                      <td style={{ padding: '16px 24px', textAlign: 'center' }}>
+                        <button 
+                          className="btn btn-outline" 
+                          style={{ padding: '4px 10px', fontSize: '11px', borderRadius: '6px', cursor: 'pointer' }}
+                          onClick={() => handleViewContract(txn)}
+                        >
+                          Xem
+                        </button>
+                      </td>
                     </tr>
                   );
                 }) : (
                   <tr>
-                    <td colSpan="9" style={{ textAlign: 'center', padding: '48px', color: 'var(--text-muted)' }}>
+                    <td colSpan="10" style={{ textAlign: 'center', padding: '48px', color: 'var(--text-muted)' }}>
                       <i className="ti ti-history" style={{ fontSize: '32px', marginBottom: '12px', display: 'block', opacity: 0.5 }}></i>
                       Không tìm thấy giao dịch nào khớp với bộ lọc
                     </td>
@@ -215,6 +276,20 @@ export default function History() {
         </div>
 
       </div>
+
+      {/* Contract Modal for history */}
+      <ContractModal
+        isOpen={modalOpen}
+        onClose={() => {
+          setModalOpen(false);
+          setActiveContract(null);
+          setActivePdfDoc(null);
+        }}
+        contractData={activeContract}
+        pdfDoc={activePdfDoc}
+        emailStatus="sent"
+      />
+
     </div>
   );
 }

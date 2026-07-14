@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
+import { sendOtpEmail } from '../utils/emailService';
 import { Check, ShieldCheck, UploadCloud, Camera, User, ArrowLeft } from 'lucide-react';
 
 export default function Register() {
@@ -41,6 +42,9 @@ export default function Register() {
   const [loading, setLoading] = useState(false);
   const [otpSent, setOtpSent] = useState(false);
   const [otpVerified, setOtpVerified] = useState(false);
+  const [otpError, setOtpError] = useState('');
+  const [generatedOtp, setGeneratedOtp] = useState('');
+  const [otpTimer, setOtpTimer] = useState(0);
   const [success, setSuccess] = useState(false);
   
   const navigate = useNavigate();
@@ -55,27 +59,63 @@ export default function Register() {
     setError('');
     setLoading(true);
 
-    // Giả lập gửi OTP 6 số thành công sang email (OTP mặc định: 123456)
-    setTimeout(() => {
-      setLoading(false);
+    try {
+      const code = Math.floor(100000 + Math.random() * 900000).toString();
+      setGeneratedOtp(code);
+      setOtpError('');
+      const result = await sendOtpEmail({
+        email,
+        otp: code,
+        purpose: 'đăng ký tài khoản GoldChain',
+      });
+
+      if (!result?.success) {
+        throw new Error('Không thể gửi mã xác thực. Vui lòng thử lại.');
+      }
+
       setOtpSent(true);
-    }, 500);
+      setOtp('');
+      setOtpVerified(false);
+      setOtpTimer(60); // Đếm ngược từ 60s
+    } catch (err) {
+      setError(err.message || 'Không thể gửi mã xác thực. Vui lòng thử lại.');
+    } finally {
+      setLoading(false);
+    }
   };
+
+  // Effect đếm ngược mã OTP
+  React.useEffect(() => {
+    let interval = null;
+    if (otpSent && !otpVerified && otpTimer > 0) {
+      interval = setInterval(() => {
+        setOtpTimer(prev => prev - 1);
+      }, 1000);
+    } else if (otpTimer === 0 && otpSent && !otpVerified) {
+      setOtpError('Mã OTP đã hết hạn. Vui lòng gửi lại mã mới.');
+      setGeneratedOtp(''); // Vô hiệu hóa mã OTP
+    }
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [otpSent, otpVerified, otpTimer]);
 
   const handleVerifyOtp = async () => {
     if (!otp) return;
-    setError('');
+    setOtpError('');
     setLoading(true);
 
-    // Hardcode xác minh mã 123456
-    if (otp === '123456') {
-      setOtpVerified(true);
+    try {
+      if (otp === generatedOtp) {
+        setOtpVerified(true);
+        setOtpTimer(0);
+      } else {
+        setOtpError('Mã xác thực không chính xác. Vui lòng kiểm tra lại.');
+        setOtp(''); // Xóa đoạn OTP vừa nhập
+      }
+    } finally {
       setLoading(false);
-      return;
     }
-
-    setLoading(false);
-    setError('Mã xác thực không hợp lệ. Vui lòng nhập mã 123456.');
   };
 
   const handleRegister = async (e) => {
@@ -95,8 +135,8 @@ export default function Register() {
     setFieldErrors(errs);
     if (Object.keys(errs).length > 0) return;
 
-    if (!otpVerified && otp !== '123456') {
-      setError('Vui lòng xác thực email bằng mã 123456 trước khi đăng ký.');
+    if (!otpVerified) {
+      setError('Vui lòng xác thực email bằng mã OTP trước khi đăng ký.');
       return;
     }
 
@@ -325,21 +365,32 @@ export default function Register() {
             </div>
 
             {otpSent && !otpVerified && (
-              <div className="form-group" style={{ marginBottom: '16px', background: 'rgba(212,175,55,0.05)', padding: '16px', borderRadius: '8px', border: '1px solid rgba(212,175,55,0.2)' }}>
-                <label className="form-label" style={{ display: 'block', marginBottom: '8px', fontSize: '13px', color: 'var(--gold)' }}>Mã xác thực OTP (Đã gửi tới email)</label>
+              <div className="form-group" style={{ marginBottom: '16px', background: 'rgba(212,175,55,0.05)', padding: '16px', borderRadius: '8px', border: otpError ? '1px solid var(--ruby)' : '1px solid rgba(212,175,55,0.2)' }}>
+                <label className="form-label" style={{ display: 'block', marginBottom: '8px', fontSize: '13px', color: otpError ? 'var(--ruby)' : 'var(--gold)' }}>Mã xác thực OTP (Đã gửi tới email)</label>
                 <div style={{ display: 'flex', gap: '8px' }}>
                   <input 
                     className="form-input" 
-                    style={{ flex: 1, letterSpacing: '4px', fontWeight: 'bold' }}
+                    style={{ flex: 1, letterSpacing: '4px', fontWeight: 'bold', borderColor: otpError ? 'var(--ruby)' : 'var(--border-silver)' }}
                     placeholder="Nhập 6 số" 
                     maxLength={6}
                     value={otp}
-                    onChange={(e) => setOtp(e.target.value)}
+                    onChange={(e) => { setOtp(e.target.value); setOtpError(''); }}
+                    disabled={otpTimer === 0}
                   />
-                  <button type="button" className="btn btn-gold" onClick={handleVerifyOtp} disabled={loading || otp.length < 4}>
+                  <button type="button" className="btn btn-gold" onClick={handleVerifyOtp} disabled={loading || otp.length < 4 || otpTimer === 0}>
                     Xác nhận
                   </button>
                 </div>
+                {otpTimer > 0 ? (
+                  <div style={{ fontSize: '11.5px', color: 'var(--text-muted)', marginTop: '8px' }}>
+                    Hiệu lực mã xác thực: <span style={{ color: 'var(--gold)', fontWeight: 600 }}>{otpTimer} giây</span>
+                  </div>
+                ) : (
+                  <div style={{ fontSize: '11.5px', color: 'var(--ruby)', marginTop: '8px', fontWeight: 500 }}>
+                    ⚠️ Mã OTP đã hết hạn! Vui lòng nhấn gửi lại mã mới.
+                  </div>
+                )}
+                {otpError && otpTimer > 0 && <div style={{ fontSize: '11px', color: 'var(--ruby)', marginTop: '6px' }}>{otpError}</div>}
               </div>
             )}
 

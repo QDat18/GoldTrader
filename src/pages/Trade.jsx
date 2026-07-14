@@ -2,6 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import useStore from '../store/useStore';
 import { supabase } from '../supabaseClient';
 import { createClient } from '@supabase/supabase-js';
+import { processContract } from '../utils/contractService';
+import ContractModal from '../components/ContractModal';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
@@ -26,6 +28,10 @@ export default function Trade() {
   const [orderStatus, setOrderStatus] = useState({ show: false, success: true, message: '' });
   const [chartData, setChartData] = useState([]);
   const [visibleCount, setVisibleCount] = useState(24);
+
+  // ── Hợp đồng thông minh ──
+  const [contractModal, setContractModal] = useState({ open: false, contractData: null, pdfDoc: null });
+  const [emailStatus, setEmailStatus] = useState('idle'); // 'idle' | 'sending' | 'sent' | 'demo' | 'error'
 
   // Kho hàng vật lý của cửa hàng - được sinh tự động cho tất cả loại vàng
   const [storeStock, setStoreStock] = useState({});
@@ -347,6 +353,19 @@ export default function Trade() {
           message: `Mua tích lũy thành công! Trừ ví VND và cộng ${qtyVal} chỉ vào ví vàng tích lũy online của bạn.` 
         });
 
+        // 🔔 TẠO & GỬI HỢP ĐỒNG TỰ ĐỘNG
+        triggerContract({
+          type: 'buy',
+          orderId: ordId,
+          txnId,
+          goldType: selectedGoldKey,
+          goldName: activeItem.name,
+          quantityChi: qtyVal,
+          quantityGrams: qtyVal * 3.75,
+          unitPrice: Math.round(currentPrice / 3.75),
+          totalAmount: amountVal,
+        });
+
       } else if (activeTab === 'sell') {
         // BÁN VÀNG (Trừ Ví vàng online và cộng tiền vào Ví VND trực tuyến ngay lập tức)
         const availableGold = getGoldBalance();
@@ -413,6 +432,19 @@ export default function Trade() {
           show: true, 
           success: true, 
           message: `Bán thành công! Ví vàng của bạn đã trừ ${qtyVal} chỉ và cộng ₫${amountVal.toLocaleString('vi-VN')} vào ví VND trực tuyến.` 
+        });
+
+        // 🔔 TẠO & GỬI HỢP ĐỒNG TỰ ĐỘNG
+        triggerContract({
+          type: 'sell',
+          orderId: ordId,
+          txnId,
+          goldType: selectedGoldKey,
+          goldName: activeItem.name,
+          quantityChi: qtyVal,
+          quantityGrams: qtyVal * 3.75,
+          unitPrice: Math.round(currentPrice / 3.75),
+          totalAmount: amountVal,
         });
 
       } else if (activeTab === 'withdraw') {
@@ -492,6 +524,19 @@ export default function Trade() {
           success: true, 
           message: `Yêu cầu rút vàng vật chất thành công! Số dư ví vàng đã đóng băng ${qtyVal} chỉ. Vui lòng mang CCCD và mã hợp đồng ${ordId} ra quầy để quét mã nhận vàng thật.` 
         });
+
+        // 🔔 TẠO & GỬI HỢP ĐỒNG TỰ ĐỘNG
+        triggerContract({
+          type: 'withdraw',
+          orderId: ordId,
+          txnId,
+          goldType: selectedGoldKey,
+          goldName: activeItem.name,
+          quantityChi: qtyVal,
+          quantityGrams: qtyVal * 3.75,
+          unitPrice: Math.round(currentPrice / 3.75),
+          totalAmount: amountVal,
+        });
       }
 
       // Làm mới số dư vàng
@@ -501,6 +546,39 @@ export default function Trade() {
     } catch (err) {
       console.error(err);
       setOrderStatus({ show: true, success: false, message: 'Đã xảy ra lỗi: ' + err.message });
+    }
+  };
+
+  // ─── triggerContract: Tạo hợp đồng ngay sau khi lệnh thành công ─────────────
+  const triggerContract = async (orderData) => {
+    const currentUser = useStore.getState().currentUser;
+    setEmailStatus('sending');
+
+    try {
+      const result = await processContract(orderData, currentUser);
+
+      if (result.success) {
+        const mode = result.emailResult?.mode || 'demo';
+        setEmailStatus(
+          mode === 'gmail'         ? 'gmail'
+          : mode === 'gmail-compose' ? 'gmail-compose'
+          : mode === 'demo'        ? 'demo'
+          : 'error'
+        );
+
+        // Lưu dữ liệu hợp đồng nhưng KHÔNG mở tự động
+        setContractModal({
+          open: false,
+          contractData: result.contractData,
+          pdfDoc: result.doc,
+        });
+      } else {
+        setEmailStatus('error');
+        console.error('[Trade] Lỗi tạo hợp đồng:', result.error);
+      }
+    } catch (err) {
+      setEmailStatus('error');
+      console.error('[Trade] Contract error:', err);
     }
   };
 
@@ -918,22 +996,52 @@ export default function Trade() {
       {/* TOAST THÔNG BÁO KẾT QUẢ */}
       {orderStatus.show && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(3px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-          <div className="neo-card" style={{ background: '#050505', border: '1px solid rgba(212, 175, 55, 0.2)', padding: '24px', maxWidth: '380px', width: '100%', textAlign: 'center', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <div className="neo-card" style={{ background: '#050505', border: '1px solid rgba(212, 175, 55, 0.2)', padding: '24px', maxWidth: '420px', width: '100%', textAlign: 'center', display: 'flex', flexDirection: 'column', gap: '16px' }}>
             <div style={{ fontSize: '40px', color: orderStatus.success ? 'var(--emerald)' : 'var(--ruby)' }}>
               {orderStatus.success ? '✓' : '✗'}
             </div>
             <h4 className="h3" style={{ margin: 0, color: '#fff', fontSize: '16px' }}>{orderStatus.success ? 'Thành công' : 'Thất bại'}</h4>
             <p style={{ margin: 0, fontSize: '13px', color: 'var(--text-muted)', lineHeight: '1.6' }}>{orderStatus.message}</p>
+
             <button 
-              className="btn btn-gold" 
-              onClick={() => setOrderStatus({ show: false, success: true, message: '' })}
-              style={{ width: '100%', padding: '10px', fontWeight: 'bold' }}
+              className={emailStatus === 'sending' ? 'btn btn-outline' : 'btn btn-gold'} 
+              disabled={emailStatus === 'sending'}
+              onClick={() => {
+                if (emailStatus !== 'sending') {
+                  setOrderStatus({ show: false, success: true, message: '' });
+                  setContractModal(prev => ({ ...prev, open: true }));
+                }
+              }}
+              style={{ 
+                width: '100%', 
+                padding: '10px', 
+                fontWeight: 'bold',
+                opacity: emailStatus === 'sending' ? 0.5 : 1,
+                cursor: emailStatus === 'sending' ? 'not-allowed' : 'pointer',
+                ...(emailStatus === 'sending' ? {
+                  background: 'rgba(255,255,255,0.05)',
+                  color: 'rgba(255,255,255,0.3)',
+                  borderColor: 'rgba(255,255,255,0.1)'
+                } : {})
+              }}
             >
-              Đồng ý
+              {emailStatus === 'sending' ? 'Đang tạo hợp đồng...' : 'Xem hợp đồng →'}
             </button>
           </div>
         </div>
       )}
+
+      {/* HỢP ĐỒNG THÔNG MINH MODAL */}
+      <ContractModal
+        isOpen={contractModal.open}
+        onClose={() => {
+          setContractModal({ open: false, contractData: null, pdfDoc: null });
+          setEmailStatus('idle');
+        }}
+        contractData={contractModal.contractData}
+        pdfDoc={contractModal.pdfDoc}
+        emailStatus={emailStatus}
+      />
 
     </div>
   );
