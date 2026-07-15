@@ -46,8 +46,22 @@ export default function Register() {
   const [generatedOtp, setGeneratedOtp] = useState('');
   const [otpTimer, setOtpTimer] = useState(0);
   const [success, setSuccess] = useState(false);
+  const [countdown, setCountdown] = useState(0);
+  const [otpError, setOtpError] = useState(false);
   
   const navigate = useNavigate();
+
+  useEffect(() => {
+    let timer;
+    if (countdown > 0) {
+      timer = setTimeout(() => {
+        setCountdown(prev => prev - 1);
+      }, 1000);
+    } else if (countdown === 0 && otpSent) {
+      setGeneratedOtp('');
+    }
+    return () => clearTimeout(timer);
+  }, [countdown, otpSent]);
 
   const handleSendOtp = async () => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -57,9 +71,11 @@ export default function Register() {
     }
     setFieldErrors(prev => ({...prev, email: null}));
     setError('');
+    setOtpError(false);
     setLoading(true);
 
     try {
+<<<<<<< Updated upstream
       const code = Math.floor(100000 + Math.random() * 900000).toString();
       setGeneratedOtp(code);
       setOtpError('');
@@ -67,6 +83,20 @@ export default function Register() {
         email,
         otp: code,
         purpose: 'đăng ký tài khoản GoldChain',
+=======
+      await fetch('/api/send-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          to: email,
+          subject: '[GoldChain] Mã xác thực đăng ký tài khoản mới',
+          templateName: 'OtpRegister',
+          templateData: {
+            otp: code,
+            expiry: '60 giây'
+          }
+        })
+>>>>>>> Stashed changes
       });
 
       if (!result?.success) {
@@ -74,9 +104,13 @@ export default function Register() {
       }
 
       setOtpSent(true);
+<<<<<<< Updated upstream
       setOtp('');
       setOtpVerified(false);
       setOtpTimer(60); // Đếm ngược từ 60s
+=======
+      setCountdown(60);
+>>>>>>> Stashed changes
     } catch (err) {
       setError(err.message || 'Không thể gửi mã xác thực. Vui lòng thử lại.');
     } finally {
@@ -105,6 +139,7 @@ export default function Register() {
     setOtpError('');
     setLoading(true);
 
+<<<<<<< Updated upstream
     try {
       if (otp === generatedOtp) {
         setOtpVerified(true);
@@ -114,8 +149,31 @@ export default function Register() {
         setOtp(''); // Xóa đoạn OTP vừa nhập
       }
     } finally {
+=======
+    // Kiểm tra hết hạn mã OTP
+    if (!generatedOtp && otp !== '123456') {
+      setLoading(false);
+      setOtp('');
+      setOtpError(true);
+      setError('Mã OTP đã hết hiệu lực. Vui lòng bấm gửi lại mã.');
+      return;
+    }
+
+    // Cho phép bypass bằng mã 123456 phục vụ demo/test nhanh
+    if (otp === generatedOtp || otp === '123456') {
+      setOtpVerified(true);
+      setOtpError(false);
+>>>>>>> Stashed changes
       setLoading(false);
     }
+<<<<<<< Updated upstream
+=======
+
+    setLoading(false);
+    setOtp('');
+    setOtpError(true);
+    setError('Mã xác thực không hợp lệ. Vui lòng nhập đúng mã đã gửi tới email.');
+>>>>>>> Stashed changes
   };
 
   const handleRegister = async (e) => {
@@ -356,8 +414,14 @@ export default function Register() {
                   {otpVerified && <Check size={18} color="var(--emerald)" style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)' }} />}
                 </div>
                 {!otpVerified && (
-                  <button type="button" className="btn btn-outline" style={{ padding: '0 16px', whiteSpace: 'nowrap' }} onClick={handleSendOtp} disabled={loading || !email}>
-                    {loading ? 'Đang xử lý...' : (otpSent ? 'Gửi lại' : 'Gửi mã')}
+                  <button 
+                    type="button" 
+                    className="btn btn-outline" 
+                    style={{ padding: '0 16px', whiteSpace: 'nowrap', opacity: countdown > 0 ? 0.5 : 1, cursor: countdown > 0 ? 'not-allowed' : 'pointer' }} 
+                    onClick={handleSendOtp} 
+                    disabled={loading || !email || countdown > 0}
+                  >
+                    {loading ? 'Đang xử lý...' : (countdown > 0 ? `Gửi lại (${countdown}s)` : (otpSent ? 'Gửi lại' : 'Gửi mã'))}
                   </button>
                 )}
               </div>
@@ -374,13 +438,18 @@ export default function Register() {
                     placeholder="Nhập 6 số" 
                     maxLength={6}
                     value={otp}
+<<<<<<< Updated upstream
                     onChange={(e) => { setOtp(e.target.value); setOtpError(''); }}
                     disabled={otpTimer === 0}
+=======
+                    onChange={(e) => { setOtp(e.target.value); setOtpError(false); }}
+>>>>>>> Stashed changes
                   />
                   <button type="button" className="btn btn-gold" onClick={handleVerifyOtp} disabled={loading || otp.length < 4 || otpTimer === 0}>
                     Xác nhận
                   </button>
                 </div>
+<<<<<<< Updated upstream
                 {otpTimer > 0 ? (
                   <div style={{ fontSize: '11.5px', color: 'var(--text-muted)', marginTop: '8px' }}>
                     Hiệu lực mã xác thực: <span style={{ color: 'var(--gold)', fontWeight: 600 }}>{otpTimer} giây</span>
@@ -391,6 +460,20 @@ export default function Register() {
                   </div>
                 )}
                 {otpError && otpTimer > 0 && <div style={{ fontSize: '11px', color: 'var(--ruby)', marginTop: '6px' }}>{otpError}</div>}
+=======
+                {otpError && (
+                  <div style={{ fontSize: '11px', color: 'var(--ruby)', marginTop: '6px' }}>
+                    Mã xác thực không hợp lệ. Vui lòng nhập đúng mã đã gửi tới email.
+                  </div>
+                )}
+                <div style={{ fontSize: '11px', color: countdown > 0 ? 'var(--text-muted)' : 'var(--ruby)', marginTop: '8px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  {countdown > 0 ? (
+                    <>🕒 Mã xác thực có hiệu lực trong: <strong style={{ color: 'var(--gold)' }}>{countdown} giây</strong></>
+                  ) : (
+                    <>⚠️ Mã OTP đã hết hiệu lực. Vui lòng bấm gửi lại mã.</>
+                  )}
+                </div>
+>>>>>>> Stashed changes
               </div>
             )}
 

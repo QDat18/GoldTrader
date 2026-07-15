@@ -253,7 +253,11 @@ export default function Trade() {
       // Tải thông tin user profile
       const { data: dbUser, error: userErr } = await supabase
         .from('user_profiles')
+<<<<<<< Updated upstream
         .select('id')
+=======
+        .select('id, full_name, phone, id_card_number')
+>>>>>>> Stashed changes
         .eq('auth_user_id', session.user.id)
         .single();
       
@@ -324,6 +328,35 @@ export default function Trade() {
             status: 'COMPLETED'
           });
 
+<<<<<<< Updated upstream
+=======
+        const invoiceInfo = {
+          name: dbUser.full_name || session.user.email.split('@')[0],
+          phone: dbUser.phone || '',
+          cccd: dbUser.id_card_number || '',
+          email: session.user.email,
+          contractId: ordId,
+          goldType: activeItem.name,
+          quantity: `${qtyVal.toString()} (${Number((qtyVal * 3.75).toFixed(4))}g)`,
+          price: currentPrice.toLocaleString('vi-VN'),
+          total: amountVal.toLocaleString('vi-VN'),
+          date: new Date().toLocaleString('vi-VN'),
+          type: activeTab
+        };
+
+        // Hợp đồng mua điện tử qua SMTP (Chạy ngầm không await)
+        fetch('/api/send-email', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            to: session.user.email,
+            subject: `[GoldChain] Hợp đồng mua vàng tích lũy điện tử #${ordId}`,
+            templateName: 'HopDongMua',
+            templateData: invoiceInfo
+          })
+        }).catch(mailErr => console.error("Lỗi gửi email hợp đồng mua qua SMTP:", mailErr));
+
+>>>>>>> Stashed changes
         // 4. Tạo lịch sử giao dịch local
         const newTxn = {
           id: txnId,
@@ -411,6 +444,33 @@ export default function Trade() {
             status: 'COMPLETED'
           });
 
+<<<<<<< Updated upstream
+=======
+        // Hợp đồng bán điện tử qua SMTP (Chạy ngầm không await)
+        fetch('/api/send-email', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            to: session.user.email,
+            subject: `[GoldChain] Hợp đồng bán vàng tích lũy trực tuyến #${ordId}`,
+            templateName: 'HopDongBan',
+            templateData: {
+              name: dbUser.full_name || session.user.email.split('@')[0],
+              phone: dbUser.phone || '',
+              cccd: dbUser.id_card_number || '',
+              email: session.user.email,
+              contractId: ordId,
+              goldType: activeItem.name,
+              quantity: `${qtyVal.toString()} (${Number((qtyVal * 3.75).toFixed(4))}g)`,
+              price: currentPrice.toLocaleString('vi-VN'),
+              total: amountVal.toLocaleString('vi-VN'),
+              date: new Date().toLocaleString('vi-VN'),
+              type: activeTab
+            }
+          })
+        }).catch(mailErr => console.error("Lỗi gửi email hợp đồng bán qua SMTP:", mailErr));
+
+>>>>>>> Stashed changes
         // 4. Giao dịch local
         const newTxn = {
           id: txnId,

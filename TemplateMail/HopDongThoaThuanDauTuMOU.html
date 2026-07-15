@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Hợp Đồng Thỏa Thuận Đầu Tư (MOU)</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Times+New+Roman&display=swap');
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Times New Roman', Times, serif;
+      font-size: 13pt;
+      color: #000;
+      background: #fff;
+      line-height: 1.8;
+    }
+    .wrapper {
+      max-width: 780px;
+      margin: 0 auto;
+      padding: 40px 50px;
+      background: #fff;
+    }
+    /* -------- HEADER -------- */
+    .header-logo {
+      text-align: center;
+      margin-bottom: 8px;
+    }
+    .header-logo img {
+      height: 60px;
+    }
+    .header-logo .brand {
+      font-size: 18pt;
+      font-weight: bold;
+      color: #B8860B;
+      letter-spacing: 3px;
+    }
+    .quoc-hieu {
+      text-align: center;
+      margin: 12px 0 4px;
+    }
+    .quoc-hieu p {
+      font-size: 14pt;
+      font-weight: bold;
+      text-transform: uppercase;
+    }
+    .quoc-hieu .tieu-ngu {
+      font-size: 13pt;
+      font-weight: bold;
+      text-decoration: underline;
+    }
+    .divider-star {
+      text-align: center;
+      font-size: 16pt;
+      color: #B8860B;
+      letter-spacing: 8px;
+      margin: 4px 0;
+    }
+    /* -------- TITLE -------- */
+    .title-block {
+      text-align: center;
+      margin: 20px 0 6px;
+    }
+    .title-block h1 {
+      font-size: 16pt;
+      font-weight: bold;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      text-decoration: underline;
+    }
+    .title-block .vv {
+      font-size: 12pt;
+      font-style: italic;
+      margin-top: 4px;
+    }
+    .title-block .so-hop-dong {
+      font-size: 12pt;
+      margin-top: 4px;
+      font-weight: bold;
+      color: #333;
+    }
+    /* -------- GOLD DIVIDER -------- */
+    .gold-line {
+      border: none;
+      border-top: 2px solid #B8860B;
+      margin: 16px 0;
+    }
+    /* -------- BODY TEXT -------- */
+    .intro {
+      text-align: justify;
+      margin: 12px 0;
+    }
+    .intro strong {
+      font-size: 13pt;
+    }
+    .party-block {
+      margin: 14px 0;
+      padding: 12px 16px;
+      border-left: 4px solid #B8860B;
+      background: #FAFAFA;
+    }
+    .party-block .party-title {
+      font-weight: bold;
+      font-size: 13.5pt;
+      margin-bottom: 6px;
+    }
+    .party-block table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    .party-block table td {
+      padding: 2px 6px 2px 0;
+      vertical-align: top;
+    }
+    .party-block table td:first-child {
+      width: 38%;
+      font-weight: bold;
+      white-space: nowrap;
+    }
+    /* -------- ARTICLES -------- */
+    .article {
+      margin: 18px 0;
+    }
+    .article h2 {
+      font-size: 13.5pt;
+      font-weight: bold;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+      color: #222;
+    }
+    .article p {
+      text-align: justify;
+      margin: 6px 0;
+    }
+    .article ul {
+      margin: 6px 0 6px 24px;
+    }
+    .article ul li {
+      margin: 4px 0;
+      text-align: justify;
+    }
+    .clause-num {
+      font-weight: bold;
+    }
+    /* -------- SIGNATURE BLOCK -------- */
+    .signature-area {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 40px;
+      text-align: center;
+      gap: 20px;
+    }
+    .sig-block {
+      width: 45%;
+    }
+    .sig-block .sig-title {
+      font-weight: bold;
+      font-size: 13pt;
+      text-transform: uppercase;
+      border-top: 2px solid #B8860B;
+      padding-top: 8px;
+    }
+    .sig-block .sig-note {
+      font-style: italic;
+      font-size: 11pt;
+      color: #555;
+      margin-top: 4px;
+    }
+    .sig-block .sig-line {
+      margin: 50px auto 4px;
+      width: 80%;
+      border-top: 1px dashed #999;
+    }
+    .sig-block .sig-name {
+      font-weight: bold;
+      font-size: 12pt;
+    }
+    /* -------- FOOTER -------- */
+    .footer-note {
+      margin-top: 32px;
+      text-align: center;
+      font-size: 10pt;
+      color: #777;
+      border-top: 1px solid #ddd;
+      padding-top: 12px;
+    }
+    /* -------- STAMP PLACEHOLDER -------- */
+    .seal-placeholder {
+      display: inline-block;
+      width: 80px;
+      height: 80px;
+      border: 2px dashed #B8860B;
+      border-radius: 50%;
+      margin: 8px auto;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #B8860B;
+      font-size: 9pt;
+      text-align: center;
+      line-height: 1.3;
+    }
+    table.info-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 10px 0;
+    }
+    table.info-table td {
+      padding: 4px 8px;
+      vertical-align: top;
+    }
+    table.info-table td:first-child {
+      font-weight: bold;
+      width: 40%;
+    }
+  </style>
+</head>
+<body>
+<div class="wrapper">
+
+  <!-- LOGO / BRAND -->
+  <div class="header-logo">
+    <div class="brand">⚜ GOLDCHAIN ⚜</div>
+    <div style="font-size:10pt; color:#666; letter-spacing:2px; margin-top:2px;">VÀNG VIỆT NAM – CHUẨN MỰC – UY TÍN – BỀN VỮNG</div>
+  </div>
+
+  <!-- QUỐC HIỆU -->
+  <div class="quoc-hieu">
+    <p>CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</p>
+    <p class="tieu-ngu">Độc lập – Tự do – Hạnh phúc</p>
+  </div>
+  <div class="divider-star">— ❖ —</div>
+
+  <!-- TIÊU ĐỀ HỢP ĐỒNG -->
+  <div class="title-block">
+    <h1>Biên Bản Ghi Nhớ Thỏa Thuận Đầu Tư<br/>(Memorandum of Understanding – MOU)</h1>
+    <p class="vv"><em>V/v: Hợp tác đầu tư dự án {{projectTitle}}</em></p>
+    <p class="so-hop-dong">Số: {{contractNumber}} / MOU – GOLDCHAIN</p>
+  </div>
+  <hr class="gold-line" />
+
+  <!-- THỜI GIAN & ĐỊA ĐIỂM -->
+  <p class="intro">
+    Hôm nay, vào lúc <strong>{{signTime}}</strong>, ngày <strong>{{signDate}}</strong>, tại <strong>{{signPlace}}</strong>, chúng tôi gồm có các bên sau đây:
+  </p>
+  <p class="intro" style="font-size:11pt; color:#555; font-style:italic;">
+    Căn cứ Bộ luật Dân sự Việt Nam số 91/2015/QH13 ngày 24/11/2015;<br/>
+    Căn cứ Luật Đầu tư số 61/2020/QH14 ngày 17/6/2020;<br/>
+    Căn cứ nhu cầu, năng lực và thiện chí hợp tác của các bên.
+  </p>
+
+  <!-- BÊN A -->
+  <div class="party-block">
+    <div class="party-title">BÊN A – BÊN TIẾP NHẬN ĐẦU TƯ (GoldChain)</div>
+    <table>
+      <tr><td>Tên doanh nghiệp:</td><td><strong>CÔNG TY TNHH GOLDCHAIN VÀNG VIỆT NAM</strong></td></tr>
+      <tr><td>Mã số doanh nghiệp:</td><td>{{companyMST}}</td></tr>
+      <tr><td>Địa chỉ trụ sở:</td><td>{{companyAddress}}</td></tr>
+      <tr><td>Điện thoại:</td><td>{{companyPhone}}</td></tr>
+      <tr><td>Email:</td><td>{{companyEmail}}</td></tr>
+      <tr><td>Đại diện pháp lý:</td><td><strong>{{companyRep}}</strong></td></tr>
+      <tr><td>Chức vụ:</td><td>{{companyRepTitle}}</td></tr>
+      <tr><td>Số CCCD/Hộ chiếu:</td><td>{{companyRepCCCD}}</td></tr>
+    </table>
+  </div>
+
+  <!-- BÊN B -->
+  <div class="party-block">
+    <div class="party-title">BÊN B – NHÀ ĐẦU TƯ</div>
+    <table>
+      <tr><td>Họ và tên:</td><td><strong>{{investorName}}</strong></td></tr>
+      <tr><td>Ngày sinh:</td><td>{{investorDOB}}</td></tr>
+      <tr><td>Số CCCD/Hộ chiếu:</td><td>{{investorCCCD}}</td></tr>
+      <tr><td>Địa chỉ thường trú:</td><td>{{investorAddress}}</td></tr>
+      <tr><td>Số điện thoại:</td><td>{{investorPhone}}</td></tr>
+      <tr><td>Email:</td><td>{{investorEmail}}</td></tr>
+    </table>
+  </div>
+
+  <p class="intro">
+    Sau khi cùng trao đổi, thảo luận trên tinh thần bình đẳng, hợp tác và đôi bên cùng có lợi, <strong>Bên A</strong> và <strong>Bên B</strong> (sau đây gọi chung là <em>"Các Bên"</em>) đồng ý ký kết Biên bản ghi nhớ này với các điều khoản cụ thể như sau:
+  </p>
+
+  <hr class="gold-line" />
+
+  <!-- ĐIỀU 1 -->
+  <div class="article">
+    <h2>Điều 1 – Mục Đích và Phạm Vi Hợp Tác</h2>
+    <p><span class="clause-num">1.1. Mục đích:</span> Các bên thống nhất hợp tác đầu tư vào dự án <strong>{{projectTitle}}</strong> do Bên A triển khai, nhằm mục tiêu số hóa và tối ưu hóa hoạt động giao dịch, tích lũy và ký gửi vàng vật chất tại Việt Nam, từng bước xây dựng hệ sinh thái tài sản vàng minh bạch và hiệu quả trên nền tảng công nghệ blockchain.</p>
+    <p><span class="clause-num">1.2. Phạm vi dự án:</span> Bao gồm các hoạt động phát triển nền tảng giao dịch vàng trực tuyến, hệ thống hợp đồng thông minh (Smart Contract) xác nhận quyền sở hữu, triển khai eKYC và các module quản lý kho vàng vật chất.</p>
+    <p><span class="clause-num">1.3. Nguyên tắc hợp tác:</span> Các bên cam kết hợp tác trên tinh thần trung thực, minh bạch, bình đẳng và tuân thủ nghiêm túc các quy định pháp luật hiện hành của Nước Cộng hòa Xã hội Chủ nghĩa Việt Nam.</p>
+  </div>
+
+  <!-- ĐIỀU 2 -->
+  <div class="article">
+    <h2>Điều 2 – Hình Thức và Cơ Cấu Đầu Tư</h2>
+    <p><span class="clause-num">2.1. Hình thức đầu tư:</span> Bên B đóng góp vốn bằng tiền mặt (VNĐ) vào dự án của Bên A theo từng giai đoạn được thỏa thuận riêng bằng phụ lục hợp đồng.</p>
+    <p><span class="clause-num">2.2. Tổng mức vốn dự kiến:</span> Tổng giá trị cam kết đầu tư ban đầu là <strong>{{investAmt}}</strong> đồng (Bằng chữ: <em>{{investAmtWords}}</em>).</p>
+    <p><span class="clause-num">2.3. Phân kỳ đầu tư:</span> Kế hoạch giải ngân theo từng đợt sẽ được quy định chi tiết trong Phụ lục I kèm theo biên bản này, sau khi các bên hoàn thành thẩm tra hồ sơ pháp lý và tài chính dự án.</p>
+    <p><span class="clause-num">2.4. Tỷ lệ lợi nhuận dự kiến:</span> Bên B được hưởng lợi nhuận tương ứng với <strong>{{profitShare}}%</strong> tổng lợi nhuận ròng của dự án, sau khi trừ chi phí vận hành và các nghĩa vụ thuế theo quy định pháp luật.</p>
+  </div>
+
+  <!-- ĐIỀU 3 -->
+  <div class="article">
+    <h2>Điều 3 – Quyền và Nghĩa Vụ Của Các Bên</h2>
+    <p><span class="clause-num">3.1. Nghĩa vụ của Bên A:</span></p>
+    <ul>
+      <li>Cung cấp đầy đủ thông tin, hồ sơ pháp lý, kế hoạch kinh doanh và báo cáo tài chính dự án cho Bên B theo định kỳ hàng quý.</li>
+      <li>Sử dụng vốn đúng mục đích đã cam kết trong biên bản này và các phụ lục đính kèm.</li>
+      <li>Thông báo kịp thời cho Bên B về mọi thay đổi quan trọng ảnh hưởng đến dự án hoặc kế hoạch kinh doanh.</li>
+      <li>Đảm bảo quyền kiểm tra, giám sát định kỳ của Bên B đối với việc sử dụng vốn đầu tư.</li>
+    </ul>
+    <p style="margin-top:8px;"><span class="clause-num">3.2. Nghĩa vụ của Bên B:</span></p>
+    <ul>
+      <li>Chuyển đủ số vốn cam kết theo đúng lịch giải ngân đã thỏa thuận.</li>
+      <li>Phối hợp cung cấp hồ sơ, tài liệu cần thiết để Bên A hoàn thiện thủ tục pháp lý khi có yêu cầu.</li>
+      <li>Tôn trọng quyền điều hành và quản lý dự án thuộc về Bên A; không can thiệp vào các quyết định điều hành nội bộ của Bên A ngoài phạm vi được quy định.</li>
+    </ul>
+  </div>
+
+  <!-- ĐIỀU 4 -->
+  <div class="article">
+    <h2>Điều 4 – Bảo Mật Thông Tin</h2>
+    <p><span class="clause-num">4.1.</span> Các bên cam kết giữ bí mật tuyệt đối mọi thông tin trao đổi liên quan đến dự án, cơ cấu vốn, kế hoạch kinh doanh và các điều khoản trong biên bản này. Thông tin chỉ được tiết lộ khi có sự đồng ý bằng văn bản của bên kia, hoặc khi có yêu cầu bắt buộc từ cơ quan có thẩm quyền theo quy định pháp luật.</p>
+    <p><span class="clause-num">4.2.</span> Nghĩa vụ bảo mật tại Điều 4 này vẫn có hiệu lực ràng buộc pháp lý ngay cả khi biên bản ghi nhớ này hết hiệu lực hoặc bị chấm dứt vì bất kỳ lý do nào, trong thời hạn <strong>03 (ba) năm</strong> tiếp theo.</p>
+  </div>
+
+  <!-- ĐIỀU 5 -->
+  <div class="article">
+    <h2>Điều 5 – Thời Hạn Hiệu Lực</h2>
+    <p><span class="clause-num">5.1.</span> Biên bản ghi nhớ này có hiệu lực kể từ ngày ký và có giá trị trong thời hạn <strong>{{mouDuration}} tháng</strong>, nhằm tạo điều kiện để các bên hoàn thiện thẩm định dự án và đàm phán, ký kết Hợp đồng đầu tư chính thức.</p>
+    <p><span class="clause-num">5.2.</span> Trước khi hết thời hạn nêu trên, nếu các bên không ký kết được hợp đồng đầu tư chính thức do nguyên nhân khách quan hoặc chủ quan, các bên có thể gia hạn biên bản ghi nhớ bằng văn bản có chữ ký của hai bên.</p>
+    <p><span class="clause-num">5.3.</span> Mọi sửa đổi, bổ sung nội dung biên bản ghi nhớ này phải được lập thành văn bản và có chữ ký xác nhận của đại diện có thẩm quyền của cả hai bên.</p>
+  </div>
+
+  <!-- ĐIỀU 6 -->
+  <div class="article">
+    <h2>Điều 6 – Giải Quyết Tranh Chấp</h2>
+    <p><span class="clause-num">6.1.</span> Mọi tranh chấp phát sinh từ hoặc liên quan đến biên bản ghi nhớ này trước tiên sẽ được giải quyết thông qua thương lượng, hòa giải trực tiếp giữa các bên trong thời hạn <strong>30 (ba mươi) ngày</strong> kể từ ngày phát sinh tranh chấp.</p>
+    <p><span class="clause-num">6.2.</span> Trong trường hợp thương lượng không thành công, tranh chấp sẽ được đưa ra giải quyết tại <strong>Tòa án nhân dân có thẩm quyền</strong> nơi Bên A đặt trụ sở chính theo quy định pháp luật Việt Nam. Phán quyết của Tòa án có giá trị chung thẩm và ràng buộc các bên.</p>
+  </div>
+
+  <!-- ĐIỀU 7 -->
+  <div class="article">
+    <h2>Điều 7 – Điều Khoản Chung</h2>
+    <p><span class="clause-num">7.1.</span> Biên bản ghi nhớ này được lập thành <strong>02 (hai)</strong> bản chính, có giá trị pháp lý như nhau; mỗi bên giữ <strong>01 (một)</strong> bản để thực hiện.</p>
+    <p><span class="clause-num">7.2.</span> Biên bản ghi nhớ này thể hiện toàn bộ sự đồng thuận của các bên về nội dung được đề cập và thay thế mọi trao đổi, thỏa thuận bằng lời nói hoặc văn bản trước đó liên quan đến cùng chủ đề.</p>
+    <p><span class="clause-num">7.3.</span> Ngôn ngữ sử dụng trong biên bản này là <strong>Tiếng Việt</strong>. Trong trường hợp có bất kỳ mâu thuẫn nào với bản dịch sang ngôn ngữ khác, bản Tiếng Việt sẽ được ưu tiên áp dụng.</p>
+  </div>
+
+  <hr class="gold-line" />
+
+  <!-- KÝ TÊN -->
+  <div class="signature-area">
+    <div class="sig-block">
+      <div class="sig-title">Đại Diện Bên A</div>
+      <div class="sig-note">(Ký, ghi rõ họ tên, đóng dấu)</div>
+      <div style="text-align:center; margin-top:8px;">
+        <div class="seal-placeholder">CON DẤU<br/>DOANH NGHIỆP</div>
+      </div>
+      <div class="sig-line"></div>
+      <div class="sig-name">{{companyRep}}</div>
+      <div style="font-size:11pt;">{{companyRepTitle}}</div>
+      <div style="font-size:11pt; color:#555;">GoldChain Vàng Việt Nam</div>
+    </div>
+    <div class="sig-block">
+      <div class="sig-title">Đại Diện Bên B</div>
+      <div class="sig-note">(Ký, ghi rõ họ tên)</div>
+      <div style="text-align:center; margin-top:8px;">
+        <div style="height:88px;"></div>
+      </div>
+      <div class="sig-line"></div>
+      <div class="sig-name">{{investorName}}</div>
+      <div style="font-size:11pt;">Nhà Đầu Tư</div>
+      <div style="font-size:11pt; color:#555;">CCCD: {{investorCCCD}}</div>
+    </div>
+  </div>
+
+  <!-- FOOTER -->
+  <div class="footer-note">
+    <p>Tài liệu được tạo tự động bởi hệ thống GoldChain Smart Contract Platform &bull; Mọi thắc mắc xin liên hệ: {{companyEmail}}</p>
+    <p style="margin-top:4px;">© {{currentYear}} GoldChain Vàng Việt Nam – Bảo lưu mọi quyền.</p>
+  </div>
+
+</div>
+</body>
+</html>
