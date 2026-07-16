@@ -52,7 +52,7 @@ app.post("/api/mint", async (req, res) => {
       console.log(`[Web3] Transaction Confirmed in block ${receipt.blockNumber}`);
       
       // Sync into Supabase (Phase 2 completion logic)
-      await supabase.from("blockchain_proofs").upsert({
+      const { error: dbErr } = await supabase.schema('public').from("blockchain_proofs").upsert({
         order_id: orderId,
         network: "Sepolia",
         contract_address: CONTRACT_ADDRESS,
@@ -60,6 +60,7 @@ app.post("/api/mint", async (req, res) => {
         pdf_sha256: pdfHash,
         status: "CONFIRMED"
       });
+      if (dbErr) console.error("Lỗi khi lưu blockchain_proofs:", dbErr);
 
       return res.json({ success: true, txHash: tx.hash });
     } else {
@@ -67,7 +68,7 @@ app.post("/api/mint", async (req, res) => {
       const mockTxHash = "0x" + require("crypto").randomBytes(32).toString("hex");
       console.log(`[Mock-Web3] Simulated minting for Order ${orderId}. TxHash: ${mockTxHash}`);
       
-      await supabase.from("blockchain_proofs").upsert({
+      const { error: dbErr2 } = await supabase.schema('public').from("blockchain_proofs").upsert({
         order_id: orderId,
         network: "Mock-Sepolia",
         contract_address: "MOCK_CONTRACT",
@@ -75,6 +76,7 @@ app.post("/api/mint", async (req, res) => {
         pdf_sha256: pdfHash,
         status: "CONFIRMED_MOCK"
       });
+      if (dbErr2) console.error("Lỗi khi lưu blockchain_proofs (mock):", dbErr2);
 
       return res.json({ success: true, txHash: mockTxHash, simulated: true });
     }
@@ -93,7 +95,7 @@ app.get("/api/verify/:orderId", async (req, res) => {
   try {
     // Luôn ưu tiên quét proof thực tế trên CSDL thay vì gọi Blockchain
     // do Blockchain JSON RPC rất chậm và Supabase là nguồn sự thật được đồng bộ 1-1.
-    const { data, error } = await supabase.from("blockchain_proofs")
+    const { data, error } = await supabase.schema('public').from("blockchain_proofs")
       .select("pdf_sha256")
       .eq("order_id", orderId)
       .single();
