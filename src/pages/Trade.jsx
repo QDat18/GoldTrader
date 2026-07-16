@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import useStore from '../store/useStore';
 import { supabase } from '../supabaseClient';
 import { useNavigate } from 'react-router-dom';
+import { Check, XCircle } from 'lucide-react';
 
 const supabaseLedger = supabase.schema('financial_ledgers');
 
@@ -360,6 +361,31 @@ export default function Trade() {
       return;
     }
 
+    if (activeTab === 'withdraw' && !pickupStore) {
+      setOrderStatus({ show: true, success: false, message: 'Vui lòng chọn chi nhánh cửa hàng để nhận vàng.' });
+      return;
+    }
+
+    let confirmMsg = '';
+    const goldName = activeItem?.name || selectedGoldKey;
+    if (activeTab === 'buy') {
+      confirmMsg = `XÁC NHẬN MUA VÀNG:\nBạn chắc chắn muốn MUA ${qtyVal} chỉ vàng ${goldName} với tổng thanh toán ${Math.round(amountVal).toLocaleString('vi-VN')} VNĐ không?`;
+    } else if (activeTab === 'sell') {
+      confirmMsg = `XÁC NHẬN BÁN VÀNG:\nBạn chắc chắn muốn BÁN ${qtyVal} chỉ vàng ${goldName} để nhận về ${Math.round(amountVal).toLocaleString('vi-VN')} VNĐ không?`;
+    } else if (activeTab === 'withdraw') {
+      const storeNameMap = {
+        'HN_123_THAIHA': 'Hà Nội: 123 Thái Hà, Đống Đa',
+        'HCM_456_NTMK': 'TP.HCM: 456 Nguyễn Thị Minh Khai, Q3',
+        'DN_789_NVL': 'Đà Nẵng: 789 Nguyễn Văn Linh'
+      };
+      const storeLabel = storeNameMap[pickupStore] || pickupStore;
+      confirmMsg = `XÁC NHẬN RÚT VÀNG:\nBạn chắc chắn muốn lập lệnh yêu cầu RÚT VẬT CHẤT ${qtyVal} chỉ vàng ${goldName} tại chi nhánh:\n${storeLabel} không?`;
+    }
+
+    if (!window.confirm(confirmMsg)) {
+      return;
+    }
+
     const { data: { session } } = await supabase.auth.getSession();
     if (!session?.user) {
       setOrderStatus({ show: true, success: false, message: 'Vui lòng đăng nhập để thực hiện giao dịch.' });
@@ -559,6 +585,15 @@ export default function Trade() {
         setInvoiceDetails(invoiceInfo);
         setShowInvoiceOpen(true);
 
+        await supabase.from('notifications').insert({
+          user_id: dbUser.id,
+          type: 'trade',
+          title: 'Khớp lệnh MUA VÀNG thành công',
+          desc: `Bạn vừa MUA thành công ${qtyVal} chỉ vàng ${activeItem?.name || ''}. Tổng thanh toán: ₫${amountVal.toLocaleString('vi-VN')}.`,
+          unread: true,
+          date: new Date().toLocaleString('vi-VN')
+        });
+
       } else if (activeTab === 'sell') {
         // BÁN VÀNG (Trừ Ví vàng online và cộng tiền vào Ví VND trực tuyến ngay lập tức)
         const availableGold = getGoldBalance();
@@ -667,12 +702,18 @@ export default function Trade() {
           message: `Bán thành công! Ví vàng của bạn đã trừ ${qtyVal} chỉ và cộng ₫${amountVal.toLocaleString('vi-VN')} vào ví VND trực tuyến.` 
         });
 
+        await supabase.from('notifications').insert({
+          user_id: dbUser.id,
+          type: 'trade',
+          title: 'Khớp lệnh BÁN VÀNG thành công',
+          desc: `Bạn vừa BÁN thành công ${qtyVal} chỉ vàng ${activeItem?.name || ''}. Số tiền ₫${amountVal.toLocaleString('vi-VN')} đã được cộng ngay vào ví VND.`,
+          unread: true,
+          date: new Date().toLocaleString('vi-VN')
+        });
+
       } else if (activeTab === 'withdraw') {
         // RÚT VÀNG VẬT CHẤT (Chờ duyệt và quét mã QR tại quầy để bàn giao vàng vật chất)
-        if (!pickupStore) {
-          setOrderStatus({ show: true, success: false, message: 'Vui lòng chọn chi nhánh cửa hàng để nhận vàng.' });
-          return;
-        }
+
         const availableGold = getGoldBalance();
         if (qtyVal > availableGold) {
           setOrderStatus({ 
@@ -743,6 +784,15 @@ export default function Trade() {
             userWallet: window.localStorage.getItem('meta_wallet') || null
           })
         }).catch(err => console.error("Lỗi Transaction Web3:", err));
+
+        await supabase.from('notifications').insert({
+          user_id: dbUser.id,
+          type: 'trade',
+          title: 'Gửi yêu cầu RÚT VÀNG thành công',
+          desc: `Lệnh rút O2O mã ${ordId} cho ${qtyVal} chỉ vàng đang chờ xử lý. Vui lòng mang CCCD đến quầy để xác nhận.`,
+          unread: true,
+          date: new Date().toLocaleString('vi-VN')
+        });
 
         // 4. Tạo lịch sử giao dịch ở dạng PENDING (Chờ nhận vàng)
         const newTxn = {
@@ -1350,20 +1400,21 @@ export default function Trade() {
 
       {/* TOAST THÔNG BÁO KẾT QUẢ */}
       {orderStatus.show && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(3px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-          <div className="neo-card" style={{ background: '#050505', border: '1px solid rgba(212, 175, 55, 0.2)', padding: '24px', maxWidth: '380px', width: '100%', textAlign: 'center', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            <div style={{ fontSize: '40px', color: orderStatus.success ? 'var(--emerald)' : 'var(--ruby)' }}>
-              {orderStatus.success ? '✓' : '✗'}
-            </div>
-            <h4 className="h3" style={{ margin: 0, color: '#fff', fontSize: '16px' }}>{orderStatus.success ? 'Thành công' : 'Thất bại'}</h4>
-            <p style={{ margin: 0, fontSize: '13px', color: 'var(--text-muted)', lineHeight: '1.6' }}>{orderStatus.message}</p>
-            <button 
-              className="btn btn-gold" 
-              onClick={() => setOrderStatus({ show: false, success: true, message: '' })}
-              style={{ width: '100%', padding: '10px', fontWeight: 'bold' }}
-            >
-              Đồng ý
-            </button>
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(10px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1200, animation: 'fadeIn 0.2s ease-out' }}>
+          <div className="card" style={{ width: '100%', maxWidth: '420px', background: 'var(--bg-card)', borderRadius: '24px', border: `1px solid ${orderStatus.success ? 'rgba(16, 185, 129, 0.4)' : 'rgba(239, 68, 68, 0.4)'}`, overflow: 'hidden', textAlign: 'center', padding: '40px 24px', position: 'relative', boxShadow: `0 20px 60px ${orderStatus.success ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)'}`, animation: 'slideUp 0.3s ease-out' }}>
+             <button onClick={() => setOrderStatus({ show: false, success: true, message: '' })} style={{ position: 'absolute', top: 16, right: 16, background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', transition: 'color 0.2s' }} onMouseEnter={(e) => e.currentTarget.style.color = 'var(--text-main)'} onMouseLeave={(e) => e.currentTarget.style.color = 'var(--text-muted)'}>
+               <XCircle size={24} />
+             </button>
+             <div style={{ width: '80px', height: '80px', borderRadius: '50%', background: orderStatus.success ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 24px', boxShadow: `0 0 30px ${orderStatus.success ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)'}`, border: `1px solid ${orderStatus.success ? 'rgba(16, 185, 129, 0.3)' : 'rgba(239, 68, 68, 0.3)'}` }}>
+                {orderStatus.success ? <Check size={40} color="var(--emerald)" /> : <XCircle size={40} color="var(--ruby)" />}
+             </div>
+             <h2 className="h2" style={{ color: orderStatus.success ? 'var(--emerald)' : 'var(--ruby)', marginBottom: '16px' }}>{orderStatus.success ? 'Giao Dịch Thành Công!' : 'Giao Dịch Thất Bại'}</h2>
+             <p className="body-sm" style={{ marginBottom: '32px', fontSize: '15px', color: 'var(--text-main)', lineHeight: '1.6' }}>
+               {orderStatus.message}
+             </p>
+             <button className="btn btn-gold" onClick={() => setOrderStatus({ show: false, success: true, message: '' })} style={{ width: '100%', borderRadius: '99px', padding: '14px', fontSize: '15px', fontWeight: 700, boxShadow: '0 8px 16px rgba(212,175,55,0.2)' }}>
+               {orderStatus.success ? 'Tuyệt vời, Đóng' : 'Đã hiểu'}
+             </button>
           </div>
         </div>
       )}

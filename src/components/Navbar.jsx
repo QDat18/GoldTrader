@@ -12,7 +12,8 @@ import {
   ShieldCheck,
   User,
   Wallet,
-  X
+  X,
+  Check
 } from 'lucide-react';
 import { supabase } from '../supabaseClient';
 import BrandLogo from './BrandLogo';
@@ -55,6 +56,8 @@ export function UserNavbar() {
 
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [isDepositModalOpen, setIsDepositModalOpen] = useState(false);
+  const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
+  const [successDepositAmount, setSuccessDepositAmount] = useState(0);
   const [depositAmount, setDepositAmount] = useState('5000000');
 
   const user = useStore((state) => state.currentUser);
@@ -80,10 +83,21 @@ export function UserNavbar() {
           amount_vnd: val
         }).then(({ error }) => {
           if (error) console.error('Lỗi khi lưu lịch sử nạp tiền:', error);
+          else {
+            supabase.from('notifications').insert({
+              user_id: user.id,
+              type: 'system',
+              title: 'Nạp tiền vào ví VND thành công',
+              desc: `Bạn đã nạp thành công ₫${val.toLocaleString('vi-VN')} vào ví trực tuyến.`,
+              unread: true,
+              date: new Date().toLocaleString('vi-VN')
+            }).then();
+          }
         });
       }
 
-      alert(`Nạp thành công ${val.toLocaleString('vi-VN')} đ vào ví.`);
+      setSuccessDepositAmount(val);
+      setIsSuccessModalOpen(true);
       setIsDepositModalOpen(false);
       setDepositAmount('5000000');
     } else {
@@ -427,6 +441,29 @@ export function UserNavbar() {
                 Xác nhận nạp tiền
               </button>
             </div>
+          </div>
+        </div>
+      )}
+      {/* Success Deposit Modal */}
+      {isSuccessModalOpen && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(10px)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px', animation: 'fadeIn 0.2s ease-out' }}>
+          <div className="card" style={{ width: '100%', maxWidth: '400px', background: 'var(--bg-card)', borderRadius: '24px', border: '1px solid rgba(16, 185, 129, 0.4)', overflow: 'hidden', textAlign: 'center', padding: '40px 24px', position: 'relative', boxShadow: '0 20px 60px rgba(16, 185, 129, 0.15)', animation: 'slideUp 0.3s ease-out' }}>
+             <button onClick={() => setIsSuccessModalOpen(false)} style={{ position: 'absolute', top: 16, right: 16, background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', transition: 'color 0.2s' }} onMouseEnter={(e) => e.currentTarget.style.color = 'var(--text-main)'} onMouseLeave={(e) => e.currentTarget.style.color = 'var(--text-muted)'}>
+               <X size={24} />
+             </button>
+             <div style={{ width: '80px', height: '80px', borderRadius: '50%', background: 'rgba(16, 185, 129, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 24px', boxShadow: '0 0 30px rgba(16, 185, 129, 0.2)', border: '1px solid rgba(16, 185, 129, 0.3)' }}>
+                <Check size={40} color="var(--emerald)" />
+             </div>
+             <h2 className="h2" style={{ color: 'var(--emerald)', marginBottom: '8px' }}>Nạp Tiền Thành Công!</h2>
+             <div style={{ fontSize: '32px', fontWeight: 'bold', color: 'var(--text-main)', marginBottom: '16px', letterSpacing: '-0.5px' }}>
+               +{new Intl.NumberFormat('vi-VN').format(successDepositAmount)} <span style={{fontSize: '20px', color: 'var(--text-muted)'}}>VNĐ</span>
+             </div>
+             <p className="body-sm" style={{ marginBottom: '32px' }}>
+               Số tiền đã được cộng ngay lập tức vào Ví GoldChain của bạn. Bạn đã có thể bắt đầu giao dịch ngay.
+             </p>
+             <button className="btn btn-gold" onClick={() => setIsSuccessModalOpen(false)} style={{ width: '100%', borderRadius: '99px', padding: '14px', fontSize: '15px', fontWeight: 700, boxShadow: '0 8px 16px rgba(212,175,55,0.2)' }}>
+               Tuyệt vời, tiếp tục
+             </button>
           </div>
         </div>
       )}

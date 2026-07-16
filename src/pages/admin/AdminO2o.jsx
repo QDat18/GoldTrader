@@ -89,6 +89,12 @@ export default function AdminO2o() {
   const handleDispatchGold = async () => {
     if (!matchedOrder) return;
 
+    const confirmMsg = `QUẢN TRỊ VIÊN XÁC NHẬN BÀN GIAO:\n\nĐơn hàng: ${matchedOrder.id}\nSản phẩm: ${(Number(matchedOrder.quantity_grams) / 3.75).toFixed(3)} chỉ ${matchedOrder.gold_type.toUpperCase()}\nThỏi Serial: ${selectedInventoryBar || 'Hệ thống tự động chọn'}\nKhách nhận: ${matchedUser.full_name} (CCCD: ${matchedUser.id_card_number})\n\nThao tác này là CUỐI CÙNG, sẽ khấu trừ ví vàng của khách và đóng đơn vĩnh viễn. Bạn có chắc chắn muốn xác nhận bàn giao không?`;
+    
+    if (!window.confirm(confirmMsg)) {
+      return;
+    }
+
     try {
       const { error: ordErr } = await supabaseLedger
         .from('orders')
@@ -130,7 +136,7 @@ export default function AdminO2o() {
           .eq('id', walletData.id);
       }
 
-      // Gửi thông báo rút vàng thành công
+      // Gửi thông báo rút vàng thành công cho User
       const qtyChỉ = (Number(matchedOrder.quantity_grams) / 3.75).toFixed(3);
       await supabase.from('notifications').insert({
         user_id: matchedOrder.user_id,
@@ -140,6 +146,28 @@ export default function AdminO2o() {
         unread: true,
         date: new Date().toLocaleString('vi-VN')
       });
+
+      // Lưu log notification cho chính Admin
+      const currentUserStr = window.localStorage.getItem('goldchain_store');
+      let adminId = null;
+      if (currentUserStr) {
+        try {
+          const parsed = JSON.parse(currentUserStr);
+          if (parsed.state?.currentUser?.id) {
+             adminId = parsed.state.currentUser.id;
+          }
+        } catch (e) {}
+      }
+      if (adminId) {
+        await supabase.from('notifications').insert({
+          user_id: adminId,
+          type: 'system',
+          title: 'Duyệt đơn O2O thành công',
+          desc: `Bạn vừa hoàn tất bàn giao đơn ${matchedOrder.id} cho khách ${matchedUser.full_name}.`,
+          unread: true,
+          date: new Date().toLocaleString('vi-VN')
+        });
+      }
 
       alert(`Đã bàn giao vàng vật chất thành công!\n- Đơn hàng: ${matchedOrder.id}\n- Thỏi vàng Serial: ${selectedInventoryBar || 'Tự động'}\n- Khách nhận: ${matchedUser.full_name}`);
 
