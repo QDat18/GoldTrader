@@ -1,12 +1,16 @@
 import React, { useState } from 'react';
 import useStore from '../store/useStore';
 import { supabase } from '../supabaseClient';
-import { ShieldCheck, Mail, Phone, CreditCard, Clock, CheckCircle2, AlertCircle, Edit2, Save, X, Lock, Smartphone, UploadCloud } from 'lucide-react';
+import { ShieldCheck, Mail, Phone, CreditCard, Clock, CheckCircle2, AlertCircle, Edit2, Save, X, Lock, Smartphone, UploadCloud, Link as LinkIcon } from 'lucide-react';
+import { ethers } from 'ethers';
 
 export default function Profile() {
   const user = useStore((state) => state.currentUser);
   const updateProfile = useStore((state) => state.updateProfile);
   const updateKycStatus = useStore((state) => state.updateKycStatus);
+
+  const [walletAddress, setWalletAddress] = useState(user.walletAddress || '');
+  const [isConnecting, setIsConnecting] = useState(false);
 
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState({
@@ -30,6 +34,31 @@ export default function Profile() {
     updateProfile(editForm);
     setIsEditing(false);
     showToast('Cập nhật thông tin thành công!', 'success');
+  };
+
+  const handleConnectWallet = async () => {
+    if (!window.ethereum) {
+      showToast('Vui lòng cài đặt ví MetaMask!', 'error');
+      return;
+    }
+    
+    setIsConnecting(true);
+    try {
+      const provider = new ethers.BrowserProvider(window.ethereum);
+      const accounts = await provider.send('eth_requestAccounts', []);
+      if (accounts.length > 0) {
+        setWalletAddress(accounts[0]);
+        // Cập nhật CSDL
+        await supabase.from('user_profiles').update({ wallet_address: accounts[0] }).eq('id', user.id);
+        updateProfile({ walletAddress: accounts[0] });
+        showToast('Kết nối ví thành công!', 'success');
+      }
+    } catch (error) {
+      console.error(error);
+      showToast('Lỗi khi kết nối ví MetaMask', 'error');
+    } finally {
+      setIsConnecting(false);
+    }
   };
 
   const [reUploadFront, setReUploadFront] = useState(null);
@@ -186,10 +215,27 @@ export default function Profile() {
                 <Mail size={20} color="var(--text-muted)" />
               </div>
               <div style={{ flex: 1 }}>
-                <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '4px' }}>Địa chỉ Email</div>
+                <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBotto: '4px' }}>Địa chỉ Email</div>
                 <div style={{ fontSize: '16px', fontWeight: 500, color: '#fff' }}>{user.email || 'Chưa cập nhật'}</div>
               </div>
               <Lock size={16} color="var(--text-muted)" style={{ opacity: 0.5 }} />
+            </div>
+
+            {/* Web3 Wallet */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '16px', padding: '16px', background: 'rgba(0,0,0,0.2)', borderRadius: '16px', border: walletAddress ? '1px solid var(--emerald)' : '1px solid rgba(255,255,255,0.03)' }}>
+              <div style={{ width: '48px', height: '48px', borderRadius: '14px', background: walletAddress ? 'rgba(16, 185, 129, 0.1)' : 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <LinkIcon size={20} color={walletAddress ? "var(--emerald)" : "var(--text-muted)"} />
+              </div>
+              <div style={{ flex: 1, overflow: 'hidden' }}>
+                <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '4px' }}>Ví Token Web3 (Nhận Vàng RWA)</div>
+                {walletAddress ? (
+                  <div style={{ fontSize: '16px', fontWeight: 500, color: 'var(--emerald)', textOverflow: 'ellipsis', overflow: 'hidden' }}>{walletAddress.substring(0, 6)}...{walletAddress.slice(-4)}</div>
+                ) : (
+                  <button onClick={handleConnectWallet} disabled={isConnecting} className="btn" style={{ padding: '4px 12px', background: 'rgba(212,175,55,0.1)', color: 'var(--gold)', borderRadius: '8px', fontSize: '13px', fontWeight: 600 }}>
+                    {isConnecting ? 'Đang kết nối...' : '+ Kết Nối MetaMask'}
+                  </button>
+                )}
+              </div>
             </div>
 
             {/* Name - Editable */}

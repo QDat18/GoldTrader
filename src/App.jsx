@@ -22,6 +22,7 @@ import TradingTerms from './pages/TradingTerms';
 import PrivacyPolicy from './pages/PrivacyPolicy';
 import UsageGuide from './pages/UsageGuide';
 import FeesAndPricing from './pages/FeesAndPricing';
+import BlockchainVerify from './pages/BlockchainVerify';
 import { supabase } from './supabaseClient';
 import useStore from './store/useStore';
 
@@ -161,6 +162,7 @@ function App() {
             email: authUser.email,
             cccd: dbUser.id_card_number,
             role: normalizeRole(dbUser.role),
+            walletAddress: dbUser.wallet_address || '',
             kycStep: dbUser.kyc_status === 'VERIFIED' ? 3 : 2,
             kycStatus: dbUser.kyc_status?.toLowerCase() || 'pending',
             kycRejectionReason: dbUser.kyc_rejection_reason || ''
@@ -269,6 +271,7 @@ function App() {
           <Route path="/fees" element={<FeesAndPricing />} />
           <Route path="/order" element={<CustomerOnly currentUser={currentUser}><Placeholder title="Order Details" /></CustomerOnly>} />
           <Route path="/notifications" element={<AuthenticatedOnly currentUser={currentUser}><Notifications /></AuthenticatedOnly>} />
+          <Route path="/verify" element={<BlockchainVerify />} />
         </Route>
 
         {/* Auth Routes */}

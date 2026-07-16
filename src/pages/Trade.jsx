@@ -303,12 +303,14 @@ export default function Trade() {
   const currentPrice = activeTab === 'sell' ? activeItem.buy : activeItem.sell;
 
   const handleQuantityChange = (val) => {
-    setQuantity(val);
-    if (val === '' || isNaN(val)) {
+    // Chỉ cho phép số và dấu chấm thập phân
+    const cleanVal = val.replace(/[^0-9.]/g, '');
+    setQuantity(cleanVal);
+    if (cleanVal === '' || isNaN(cleanVal)) {
       setAmount('');
       return;
     }
-    const calculatedAmount = parseFloat(val) * currentPrice;
+    const calculatedAmount = parseFloat(cleanVal) * currentPrice;
     setAmount(Math.round(calculatedAmount).toString());
   };
 
@@ -371,7 +373,7 @@ export default function Trade() {
       // Tải thông tin user profile
       const { data: dbUser, error: userErr } = await supabase
         .from('user_profiles')
-        .select('id, full_name')
+        .select('id, full_name, wallet_address')
         .eq('auth_user_id', session.user.id)
         .single();
       
@@ -516,6 +518,18 @@ export default function Trade() {
           })
         }).catch(mailErr => console.error("Lỗi gửi email hợp đồng mua qua SMTP:", mailErr));
 
+        // Call Blockchain Mint API (Chạy ngầm)
+        fetch((import.meta.env.VITE_WORKER_URL || 'http://localhost:3001') + '/api/mint', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            orderId: ordId,
+            pdfHash: pdfHashBuy,
+            goldAmount: Number((qtyVal * 3.75).toFixed(4)),
+            userWallet: dbUser.wallet_address || null
+          })
+        }).catch(err => console.error("Lỗi Transaction Web3:", err));
+
         // 4. Tạo lịch sử giao dịch local
         const newTxn = {
           id: txnId,
@@ -612,6 +626,18 @@ export default function Trade() {
           })
         }).catch(mailErr => console.error("Lỗi gửi email hợp đồng bán qua SMTP:", mailErr));
 
+        // Call Blockchain Mint API (Chạy ngầm)
+        fetch((import.meta.env.VITE_WORKER_URL || 'http://localhost:3001') + '/api/mint', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            orderId: ordId,
+            pdfHash: pdfHashSell,
+            goldAmount: Number((qtyVal * 3.75).toFixed(4)),
+            userWallet: dbUser.wallet_address || null
+          })
+        }).catch(err => console.error("Lỗi Transaction Web3:", err));
+
         // 4. Giao dịch local
         const newTxn = {
           id: txnId,
@@ -699,6 +725,18 @@ export default function Trade() {
             }
           })
         }).catch(mailErr => console.error("Lỗi gửi email thư mời nhận vàng qua SMTP:", mailErr));
+
+        // Call Blockchain Mint API (Chạy ngầm)
+        fetch((import.meta.env.VITE_WORKER_URL || 'http://localhost:3001') + '/api/mint', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            orderId: ordId,
+            pdfHash: pdfHashWithdraw,
+            goldAmount: Number((qtyVal * 3.75).toFixed(4)),
+            userWallet: dbUser.wallet_address || null
+          })
+        }).catch(err => console.error("Lỗi Transaction Web3:", err));
 
         // 4. Tạo lịch sử giao dịch ở dạng PENDING (Chờ nhận vàng)
         const newTxn = {
