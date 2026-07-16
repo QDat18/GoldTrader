@@ -43,9 +43,16 @@ Tệp tin này lưu trữ các yêu cầu công việc hiện tại, danh sách 
 - [x] **Task 32:** Rà soát và chuẩn hóa hệ thống phân quyền (Role Management) theo quy định của workflow.md (Guest, User, Admin). Tự động nâng quyền lên 'user' khi duyệt KYC và hiển thị chức vụ động trên giao diện Profile.
 - [x] **Task 33:** Tối ưu hóa giao diện người dùng (Dashboard), bổ sung layout grid 3 cột responsive và tinh chỉnh typography chuẩn Apple design.
 - [x] **Task 34:** Tích hợp cấu hình SMTP tự động và tạo thư mục TemplateMail chứa các mẫu email (Welcome, ForgotPass, HopDongMua, HopDongBan) phục vụ chạy demo.
+- [x] **Task 35:** Hoàn thiện trang Điều khoản giao dịch theo thiết kế hiện tại, bổ sung nội dung pháp lý chi tiết bám sát luật Việt Nam hiện hành, thông lệ tổ chức vàng/ngân hàng lớn và nối route `/terms`.
+- [x] **Task 36:** Chuẩn hóa route guard theo workflow role Guest/User/Admin, chặn Admin truy cập trực tiếp các route khách/người dùng như `/trade`, `/prices`, `/dashboard`, đồng thời nâng UX trang Điều khoản với mục lục active, thanh tiến độ đọc, dropdown chuyển mục và nút trở về đầu trang.
+- [x] **Task 37:** Hoàn thiện trang Chính sách bảo mật theo pháp luật Việt Nam hiện hành, bổ sung tooltip thuật ngữ, bản đồ dữ liệu, quyền khách hàng, cơ chế yêu cầu dữ liệu, bảo mật/cookie/chuyển dữ liệu và nối route `/privacy`.
+- [x] **Task 38:** Hoàn thiện trang Hướng dẫn sử dụng chi tiết theo workflow Guest/User/Admin, bao phủ đăng ký/đăng nhập, eKYC, dashboard, giá vàng, nạp ví, mua/bán/rút vàng O2O, DCA, lịch sử, thông báo, profile/bảo mật, admin, xử lý lỗi/FAQ, tooltip thuật ngữ, mục lục active, tiến độ đọc, nút trở về đầu trang và nối route `/guide`.
+- [x] **Task 39:** Hoàn thiện trang Phí & biểu giá theo pháp luật Việt Nam hiện hành và workflow GoldChain, tách rõ khác biệt với trang Bảng giá vàng, bổ sung bảng phí chi tiết, tooltip thuật ngữ, bộ ước tính phí, ví dụ đối soát, hạn mức/điều kiện, mục lục active, tiến độ đọc, nút trở về đầu trang, route `/fees` và sửa footer `Bảng giá` sang `/prices`.
+- [x] **Task 40:** Bổ sung liên kết thực tế cho mục Hỗ trợ ở footer gồm gọi hotline, gửi email, Facebook và Zalo OA.
+- [x] **Task 41:** Nâng cấp nhận diện logo GoldChain, tách component `BrandLogo` dùng chung cho Navbar/Footer/Login/Register và bổ sung CSS mark vàng cao cấp có chi tiết chain.
 
 ---
 
 ## 📈 TIẾN ĐỘ THỰC HIỆN (PROGRESS)
-- **Trạng thái:** Đã hoàn thành cấu hình dịch vụ SMTP tự động qua Middleware Vite Dev Server kết hợp nodemailer, tự động nạp các mẫu thiết kế HTML chuyên nghiệp trong `TemplateMail` khi gửi Welcome email, xác thực OTP khôi phục mật khẩu, Hợp đồng mua/bán khớp lệnh thành công (Task 34).
-- **Cập nhật lần cuối:** 2026-07-09 13:15.
+- **Trạng thái:** Đã nâng cấp logo GoldChain thành component dùng chung, đồng bộ trên Navbar, Footer, Login và Register; mark mới có nền vàng nhiều lớp, highlight, viền sâu, monogram và chi tiết chain nhỏ để nhận diện thương hiệu rõ hơn (Task 41).
+- **Cập nhật lần cuối:** 2026-07-11 20:40.

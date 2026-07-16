@@ -19,17 +19,17 @@ const FETCH_INTERVAL_MS = 5 * 60 * 1000; // 5 phút
 
 // Bảng dịch tên tiếng Anh từ API sang tiếng Việt có dấu cho Frontend
 const NAME_VI = {
-  "SJC 9999":             "SJC 9999",
-  "SJC Ring":             "Nhẫn SJC 9999",
-  "Bao Tin SJC":          "Bảo Tín SJC",
-  "Bao Tin 9999":         "Bảo Tín 9999",
-  "DOJI Hanoi":           "DOJI Hà Nội",
-  "DOJI HCM":             "DOJI TP.HCM",
-  "DOJI Jewelry":         "DOJI Nữ Trang",
-  "PNJ Hanoi":            "PNJ Hà Nội",
-  "PNJ 24K":              "PNJ 24K",
-  "VN Gold SJC":          "VN Gold SJC",
-  "Viettin SJC":          "Viettin SJC",
+  "SJC 9999": "SJC 9999",
+  "SJC Ring": "Nhẫn SJC 9999",
+  "Bao Tin SJC": "Bảo Tín SJC",
+  "Bao Tin 9999": "Bảo Tín 9999",
+  "DOJI Hanoi": "DOJI Hà Nội",
+  "DOJI HCM": "DOJI TP.HCM",
+  "DOJI Jewelry": "DOJI Nữ Trang",
+  "PNJ Hanoi": "PNJ Hà Nội",
+  "PNJ 24K": "PNJ 24K",
+  "VN Gold SJC": "VN Gold SJC",
+  "Viettin SJC": "Viettin SJC",
   "World Gold (XAU/USD)": "Vàng Thế Giới (XAU/USD)",
 };
 
@@ -67,9 +67,9 @@ async function fetchAndSavePrices() {
         }
 
         const lastRecord = data && data[0];
-        const changed = !lastRecord || 
-                        Number(lastRecord.buy_price_vnd) !== buyVnd || 
-                        Number(lastRecord.sell_price_vnd) !== sellVnd;
+        const changed = !lastRecord ||
+          Number(lastRecord.buy_price_vnd) !== buyVnd ||
+          Number(lastRecord.sell_price_vnd) !== sellVnd;
 
         if (changed) {
           return {

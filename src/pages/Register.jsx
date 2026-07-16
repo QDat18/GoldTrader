@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import { Check, ShieldCheck, UploadCloud, Camera, User, ArrowLeft } from 'lucide-react';
+import BrandLogo from '../components/BrandLogo';
 
 export default function Register() {
   const [step, setStep] = useState(1);
@@ -266,10 +267,7 @@ export default function Register() {
   return (
     <>
       <div className="nav-bar">
-        <Link to="/" className="logo">
-          <div className="logo-mark"><span>G</span></div>
-          <span className="logo-text">GOLD<em>CHAIN</em></span>
-        </Link>
+        <BrandLogo />
         <div></div>
         <div className="nav-actions">
           <span className="body-sm">Đã có tài khoản?</span>
