@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import { Check, ShieldCheck, UploadCloud, Camera, User, ArrowLeft } from 'lucide-react';
@@ -12,7 +12,8 @@ export default function Register() {
   
   // Auth state
   const [email, setEmail] = useState('');
-  const [otp, setOtp] = useState('');
+  const [otpValues, setOtpValues] = useState(['', '', '', '', '', '']);
+  const otpRefs = useRef([]);
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   
@@ -44,6 +45,17 @@ export default function Register() {
   const [otpSent, setOtpSent] = useState(false);
   const [otpVerified, setOtpVerified] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [countdown, setCountdown] = useState(0);
+
+  useEffect(() => {
+    let timer;
+    if (countdown > 0) {
+      timer = setTimeout(() => {
+        setCountdown(prev => prev - 1);
+      }, 1000);
+    }
+    return () => clearTimeout(timer);
+  }, [countdown]);
   
   const navigate = useNavigate();
 
@@ -53,7 +65,7 @@ export default function Register() {
       setFieldErrors(prev => ({...prev, email: 'Email không hợp lệ.'}));
       return;
     }
-    setFieldErrors(prev => ({...prev, email: null}));
+    setFieldErrors(prev => ({...prev, email: null, otp: null}));
     setError('');
     setLoading(true);
 
@@ -70,12 +82,13 @@ export default function Register() {
           templateName: 'OtpRegister',
           templateData: {
             otp: code,
-            expiry: '5 phút'
+            expiry: '60 giây'
           }
         })
       });
 
       setOtpSent(true);
+      setCountdown(60);
     } catch (err) {
       console.error(err);
       setError('Lỗi khi gửi email OTP: ' + err.message);
@@ -84,20 +97,60 @@ export default function Register() {
     }
   };
 
+  const handleOtpChange = (value, index) => {
+    if (value && !/^\d$/.test(value)) return;
+    
+    const newValues = [...otpValues];
+    newValues[index] = value;
+    setOtpValues(newValues);
+    setFieldErrors(prev => ({...prev, otp: null}));
+    
+    if (value !== "" && index < 5) {
+      otpRefs.current[index + 1].focus();
+    }
+  };
+
+  const handleOtpKeyDown = (e, index) => {
+    if (e.key === "Backspace" && otpValues[index] === "" && index > 0) {
+      otpRefs.current[index - 1].focus();
+    }
+  };
+
+  const handleOtpPaste = (e) => {
+    e.preventDefault();
+    const pastedData = e.clipboardData.getData("text").trim();
+    if (!/^\d{6}$/.test(pastedData)) return;
+    
+    const newValues = pastedData.split("");
+    setOtpValues(newValues);
+    setFieldErrors(prev => ({...prev, otp: null}));
+    otpRefs.current[5].focus();
+  };
+
   const handleVerifyOtp = async () => {
-    if (!otp) return;
+    const combinedOtp = otpValues.join("");
+    if (combinedOtp.length < 6) return;
+    
+    setFieldErrors(prev => ({...prev, otp: null}));
     setError('');
+
+    if (countdown === 0) {
+      setFieldErrors(prev => ({...prev, otp: 'Mã xác thực đã hết hiệu lực. Vui lòng gửi lại mã mới.'}));
+      return;
+    }
+
     setLoading(true);
 
     // Cho phép bypass bằng mã 123456 phục vụ demo/test nhanh
-    if (otp === generatedOtp || otp === '123456') {
+    if (combinedOtp === generatedOtp || combinedOtp === '123456') {
       setOtpVerified(true);
+      setCountdown(0);
       setLoading(false);
       return;
     }
 
     setLoading(false);
-    setError('Mã xác thực không hợp lệ. Vui lòng nhập đúng mã đã gửi tới email.');
+    setFieldErrors(prev => ({...prev, otp: 'Mã xác thực không hợp lệ. Vui lòng nhập đúng mã đã gửi tới email.'}));
   };
 
   const handleRegister = async (e) => {
@@ -114,13 +167,13 @@ export default function Register() {
     if (password.length < 6) errs.password = "Mật khẩu phải có ít nhất 6 ký tự";
     if (password !== confirmPassword) errs.confirmPassword = "Mật khẩu nhập lại không khớp!";
     
+    const combinedOtp = otpValues.join("");
+    if (!otpVerified && combinedOtp !== '123456' && combinedOtp !== generatedOtp) {
+      errs.otp = "Vui lòng xác thực email bằng mã OTP trước khi đăng ký.";
+    }
+
     setFieldErrors(errs);
     if (Object.keys(errs).length > 0) return;
-
-    if (!otpVerified && otp !== '123456' && otp !== generatedOtp) {
-      setError('Vui lòng xác thực email bằng mã OTP trước khi đăng ký.');
-      return;
-    }
 
     setLoading(true);
 
@@ -339,7 +392,7 @@ export default function Register() {
             {/* Khối Email & OTP */}
             <div className="form-group" style={{ marginBottom: '16px' }}>
               <label className="form-label" style={{ display: 'block', marginBottom: '8px', fontSize: '13px', color: 'var(--text-muted)' }}>Email</label>
-              <div style={{ display: 'flex', gap: '8px' }}>
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                 <div style={{ position: 'relative', flex: 1 }}>
                   <input 
                     className="form-input" 
@@ -349,14 +402,28 @@ export default function Register() {
                     autoComplete="username"
                     value={email}
                     onChange={(e) => { setEmail(e.target.value); setOtpSent(false); setOtpVerified(false); setFieldErrors(prev => ({...prev, email: null})); }}
-                    disabled={otpVerified}
+                    disabled={otpVerified || (otpSent && !otpVerified)}
                     required 
                   />
                   {otpVerified && <Check size={18} color="var(--emerald)" style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)' }} />}
                 </div>
+                {otpSent && !otpVerified && (
+                  <span 
+                    onClick={() => { setOtpSent(false); setOtpValues(['', '', '', '', '', '']); setCountdown(0); setFieldErrors(prev => ({...prev, otp: null})); }} 
+                    style={{ fontSize: '12px', color: 'var(--gold)', cursor: 'pointer', textDecoration: 'underline', whiteSpace: 'nowrap', padding: '0 4px' }}
+                  >
+                    Thay đổi
+                  </span>
+                )}
                 {!otpVerified && (
-                  <button type="button" className="btn btn-outline" style={{ padding: '0 16px', whiteSpace: 'nowrap' }} onClick={handleSendOtp} disabled={loading || !email}>
-                    {loading ? 'Đang xử lý...' : (otpSent ? 'Gửi lại' : 'Gửi mã')}
+                  <button 
+                    type="button" 
+                    className="btn btn-outline" 
+                    style={{ padding: '0 16px', whiteSpace: 'nowrap', opacity: (loading || !email || countdown > 0) ? 0.5 : 1 }} 
+                    onClick={handleSendOtp} 
+                    disabled={loading || !email || countdown > 0}
+                  >
+                    {loading ? 'Đang xử lý...' : (countdown > 0 ? `Gửi lại (${countdown}s)` : (otpSent ? 'Gửi lại' : 'Gửi mã'))}
                   </button>
                 )}
               </div>
@@ -364,21 +431,62 @@ export default function Register() {
             </div>
 
             {otpSent && !otpVerified && (
-              <div className="form-group" style={{ marginBottom: '16px', background: 'rgba(212,175,55,0.05)', padding: '16px', borderRadius: '8px', border: '1px solid rgba(212,175,55,0.2)' }}>
-                <label className="form-label" style={{ display: 'block', marginBottom: '8px', fontSize: '13px', color: 'var(--gold)' }}>Mã xác thực OTP (Đã gửi tới email)</label>
-                <div style={{ display: 'flex', gap: '8px' }}>
-                  <input 
-                    className="form-input" 
-                    style={{ flex: 1, letterSpacing: '4px', fontWeight: 'bold' }}
-                    placeholder="Nhập 6 số" 
-                    maxLength={6}
-                    value={otp}
-                    onChange={(e) => setOtp(e.target.value)}
-                  />
-                  <button type="button" className="btn btn-gold" onClick={handleVerifyOtp} disabled={loading || otp.length < 4}>
+              <div className="form-group" style={{ marginBottom: '16px', background: 'rgba(212,175,55,0.02)', padding: '16px', borderRadius: '12px', border: fieldErrors.otp ? '1px solid var(--ruby)' : '1px solid rgba(212,175,55,0.15)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                  <label className="form-label" style={{ display: 'block', margin: 0, fontSize: '13px', color: 'var(--gold)' }}>Mã xác thực OTP (Đã gửi tới email)</label>
+                  {countdown > 0 ? (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'rgba(212,175,55,0.08)', padding: '4px 10px', borderRadius: '12px', border: '1px solid rgba(212,175,55,0.15)' }}>
+                      <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'var(--gold)', display: 'inline-block' }}></span>
+                      <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Mã hết hiệu lực sau: <strong style={{ color: 'var(--gold)' }}>{countdown}s</strong></span>
+                    </div>
+                  ) : (
+                    <span style={{ fontSize: '12px', color: 'var(--ruby)', fontWeight: 600 }}>Mã đã hết hiệu lực</span>
+                  )}
+                </div>
+                <div style={{ display: 'flex', gap: '16px', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' }}>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    {otpValues.map((val, index) => (
+                      <input
+                        key={index}
+                        ref={el => otpRefs.current[index] = el}
+                        className="form-input"
+                        style={{ 
+                          width: '40px', 
+                          height: '42px', 
+                          textAlign: 'center', 
+                          fontSize: '18px', 
+                          fontWeight: 'bold', 
+                          borderColor: fieldErrors.otp ? 'var(--ruby)' : 'var(--border-silver)',
+                          padding: 0,
+                          borderRadius: '8px'
+                        }}
+                        maxLength={1}
+                        value={val}
+                        onChange={(e) => handleOtpChange(e.target.value, index)}
+                        onKeyDown={(e) => handleOtpKeyDown(e, index)}
+                        onPaste={handleOtpPaste}
+                        disabled={countdown === 0}
+                      />
+                    ))}
+                  </div>
+                  <button 
+                    type="button" 
+                    className="btn btn-gold" 
+                    onClick={handleVerifyOtp} 
+                    disabled={loading || otpValues.join("").length < 6 || countdown === 0}
+                    style={{ 
+                      padding: '0 24px', 
+                      height: '42px',
+                      opacity: (loading || otpValues.join("").length < 6 || countdown === 0) ? 0.5 : 1,
+                      whiteSpace: 'nowrap'
+                    }}
+                  >
                     Xác nhận
                   </button>
                 </div>
+                {fieldErrors.otp && (
+                  <div style={{ fontSize: '11px', color: 'var(--ruby)', marginTop: '8px' }}>{fieldErrors.otp}</div>
+                )}
               </div>
             )}
 
@@ -437,7 +545,12 @@ export default function Register() {
                </div>
             )}
 
-            <button type="submit" className="btn-gold btn" style={{ width: '100%', padding: '14px', fontSize: '15px' }} disabled={loading}>
+            <button 
+              type="submit" 
+              className="btn-gold btn" 
+              style={{ width: '100%', padding: '14px', fontSize: '15px', opacity: (loading || !otpVerified) ? 0.5 : 1 }} 
+              disabled={loading || !otpVerified}
+            >
               {loading ? 'Đang xử lý...' : 'Tiếp tục: Tải lên CCCD'}
             </button>
           </form>

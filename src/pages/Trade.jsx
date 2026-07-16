@@ -361,7 +361,7 @@ export default function Trade() {
       // Tải thông tin user profile
       const { data: dbUser, error: userErr } = await supabase
         .from('user_profiles')
-        .select('id, full_name')
+        .select('id, full_name, phone, id_card_number')
         .eq('auth_user_id', session.user.id)
         .single();
       
@@ -484,6 +484,9 @@ export default function Trade() {
 
         const invoiceInfo = {
           name: dbUser.full_name || session.user.email.split('@')[0],
+          phone: dbUser.phone || '',
+          cccd: dbUser.id_card_number || 'Chưa xác thực eKYC',
+          email: session.user.email,
           contractId: ordId,
           goldType: activeItem.name,
           quantity: `${qtyVal.toString()} (${Number((qtyVal * 3.75).toFixed(4))}g)`,
@@ -589,6 +592,9 @@ export default function Trade() {
             templateName: 'HopDongBan',
             templateData: {
               name: dbUser.full_name || session.user.email.split('@')[0],
+              phone: dbUser.phone || '',
+              cccd: dbUser.id_card_number || 'Chưa xác thực eKYC',
+              email: session.user.email,
               contractId: ordId,
               goldType: activeItem.name,
               quantity: `${qtyVal.toString()} (${Number((qtyVal * 3.75).toFixed(4))}g)`,

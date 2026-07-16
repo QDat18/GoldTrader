@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import useStore from '../store/useStore';
 import { supabase } from '../supabaseClient';
@@ -33,7 +33,8 @@ export default function Login() {
   const [authMode, setAuthMode] = useState('login'); // 'login', 'forgotPassword', 'verifyResetOtp', 'newPassword', 'resetSuccess'
   const [resetEmail, setResetEmail] = useState('');
   const [generatedOtp, setGeneratedOtp] = useState('');
-  const [otpInput, setOtpInput] = useState('');
+  const [otpValues, setOtpValues] = useState(['', '', '', '', '', '']);
+  const otpRefs = useRef([]);
   const [newPassword, setNewPassword] = useState('');
   const [confirmNewPassword, setConfirmNewPassword] = useState('');
   
@@ -156,10 +157,38 @@ export default function Login() {
     }
   };
 
+  const handleOtpChange = (value, index) => {
+    if (value && !/^\d$/.test(value)) return;
+    const newValues = [...otpValues];
+    newValues[index] = value;
+    setOtpValues(newValues);
+    setError('');
+    if (value !== '' && index < 5) {
+      otpRefs.current[index + 1].focus();
+    }
+  };
+
+  const handleOtpKeyDown = (e, index) => {
+    if (e.key === 'Backspace' && otpValues[index] === '' && index > 0) {
+      otpRefs.current[index - 1].focus();
+    }
+  };
+
+  const handleOtpPaste = (e) => {
+    e.preventDefault();
+    const pastedData = e.clipboardData.getData('text').trim();
+    if (!/^\d{6}$/.test(pastedData)) return;
+    const newValues = pastedData.split('');
+    setOtpValues(newValues);
+    setError('');
+    otpRefs.current[5].focus();
+  };
+
   const handleVerifyResetOtp = (e) => {
     e.preventDefault();
     setError('');
-    if (otpInput === generatedOtp || otpInput === '123456') {
+    const combinedOtp = otpValues.join('');
+    if (combinedOtp === generatedOtp || combinedOtp === '123456') {
       setAuthMode('newPassword');
     } else {
       setError('Mã xác thực không hợp lệ. Vui lòng nhập đúng mã đã gửi tới email.');
@@ -314,26 +343,40 @@ export default function Login() {
               <form onSubmit={handleVerifyResetOtp}>
                 <div className="form-group">
                   <label className="form-label">Mã xác thực OTP (Đã gửi tới {resetEmail})</label>
-                  <input 
-                    className="form-input" 
-                    placeholder="Nhập 6 số" 
-                    maxLength={6}
-                    style={{ letterSpacing: '4px', textAlign: 'center', fontWeight: 'bold' }}
-                    value={otpInput}
-                    onChange={(e) => setOtpInput(e.target.value.replace(/[^0-9]/g, ''))}
-                    required
-                  />
+                  <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', margin: '12px 0' }}>
+                    {otpValues.map((val, index) => (
+                      <input
+                        key={index}
+                        ref={el => otpRefs.current[index] = el}
+                        className="form-input"
+                        style={{ 
+                          width: '40px', 
+                          height: '44px', 
+                          textAlign: 'center', 
+                          fontSize: '18px', 
+                          fontWeight: 'bold', 
+                          padding: 0,
+                          borderRadius: '8px'
+                        }}
+                        maxLength={1}
+                        value={val}
+                        onChange={(e) => handleOtpChange(e.target.value, index)}
+                        onKeyDown={(e) => handleOtpKeyDown(e, index)}
+                        onPaste={handleOtpPaste}
+                      />
+                    ))}
+                  </div>
                   <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '6px', textAlign: 'center' }}>
                     (Check hòm thư email của bạn hoặc nhật ký console log local để nhận mã)
                   </div>
                 </div>
                 
-                <button type="submit" className="btn-gold btn" style={{ width: '100%', padding: '11px', marginBottom: '16px' }} disabled={loading}>
+                <button type="submit" className="btn-gold btn" style={{ width: '100%', padding: '11px', marginBottom: '16px' }} disabled={loading || otpValues.join('').length < 6}>
                   Xác minh mã OTP
                 </button>
 
                 <div style={{ textAlign: 'center' }}>
-                  <span onClick={() => { setAuthMode('forgotPassword'); setError(''); }} style={{ fontSize: '13px', color: 'var(--text-muted)', cursor: 'pointer' }}>Gửi lại mã OTP mới</span>
+                  <span onClick={() => { setAuthMode('forgotPassword'); setError(''); setOtpValues(['', '', '', '', '', '']); }} style={{ fontSize: '13px', color: 'var(--text-muted)', cursor: 'pointer' }}>Gửi lại mã OTP mới</span>
                 </div>
               </form>
             )}
