@@ -92,11 +92,33 @@ export default defineConfig(({ mode }) => {
                     });
                   }
 
+                  // If it's a contract, we attach the PDF document
+                  const isContract = templateName === 'HopDongMua' || templateName === 'HopDongBan';
+                  const attachments = [];
+                  
+                  if (isContract && templateData) {
+                    try {
+                      const { generateContractPdf } = await import('./src/utils/contractGenerator.js');
+                      
+                      const pdfBuffer = await generateContractPdf(templateData);
+                      
+                      attachments.push({
+                        filename: `HopDong_${templateData.contractId || 'ORD'}.pdf`,
+                        content: pdfBuffer
+                      });
+                      
+                      console.log(`📄 Generated contract PDF for ${templateData.contractId}`);
+                    } catch (genErr) {
+                      console.error('❌ Error generating contract PDF:', genErr);
+                    }
+                  }
+
                   const info = await transporter.sendMail({
                     from: mailFrom,
                     to,
                     subject,
-                    html
+                    html,
+                    attachments
                   });
 
                   console.log(`✉️ Email successfully sent to ${to}: ${info.messageId}`);

@@ -300,7 +300,7 @@ export default function Trade() {
   }, [activeTab, goldBalances, selectedGoldKey]);
 
   const activeItem = prices[selectedGoldKey] || { name: 'Đang tải...', buy: 0, sell: 0, diff: 0, change: '▲ +0.00%', up: true };
-  const currentPrice = activeTab === 'sell' ? activeItem.buy : activeItem.sell;
+  const currentPrice = (activeTab === 'sell' ? activeItem.buy : activeItem.sell) / 10;
 
   const handleQuantityChange = (val) => {
     // Chỉ cho phép số và dấu chấm thập phân
@@ -373,7 +373,7 @@ export default function Trade() {
       // Tải thông tin user profile
       const { data: dbUser, error: userErr } = await supabase
         .from('user_profiles')
-        .select('id, full_name, wallet_address')
+        .select('id, full_name, phone, id_card_number')
         .eq('auth_user_id', session.user.id)
         .single();
       
@@ -497,6 +497,9 @@ export default function Trade() {
 
         const invoiceInfo = {
           name: dbUser.full_name || session.user.email.split('@')[0],
+          phone: dbUser.phone || '',
+          cccd: dbUser.id_card_number || '',
+          email: session.user.email || '',
           contractId: ordId,
           goldType: activeItem.name,
           quantity: `${qtyVal.toString()} (${Number((qtyVal * 3.75).toFixed(4))}g)`,
@@ -526,7 +529,7 @@ export default function Trade() {
             orderId: ordId,
             pdfHash: pdfHashBuy,
             goldAmount: Number((qtyVal * 3.75).toFixed(4)),
-            userWallet: dbUser.wallet_address || null
+            userWallet: window.localStorage.getItem('meta_wallet') || null
           })
         }).catch(err => console.error("Lỗi Transaction Web3:", err));
 
@@ -615,6 +618,9 @@ export default function Trade() {
             templateName: 'HopDongBan',
             templateData: {
               name: dbUser.full_name || session.user.email.split('@')[0],
+              phone: dbUser.phone || '',
+              cccd: dbUser.id_card_number || '',
+              email: session.user.email || '',
               contractId: ordId,
               goldType: activeItem.name,
               quantity: `${qtyVal.toString()} (${Number((qtyVal * 3.75).toFixed(4))}g)`,
@@ -634,7 +640,7 @@ export default function Trade() {
             orderId: ordId,
             pdfHash: pdfHashSell,
             goldAmount: Number((qtyVal * 3.75).toFixed(4)),
-            userWallet: dbUser.wallet_address || null
+            userWallet: window.localStorage.getItem('meta_wallet') || null
           })
         }).catch(err => console.error("Lỗi Transaction Web3:", err));
 
@@ -734,7 +740,7 @@ export default function Trade() {
             orderId: ordId,
             pdfHash: pdfHashWithdraw,
             goldAmount: Number((qtyVal * 3.75).toFixed(4)),
-            userWallet: dbUser.wallet_address || null
+            userWallet: window.localStorage.getItem('meta_wallet') || null
           })
         }).catch(err => console.error("Lỗi Transaction Web3:", err));
 
@@ -1169,7 +1175,7 @@ export default function Trade() {
                 const balText = activeTab !== 'buy' ? ` - Có sẵn: ${getGoldBalance(key).toFixed(3)} chỉ` : '';
                 return (
                   <option key={key} value={key}>
-                    {prices[key]?.name}{balText} (&bull; ₫{(activeTab === 'sell' ? prices[key]?.buy : prices[key]?.sell)?.toLocaleString('vi-VN')}/chỉ)
+                    {prices[key]?.name}{balText} (&bull; ₫{((activeTab === 'sell' ? prices[key]?.buy : prices[key]?.sell) / 10)?.toLocaleString('vi-VN')}/chỉ)
                   </option>
                 );
               })}

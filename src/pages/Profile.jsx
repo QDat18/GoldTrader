@@ -48,8 +48,8 @@ export default function Profile() {
       const accounts = await provider.send('eth_requestAccounts', []);
       if (accounts.length > 0) {
         setWalletAddress(accounts[0]);
-        // Cập nhật CSDL
-        await supabase.from('user_profiles').update({ wallet_address: accounts[0] }).eq('id', user.id);
+        // Cập nhật LocalStorage thay vì CSDL
+        window.localStorage.setItem('meta_wallet', accounts[0]);
         updateProfile({ walletAddress: accounts[0] });
         showToast('Kết nối ví thành công!', 'success');
       }

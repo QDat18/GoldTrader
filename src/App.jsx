@@ -162,7 +162,7 @@ function App() {
             email: authUser.email,
             cccd: dbUser.id_card_number,
             role: normalizeRole(dbUser.role),
-            walletAddress: dbUser.wallet_address || '',
+            walletAddress: window.localStorage.getItem('meta_wallet') || '',
             kycStep: dbUser.kyc_status === 'VERIFIED' ? 3 : 2,
             kycStatus: dbUser.kyc_status?.toLowerCase() || 'pending',
             kycRejectionReason: dbUser.kyc_rejection_reason || ''
