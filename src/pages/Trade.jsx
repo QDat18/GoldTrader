@@ -22,6 +22,7 @@ export default function Trade() {
   const prices = useStore((state) => state.goldPrices);
   const walletBalance = useStore((state) => state.walletBalance);
   const goldBalances = useStore((state) => state.goldBalances);
+  const transactions = useStore((state) => state.transactions);
   const depositMoney = useStore((state) => state.depositMoney);
   const fetchGoldPrices = useStore((state) => state.fetchGoldPrices);
   const fetchUserBalances = useStore((state) => state.fetchUserBalances);
@@ -265,7 +266,16 @@ export default function Trade() {
   }, [chartData]);
 
   const getGoldBalance = (keyOverride) => {
-    return goldBalances[keyOverride || selectedGoldKey] || 0;
+    const key = keyOverride || selectedGoldKey;
+    const balance = goldBalances[key] || 0;
+    
+    // Đóng băng lượng vàng đang kẹt trong các đơn rút O2O chưa hoàn thành
+    const goldName = prices[key]?.name || key;
+    const pendingWithdrawalChi = transactions
+      .filter(t => t.type === 'withdraw' && t.status === 'Chờ nhận tại quầy' && t.goldTypeName === goldName)
+      .reduce((sum, t) => sum + Number(t.quantity), 0);
+      
+    return Math.max(0, balance - pendingWithdrawalChi);
   };
 
   const goldListKeys = Object.keys(prices);
@@ -465,6 +475,7 @@ export default function Trade() {
         // 3. Ghi log order hoàn thành lập tức lên Supabase
         const payloadStrBuy = `${ordId}|BUY|${dbUser.id}|${exactGoldType}|${qtyVal}|${amountVal}|${new Date().toISOString()}`;
         const pdfHashBuy = await generateBlockchainHash(payloadStrBuy);
+        const secretTokenBuy = 'TOK-' + Math.random().toString(36).substr(2, 9).toUpperCase();
         await supabase
           .schema('financial_ledgers')
           .from('orders')
@@ -478,7 +489,7 @@ export default function Trade() {
             total_amount_vnd: amountVal,
             order_status: 'COMPLETED',
             payment_status: 'PAID',
-            secure_token: 'TOK-' + Math.random().toString(36).substr(2, 9).toUpperCase(),
+            secure_token: secretTokenBuy,
             pdf_hash: pdfHashBuy
           });
 
@@ -562,6 +573,7 @@ export default function Trade() {
         // 3. Ghi log order hoàn thành lập tức lên Supabase
         const payloadStrSell = `${ordId}|SELL|${dbUser.id}|${exactGoldType}|${qtyVal}|${amountVal}|${new Date().toISOString()}`;
         const pdfHashSell = await generateBlockchainHash(payloadStrSell);
+        const secretTokenSell = 'TOK-' + Math.random().toString(36).substr(2, 9).toUpperCase();
         await supabase
           .schema('financial_ledgers')
           .from('orders')
@@ -575,7 +587,7 @@ export default function Trade() {
             total_amount_vnd: amountVal,
             order_status: 'COMPLETED',
             payment_status: 'PAID',
-            secure_token: 'TOK-' + Math.random().toString(36).substr(2, 9).toUpperCase(),
+            secure_token: secretTokenSell,
             pdf_hash: pdfHashSell
           });
 
@@ -639,25 +651,12 @@ export default function Trade() {
           return;
         }
 
-        // 1. Khấu trừ Ví vàng online tạm thời của khách (đóng băng để chuyển thành vàng thật)
-        const sourceKey = selectedGoldKey;
-        useStore.setState((state) => ({
-          goldBalances: {
-            ...state.goldBalances,
-            [sourceKey]: Math.max(0, parseFloat((state.goldBalances[sourceKey] - qtyVal).toFixed(4)))
-          }
-        }));
-
-        // 2. Trừ Ví vàng trong CSDL Supabase
-        const newGrams = Math.max(0, Number((currentGrams - (qtyVal * 3.75)).toFixed(4)));
-        await supabase
-          .from('gold_wallets')
-          .update({ quantity_grams: newGrams })
-          .eq('id', wallets[0].id);
+        // 1 & 2: Không khấu trừ ví tại đây theo yêu cầu mới. Ví sẽ bị trừ khi O2O Admin bấm xác nhận bàn giao.
 
         // 3. Đăng ký một đơn rút vàng vật chất PENDING (Chờ quét QR tại quầy)
         const payloadStrWithdraw = `${ordId}|WITHDRAW|${dbUser.id}|${exactGoldType}|${qtyVal}|${amountVal}|${new Date().toISOString()}`;
         const pdfHashWithdraw = await generateBlockchainHash(payloadStrWithdraw);
+        const secretToken = 'TOK-' + Math.random().toString(36).substr(2, 9).toUpperCase();
         await supabase
           .schema('financial_ledgers')
           .from('orders')
@@ -671,7 +670,7 @@ export default function Trade() {
             total_amount_vnd: amountVal,
             order_status: 'WAITING_PICKUP',
             payment_status: 'PAID',
-            secure_token: 'TOK-' + Math.random().toString(36).substr(2, 9).toUpperCase(),
+            secure_token: secretToken,
             pdf_hash: pdfHashWithdraw
           });
 
@@ -680,8 +679,6 @@ export default function Trade() {
           'HCM_456_NTMK': 'TP.HCM: 456 Nguyễn Thị Minh Khai, Quận 3',
           'DN_789_NVL': 'Đà Nẵng: 789 Nguyễn Văn Linh, Quận Hải Châu'
         };
-
-        const secretToken = 'TOK-' + Math.random().toString(36).substr(2, 9).toUpperCase();
 
         // Gửi Thư mời nhận vàng qua Email (Kèm Mã QR / Mã bảo mật)
         fetch('/api/send-email', {

@@ -17,7 +17,8 @@ export default function AdminO2o() {
   const fetchAdminOrders = useStore(state => state.fetchAdminOrders);
 
   // States
-  const [qrInput, setQrInput] = useState('');
+  const [orderIdInput, setOrderIdInput] = useState('');
+  const [secureTokenInput, setSecureTokenInput] = useState('');
   const [o2oError, setO2oError] = useState('');
   const [matchedOrder, setMatchedOrder] = useState(null);
   const [matchedUser, setMatchedUser] = useState(null);
@@ -26,24 +27,21 @@ export default function AdminO2o() {
 
 
 
-  const handleVerifyO2oQr = (customInput) => {
+  const handleVerifyO2oQr = (customOrderId, customToken) => {
     setO2oError('');
     setMatchedOrder(null);
     setMatchedUser(null);
     setTotpVerificationResult(null);
 
-    const inputVal = typeof customInput === 'string' ? customInput : qrInput;
+    const checkOrderId = typeof customOrderId === 'string' ? customOrderId.trim() : orderIdInput.trim();
+    const otp = typeof customToken === 'string' ? customToken.trim() : secureTokenInput.trim();
 
-    if (!inputVal.trim()) {
-      setO2oError('Vui lòng nhập mã QR hoặc token xác thực.');
+    if (!checkOrderId) {
+      setO2oError('Vui lòng nhập Mã hợp đồng (Order ID).');
       return;
     }
 
-    const parts = inputVal.trim().split('#');
-    const orderId = parts[0];
-    const otp = parts[1] || '';
-
-    const order = dbOrders.find(o => o.id === orderId);
+    const order = dbOrders.find(o => o.id === checkOrderId);
     if (!order) {
       setO2oError('Không tìm thấy đơn hàng tương ứng với mã cung cấp.');
       return;
@@ -55,59 +53,30 @@ export default function AdminO2o() {
     }
 
     const client = usersMap[order.user_id] || { full_name: 'Khách hàng', phone: '—', id_card_number: '—' };
-    setMatchedOrder(order);
-    setMatchedUser(client);
 
-    if (otp) {
-      if (otp.length === 6) {
-        setTotpVerificationResult({
-          valid: true,
-          message: 'Mã Dynamic QR khớp hoàn toàn! Xác minh thời gian thực (TOTP) hợp lệ.'
-        });
-      } else {
-        setTotpVerificationResult({
-          valid: false,
-          message: 'Mã Dynamic QR không hợp lệ hoặc đã hết hạn (chu kỳ 30 giây).'
-        });
-      }
-    } else {
+    if (!otp) {
+      setO2oError('Bắt buộc: Khách hàng phải cung cấp Mã bảo mật (Token) trong Email để nhận vàng.');
+      return;
+    }
+
+    if (otp === order.secure_token) {
+      setMatchedOrder(order);
+      setMatchedUser(client);
       setTotpVerificationResult({
         valid: true,
-        message: 'Xác thực thủ công (Admin Bypass) thành công.'
+        message: 'Mã Lệnh bảo mật hợp lệ! Xác định chính xác chủ sở hữu tài sản.'
+      });
+    } else {
+      setO2oError('Mã Bảo Mật không trùng khớp hoặc sai cú pháp (Báo động: Nghi vấn gian lận).');
+      setTotpVerificationResult({
+        valid: false,
+        message: 'Từ chối hiển thị thông tin bảng đối chiếu do bảo mật.'
       });
     }
 
     // Auto select matching bar
-    const getGoldTypeCode = (name) => {
-      if (!name) return '';
-      const reverseMap = {
-        "sjc 9999": "SJL1L10",
-        "nhẫn sjc": "SJ9999",
-        "bảo tín sjc": "BTSJC",
-        "bảo tín 9999": "BT9999NTT",
-        "doji hà nội": "DOHNL",
-        "doji hcm": "DOHCML",
-        "doji nữ trang": "DOJINHTV",
-        "pnj hà nội": "PQHNVM",
-        "pnj 24k": "PQHN24NTT",
-        "vn gold sjc": "VNGSJC",
-        "viettin sjc": "VIETTINMSJC"
-      };
-      return reverseMap[name.toLowerCase()] || '';
-    };
-
-    const isLegacyTypeMatch = (legacyType, orderName) => {
-      const l = legacyType.toLowerCase();
-      const o = orderName.toLowerCase();
-      if (l === 'sjc') return o.includes('sjc') || o.includes('viettin') || o.includes('vn gold');
-      if (l === 'pnj') return o.includes('pnj');
-      if (l === 'doji') return o.includes('doji');
-      return false;
-    };
-
-    const goldTypeCode = getGoldTypeCode(order.gold_type);
     const matchingBar = dbInventory.find(i => 
-      (i.gold_type === goldTypeCode || isLegacyTypeMatch(i.gold_type, order.gold_type)) && 
+      i.gold_type === order.gold_type && 
       i.status === 'AVAILABLE'
     );
     if (matchingBar) {
@@ -145,6 +114,22 @@ export default function AdminO2o() {
         if (invErr) throw invErr;
       }
 
+      // Trừ ví vàng của user vào lúc Admin bấm xác nhận
+      const { data: walletData, error: walletErr } = await supabase
+        .from('gold_wallets')
+        .select('id, quantity_grams')
+        .eq('user_id', matchedOrder.user_id)
+        .eq('gold_type', matchedOrder.gold_type)
+        .single();
+      
+      if (!walletErr && walletData) {
+        const newGrams = Math.max(0, Number(walletData.quantity_grams) - Number(matchedOrder.quantity_grams));
+        await supabase
+          .from('gold_wallets')
+          .update({ quantity_grams: newGrams, last_updated_at: new Date().toISOString() })
+          .eq('id', walletData.id);
+      }
+
       // Gửi thông báo rút vàng thành công
       const qtyChỉ = (Number(matchedOrder.quantity_grams) / 3.75).toFixed(3);
       await supabase.from('notifications').insert({
@@ -159,7 +144,8 @@ export default function AdminO2o() {
       alert(`Đã bàn giao vàng vật chất thành công!\n- Đơn hàng: ${matchedOrder.id}\n- Thỏi vàng Serial: ${selectedInventoryBar || 'Tự động'}\n- Khách nhận: ${matchedUser.full_name}`);
 
       // Reset
-      setQrInput('');
+      setOrderIdInput('');
+      setSecureTokenInput('');
       setMatchedOrder(null);
       setMatchedUser(null);
       setSelectedInventoryBar('');
@@ -182,8 +168,8 @@ export default function AdminO2o() {
       const params = new URLSearchParams(location.search);
       const urlOrderId = params.get('order_id');
       if (urlOrderId) {
-        setQrInput(urlOrderId);
-        handleVerifyO2oQr(urlOrderId);
+        setOrderIdInput(urlOrderId);
+        handleVerifyO2oQr(urlOrderId, '');
       }
     }
   }, [location.search, dbOrders]);
@@ -205,44 +191,37 @@ export default function AdminO2o() {
         </p>
 
         <div className="form-group">
-          <label className="form-label">Mã xác thực O2O (Order ID # TOTP)</label>
-          <div style={{ display: 'flex', gap: '10px' }}>
-            <input
-              className="form-input"
-              value={qrInput}
-              onChange={(e) => setQrInput(e.target.value)}
-              placeholder="Ví dụ: ORD-20260707-123456#889900"
-              style={{ background: '#121212', borderRadius: '8px' }}
-            />
-            <button className="btn btn-gold" onClick={() => handleVerifyO2oQr()} style={{ borderRadius: '99px', padding: '0 24px', fontWeight: 600, whiteSpace: 'nowrap' }}>
-              Xác thực
-            </button>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: '10px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              <label className="form-label" style={{ fontSize: '13px', marginBottom: '6px' }}>Mã Hợp Đồng</label>
+              <input
+                className="form-input"
+                value={orderIdInput}
+                onChange={(e) => setOrderIdInput(e.target.value)}
+                placeholder="VD: ORD-123456"
+                style={{ background: '#121212', borderRadius: '8px' }}
+              />
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              <label className="form-label" style={{ fontSize: '13px', marginBottom: '6px', color: 'var(--gold)' }}>Mã Bảo Mật Email</label>
+              <input
+                className="form-input"
+                value={secureTokenInput}
+                onChange={(e) => setSecureTokenInput(e.target.value)}
+                placeholder="VD: TOK-ABCDEF"
+                style={{ background: '#121212', borderRadius: '8px', border: '1px solid rgba(212,175,55,0.2)' }}
+              />
+            </div>
+            <div style={{ display: 'flex', alignItems: 'flex-end' }}>
+              <button className="btn btn-gold" onClick={() => handleVerifyO2oQr()} style={{ borderRadius: '8px', padding: '0 24px', height: '46px', fontWeight: 600, whiteSpace: 'nowrap' }}>
+                Xác thực
+              </button>
+            </div>
           </div>
-          {o2oError && <div style={{ color: 'var(--ruby)', fontSize: '12px', marginTop: '6px' }}>{o2oError}</div>}
+          {o2oError && <div style={{ color: 'var(--ruby)', fontSize: '12px', marginTop: '10px' }}>{o2oError}</div>}
         </div>
 
-        <div style={{ marginTop: '24px', background: 'rgba(255,255,255,0.02)', padding: '16px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.04)' }}>
-          <div style={{ fontWeight: 600, fontSize: '13px', color: '#fff', marginBottom: '8px' }}>Phím tắt demo nhanh:</div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-            {pendingOrders.filter(o => o.order_type === 'WITHDRAW_PHYSICAL' || o.order_type === 'PHYSICAL_WITHDRAWAL').map(o => (
-              <button
-                key={o.id}
-                className="btn btn-sm"
-                onClick={() => {
-                  const demoVal = `${o.id}#${Math.floor(100000 + Math.random() * 900000)}`;
-                  setQrInput(demoVal);
-                  handleVerifyO2oQr(demoVal);
-                }}
-                style={{ fontSize: '11px', background: 'rgba(212,175,55,0.08)', borderColor: 'rgba(212,175,55,0.2)', color: 'var(--gold)' }}
-              >
-                Duyệt đơn {o.id.substring(0, 12)}...
-              </button>
-            ))}
-            {pendingOrders.filter(o => o.order_type === 'WITHDRAW_PHYSICAL' || o.order_type === 'PHYSICAL_WITHDRAWAL').length === 0 && (
-              <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Không có đơn rút vàng vật chất PENDING nào trên CSDL.</span>
-            )}
-          </div>
-        </div>
+
       </div>
 
       {/* Results Panel */}
@@ -319,37 +298,7 @@ export default function AdminO2o() {
               >
                 <option value="">-- Tự động phân bổ thỏi ngẫu nhiên --</option>
                 {availableInventory
-                  .filter(i => {
-                    const getGoldTypeCode = (name) => {
-                      if (!name) return '';
-                      const reverseMap = {
-                        "sjc 9999": "SJL1L10",
-                        "nhẫn sjc": "SJ9999",
-                        "bảo tín sjc": "BTSJC",
-                        "bảo tín 9999": "BT9999NTT",
-                        "doji hà nội": "DOHNL",
-                        "doji hcm": "DOHCML",
-                        "doji nữ trang": "DOJINHTV",
-                        "pnj hà nội": "PQHNVM",
-                        "pnj 24k": "PQHN24NTT",
-                        "vn gold sjc": "VNGSJC",
-                        "viettin sjc": "VIETTINMSJC"
-                      };
-                      return reverseMap[name.toLowerCase()] || '';
-                    };
-
-                    const isLegacyTypeMatch = (legacyType, orderName) => {
-                      const l = legacyType.toLowerCase();
-                      const o = orderName.toLowerCase();
-                      if (l === 'sjc') return o.includes('sjc') || o.includes('viettin') || o.includes('vn gold');
-                      if (l === 'pnj') return o.includes('pnj');
-                      if (l === 'doji') return o.includes('doji');
-                      return false;
-                    };
-
-                    const targetGoldTypeCode = getGoldTypeCode(matchedOrder.gold_type);
-                    return i.gold_type === targetGoldTypeCode || isLegacyTypeMatch(i.gold_type, matchedOrder.gold_type);
-                  })
+                  .filter(i => i.gold_type === matchedOrder.gold_type)
                   .map(i => (
                     <option key={i.gold_serial} value={i.gold_serial}>
                       {i.gold_serial} ({i.weight_grams}g)
@@ -381,7 +330,7 @@ export default function AdminO2o() {
 
             <button
               onClick={handleDispatchGold}
-              disabled={totpVerificationResult && !totpVerificationResult.valid}
+              disabled={!totpVerificationResult || !totpVerificationResult.valid}
               className="btn btn-gold"
               style={{ width: '100%', padding: '14px', borderRadius: '99px', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '15px' }}
             >

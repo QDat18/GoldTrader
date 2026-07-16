@@ -184,6 +184,37 @@ export default function History() {
           </div>
         </div>
 
+        {/* Pending Withdrawals O2O */}
+        {(() => {
+          const pendingWithdrawals = transactions.filter(t => t.type === 'withdraw' && t.status === 'Chờ nhận tại quầy');
+          if (pendingWithdrawals.length === 0) return null;
+          return (
+            <div style={{ marginBottom: '32px' }}>
+              <div className="h3" style={{ marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <i className="ti ti-clock" style={{ color: 'var(--gold)' }}></i> Yêu cầu Rút Vàng Đang chờ Bàn giao
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                {pendingWithdrawals.map(req => (
+                  <div key={req.id} style={{ background: 'rgba(212,175,55,0.05)', border: '1px solid rgba(212,175,55,0.2)', borderRadius: '16px', padding: '16px', position: 'relative', overflow: 'hidden' }}>
+                    <div style={{ position: 'absolute', top: 0, left: 0, bottom: 0, width: '4px', background: 'var(--gold)' }}></div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                      <div>
+                        <div style={{ fontSize: '12px', color: 'var(--gold)', fontWeight: 600, letterSpacing: '0.05em' }}>MÃ HỢP ĐỒNG: {req.id}</div>
+                        <div style={{ fontSize: '18px', fontWeight: 'bold', color: 'white', marginTop: '4px' }}>{req.goldTypeName}</div>
+                        <div style={{ fontSize: '14px', color: 'var(--text-muted)', marginTop: '4px' }}>Số lượng: {req.quantity} chỉ ({(req.quantity * 3.75).toFixed(2)}g)</div>
+                      </div>
+                      <div style={{ textAlign: 'right' }}>
+                        <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{new Date(req.time).toLocaleString('vi-VN')}</div>
+                        <div style={{ padding: '6px 12px', background: 'rgba(212,175,55,0.1)', color: 'var(--gold)', borderRadius: '99px', fontSize: '12px', fontWeight: 600, marginTop: '12px', display: 'inline-block' }}>Chờ xác thực tại quầy</div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          );
+        })()}
+
         {/* Table */}
         <div className="card" style={{ borderRadius: '24px', background: 'rgba(30,30,30,0.3)', border: '1px solid rgba(255,255,255,0.05)', overflow: 'hidden', padding: 0 }}>
           <div style={{ overflowX: 'auto' }}>
