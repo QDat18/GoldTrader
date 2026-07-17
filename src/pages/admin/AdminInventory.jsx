@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import Swal from 'sweetalert2';
 import useStore from '../../store/useStore';
 import { supabase } from '../../supabaseClient';
 import { Plus } from 'lucide-react';
@@ -66,7 +67,7 @@ export default function AdminInventory() {
       }
 
       showToast(`Nhập kho thỏi vàng ${serialUpper} thành công!`, 'success');
-      alert(`Nhập kho thỏi vàng ${serialUpper} thành công!`);
+      Swal.fire('Thành công', `Nhập kho thỏi vàng ${serialUpper} thành công!`, 'success');
 
       if (currentUser?.id) {
         await supabase.from('notifications').insert({

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import Swal from 'sweetalert2';
 import useStore from '../store/useStore';
 
 export default function Dca() {
@@ -26,12 +27,12 @@ export default function Dca() {
   const handleSave = () => {
     const amt = parseInt(amount, 10);
     if (isNaN(amt) || amt < 100000) {
-      alert('Số tiền tích lũy tối thiểu là ₫100.000');
+      Swal.fire('Lỗi', 'Số tiền tích lũy tối thiểu là ₫100.000', 'error');
       return;
     }
     createDcaPlan(goldType, amt, frequency, day);
     setShowCreateForm(false);
-    alert('Đã tạo kế hoạch DCA tích lũy vàng định kỳ mới!');
+    Swal.fire('Thành công', 'Đã tạo kế hoạch DCA tích lũy vàng định kỳ mới!', 'success');
   };
 
   return (
@@ -141,12 +142,12 @@ export default function Dca() {
                   )}
                   
                   {isRunning ? (
-                    <button className="btn" style={{ padding: '8px 16px', fontSize: '13px', borderRadius: '99px' }} onClick={() => { pauseDcaPlan(p.id); alert('Kế hoạch tích lũy đã tạm dừng.'); }}>Tạm dừng</button>
+                    <button className="btn" style={{ padding: '8px 16px', fontSize: '13px', borderRadius: '99px' }} onClick={() => { pauseDcaPlan(p.id); Swal.fire('Thông báo', 'Kế hoạch tích lũy đã tạm dừng.', 'info'); }}>Tạm dừng</button>
                   ) : (
-                    <button className="btn" style={{ padding: '8px 16px', fontSize: '13px', borderRadius: '99px', background: 'var(--bg-main)', color: 'var(--gold)', border: '1px solid var(--gold)' }} onClick={() => { resumeDcaPlan(p.id); alert('Kế hoạch tích lũy đã hoạt động trở lại.'); }}>Kích hoạt</button>
+                    <button className="btn" style={{ padding: '8px 16px', fontSize: '13px', borderRadius: '99px', background: 'var(--bg-main)', color: 'var(--gold)', border: '1px solid var(--gold)' }} onClick={() => { resumeDcaPlan(p.id); Swal.fire('Thông báo', 'Kế hoạch tích lũy đã hoạt động trở lại.', 'success'); }}>Kích hoạt</button>
                   )}
                   
-                  <button className="btn" style={{ padding: '8px 16px', fontSize: '13px', borderRadius: '99px', color: 'var(--ruby)', border: '1px solid rgba(239, 68, 68, 0.3)', background: 'rgba(239,68,68,0.05)' }} onClick={() => { if (window.confirm('Bạn có chắc chắn muốn hủy kế hoạch tích lũy này không?')) { cancelDcaPlan(p.id); alert('Đã hủy kế hoạch tích lũy.'); } }}>Huỷ</button>
+                  <button className="btn" style={{ padding: '8px 16px', fontSize: '13px', borderRadius: '99px', color: 'var(--ruby)', border: '1px solid rgba(239, 68, 68, 0.3)', background: 'rgba(239,68,68,0.05)' }} onClick={async () => { const res = await Swal.fire({title: 'Xác nhận hủy', text: 'Bạn có chắc chắn muốn hủy kế hoạch tích lũy này không?', icon: 'warning', showCancelButton: true, confirmButtonText: 'Đồng ý', cancelButtonText: 'Hủy'}); if (res.isConfirmed) { cancelDcaPlan(p.id); Swal.fire('Đã hủy', 'Đã hủy kế hoạch tích lũy.', 'success'); } }}>Huỷ</button>
                 </div>
               </div>
               

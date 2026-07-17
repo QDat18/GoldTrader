@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import Swal from 'sweetalert2';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import useStore from '../store/useStore';
 import {
@@ -101,7 +102,7 @@ export function UserNavbar() {
       setIsDepositModalOpen(false);
       setDepositAmount('5000000');
     } else {
-      alert('Số tiền không hợp lệ.');
+      Swal.fire('Lỗi', 'Số tiền không hợp lệ.', 'error');
     }
   };
 

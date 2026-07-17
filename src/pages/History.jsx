@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import Swal from 'sweetalert2';
 import useStore from '../store/useStore';
 
 export default function History() {
@@ -51,7 +52,7 @@ export default function History() {
   const realizedPnl = Math.round(totalSell * 0.08); // Mock dynamic PNL
 
   const handleExport = () => {
-    alert('Tải xuống báo cáo giao dịch (CSV) thành công!');
+    Swal.fire('Thành công', 'Tải xuống báo cáo giao dịch (CSV) thành công!', 'success');
   };
 
   return (
@@ -293,7 +294,7 @@ export default function History() {
                             </button>
                             <button 
                               onClick={() => {
-                                alert('Tính năng xem lại Hợp đồng PDF đang được hoàn thiện.');
+                                Swal.fire('Thông báo', 'Tính năng xem lại Hợp đồng PDF đang được hoàn thiện.', 'info');
                               }}
                               style={{ padding: '6px 12px', fontSize: '12px', background: 'rgba(255,255,255,0.05)', color: '#fff', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', cursor: 'pointer', transition: '0.2s' }}
                             >

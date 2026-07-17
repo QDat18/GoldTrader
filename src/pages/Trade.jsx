@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import Swal from 'sweetalert2';
 import useStore from '../store/useStore';
 import { supabase } from '../supabaseClient';
 import { useNavigate } from 'react-router-dom';
@@ -366,24 +367,18 @@ export default function Trade() {
       return;
     }
 
-    let confirmMsg = '';
-    const goldName = activeItem?.name || selectedGoldKey;
-    if (activeTab === 'buy') {
-      confirmMsg = `XÁC NHẬN MUA VÀNG:\nBạn chắc chắn muốn MUA ${qtyVal} chỉ vàng ${goldName} với tổng thanh toán ${Math.round(amountVal).toLocaleString('vi-VN')} VNĐ không?`;
-    } else if (activeTab === 'sell') {
-      confirmMsg = `XÁC NHẬN BÁN VÀNG:\nBạn chắc chắn muốn BÁN ${qtyVal} chỉ vàng ${goldName} để nhận về ${Math.round(amountVal).toLocaleString('vi-VN')} VNĐ không?`;
-    } else if (activeTab === 'withdraw') {
-      const storeNameMap = {
-        'HN_123_THAIHA': 'Hà Nội: 123 Thái Hà, Đống Đa',
-        'HCM_456_NTMK': 'TP.HCM: 456 Nguyễn Thị Minh Khai, Q3',
-        'DN_789_NVL': 'Đà Nẵng: 789 Nguyễn Văn Linh'
-      };
-      const storeLabel = storeNameMap[pickupStore] || pickupStore;
-      confirmMsg = `XÁC NHẬN RÚT VÀNG:\nBạn chắc chắn muốn lập lệnh yêu cầu RÚT VẬT CHẤT ${qtyVal} chỉ vàng ${goldName} tại chi nhánh:\n${storeLabel} không?`;
-    }
-
-    if (!window.confirm(confirmMsg)) {
-      return;
+    if (activeTab === 'sell') {
+      const result = await Swal.fire({
+        title: 'Xác nhận bán',
+        text: 'Bạn có đồng ý bán?',
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonText: 'Đồng ý',
+        cancelButtonText: 'Hủy'
+      });
+      if (!result.isConfirmed) {
+        return;
+      }
     }
 
     const { data: { session } } = await supabase.auth.getSession();

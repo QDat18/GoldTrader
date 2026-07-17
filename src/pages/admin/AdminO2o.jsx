@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import Swal from 'sweetalert2';
 import { useLocation, useNavigate } from 'react-router-dom';
 import useStore from '../../store/useStore';
 import { supabase } from '../../supabaseClient';
@@ -91,7 +92,16 @@ export default function AdminO2o() {
 
     const confirmMsg = `QUẢN TRỊ VIÊN XÁC NHẬN BÀN GIAO:\n\nĐơn hàng: ${matchedOrder.id}\nSản phẩm: ${(Number(matchedOrder.quantity_grams) / 3.75).toFixed(3)} chỉ ${matchedOrder.gold_type.toUpperCase()}\nThỏi Serial: ${selectedInventoryBar || 'Hệ thống tự động chọn'}\nKhách nhận: ${matchedUser.full_name} (CCCD: ${matchedUser.id_card_number})\n\nThao tác này là CUỐI CÙNG, sẽ khấu trừ ví vàng của khách và đóng đơn vĩnh viễn. Bạn có chắc chắn muốn xác nhận bàn giao không?`;
     
-    if (!window.confirm(confirmMsg)) {
+    const result = await Swal.fire({
+      title: 'Xác nhận bàn giao',
+      html: confirmMsg.replace(/\n/g, '<br/>'),
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Đồng ý',
+      cancelButtonText: 'Hủy'
+    });
+    
+    if (!result.isConfirmed) {
       return;
     }
 
@@ -169,7 +179,7 @@ export default function AdminO2o() {
         });
       }
 
-      alert(`Đã bàn giao vàng vật chất thành công!\n- Đơn hàng: ${matchedOrder.id}\n- Thỏi vàng Serial: ${selectedInventoryBar || 'Tự động'}\n- Khách nhận: ${matchedUser.full_name}`);
+      Swal.fire('Thành công', `Đã bàn giao vàng vật chất thành công!\n- Đơn hàng: ${matchedOrder.id}\n- Thỏi vàng Serial: ${selectedInventoryBar || 'Tự động'}\n- Khách nhận: ${matchedUser.full_name}`, 'success');
 
       // Reset
       setOrderIdInput('');
@@ -184,7 +194,7 @@ export default function AdminO2o() {
       fetchAdminOrders();
     } catch (err) {
       console.error('Lỗi khi bàn giao vàng:', err);
-      alert('Không thể hoàn thành bàn giao: ' + err.message);
+      Swal.fire('Lỗi', 'Không thể hoàn thành bàn giao: ' + err.message, 'error');
     }
   };
 
