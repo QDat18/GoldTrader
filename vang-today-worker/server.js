@@ -18,6 +18,7 @@ const supabase = createClient(supabaseUrl, supabaseKey, {
 const SEPOLIA_URL = process.env.SEPOLIA_URL || "https://rpc.sepolia.org";
 const PRIVATE_KEY = process.env.PRIVATE_KEY; // Backend Admin Wallet
 const CONTRACT_ADDRESS = process.env.CONTRACT_ADDRESS;
+const MINT_API_KEY = process.env.MINT_API_KEY || 'goldchain-internal-secret-key';
 
 if (!PRIVATE_KEY || !CONTRACT_ADDRESS) {
   console.warn("⚠️ PRIVATE_KEY or CONTRACT_ADDRESS not found in environment. Blockchain Minting will simulate mode.");
@@ -34,9 +35,18 @@ const wallet = PRIVATE_KEY ? new ethers.Wallet(PRIVATE_KEY, provider) : null;
 const contract = wallet ? new ethers.Contract(CONTRACT_ADDRESS, ABI, wallet) : null;
 
 app.post("/api/mint", async (req, res) => {
+  // Authentication: kiểm tra API key
+  const apiKey = req.headers['x-api-key'];
+  if (apiKey !== MINT_API_KEY) {
+    return res.status(401).json({ success: false, error: "Unauthorized: Invalid API Key" });
+  }
+
   const { orderId, pdfHash, goldAmount, userWallet } = req.body;
   if (!orderId || !pdfHash) {
     return res.status(400).json({ success: false, error: "Missing orderId or pdfHash" });
+  }
+  if (!goldAmount || goldAmount <= 0) {
+    return res.status(400).json({ success: false, error: "goldAmount must be greater than 0" });
   }
 
   try {
@@ -51,15 +61,19 @@ app.post("/api/mint", async (req, res) => {
       const receipt = await tx.wait();
       console.log(`[Web3] Transaction Confirmed in block ${receipt.blockNumber}`);
       
-      // Sync into Supabase (Phase 2 completion logic)
-      const { error: dbErr } = await supabase.schema('public').from("blockchain_proofs").upsert({
-        order_id: orderId,
+      // Sync into Supabase (schema financial_ledgers)
+      const { error: dbErr } = await supabase.from("blockchain_proofs").upsert({
+        reference_type: "ORDER",
+        reference_id: orderId,
         network: "Sepolia",
         contract_address: CONTRACT_ADDRESS,
         tx_hash: tx.hash,
+        token_id: receipt.logs?.[0]?.args?.tokenId?.toString() || null,
         pdf_sha256: pdfHash,
-        status: "CONFIRMED"
-      });
+        status: "CONFIRMED",
+        block_number: receipt.blockNumber,
+        confirmed_at: new Date().toISOString()
+      }, { onConflict: 'tx_hash' });
       if (dbErr) console.error("Lỗi khi lưu blockchain_proofs:", dbErr);
 
       return res.json({ success: true, txHash: tx.hash });
@@ -68,14 +82,21 @@ app.post("/api/mint", async (req, res) => {
       const mockTxHash = "0x" + require("crypto").randomBytes(32).toString("hex");
       console.log(`[Mock-Web3] Simulated minting for Order ${orderId}. TxHash: ${mockTxHash}`);
       
-      const { error: dbErr2 } = await supabase.schema('public').from("blockchain_proofs").upsert({
-        order_id: orderId,
+      const mockTokenId = Math.floor(Math.random() * 100000) + 1;
+      const mockBlockNumber = Math.floor(Date.now() / 1000);
+
+      const { error: dbErr2 } = await supabase.from("blockchain_proofs").upsert({
+        reference_type: "ORDER",
+        reference_id: orderId,
         network: "Mock-Sepolia",
         contract_address: "MOCK_CONTRACT",
         tx_hash: mockTxHash,
+        token_id: String(mockTokenId),
         pdf_sha256: pdfHash,
-        status: "CONFIRMED_MOCK"
-      });
+        status: "CONFIRMED",
+        block_number: mockBlockNumber,
+        confirmed_at: new Date().toISOString()
+      }, { onConflict: 'tx_hash' });
       if (dbErr2) console.error("Lỗi khi lưu blockchain_proofs (mock):", dbErr2);
 
       return res.json({ success: true, txHash: mockTxHash, simulated: true });
@@ -95,9 +116,10 @@ app.get("/api/verify/:orderId", async (req, res) => {
   try {
     // Luôn ưu tiên quét proof thực tế trên CSDL thay vì gọi Blockchain
     // do Blockchain JSON RPC rất chậm và Supabase là nguồn sự thật được đồng bộ 1-1.
-    const { data, error } = await supabase.schema('public').from("blockchain_proofs")
-      .select("pdf_sha256")
-      .eq("order_id", orderId)
+    const { data, error } = await supabase.from("blockchain_proofs")
+      .select("pdf_sha256, tx_hash, network, status")
+      .eq("reference_type", "ORDER")
+      .eq("reference_id", orderId)
       .single();
 
     if (error || !data) {
@@ -111,10 +133,10 @@ app.get("/api/verify/:orderId", async (req, res) => {
       if (orderErr || !orderData) {
         return res.json({ success: false, error: "Order not found" });
       }
-      return res.json({ success: true, pdfHash: orderData.pdf_hash });
+      return res.json({ success: true, pdfHash: orderData.pdf_hash, source: 'orders_fallback' });
     }
     
-    return res.json({ success: true, pdfHash: data.pdf_sha256 });
+    return res.json({ success: true, pdfHash: data.pdf_sha256, txHash: data.tx_hash, network: data.network, source: 'blockchain_proofs' });
   } catch (e) {
     console.error("[Web3] Verify Error:", e.message);
     return res.status(500).json({ success: false, error: e.message });

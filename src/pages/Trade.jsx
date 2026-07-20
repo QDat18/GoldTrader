@@ -15,8 +15,15 @@ const generateBlockchainHash = async (payloadStr) => {
     const hashArray = Array.from(new Uint8Array(hashBuffer));
     return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
   } catch (err) {
-    console.error('Lỗi khi băm SHA-256:', err);
-    return 'HASH-' + Math.random().toString(36).substr(2, 9).toUpperCase();
+    console.error('Lỗi khi băm SHA-256 (crypto.subtle không khả dụng, cần HTTPS):', err);
+    // Fallback: tạo hash dựa trên nội dung payload (deterministic nhưng không an toàn mã hóa)
+    let hash = 0;
+    for (let i = 0; i < payloadStr.length; i++) {
+      const char = payloadStr.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash; // Convert to 32bit integer
+    }
+    return 'FALLBACK-' + Math.abs(hash).toString(16).padStart(16, '0');
   }
 };
 
@@ -545,13 +552,15 @@ export default function Trade() {
         // Call Blockchain Mint API (Chạy ngầm)
         fetch((import.meta.env.VITE_WORKER_URL || 'http://localhost:3001') + '/api/mint', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', 'x-api-key': import.meta.env.VITE_MINT_API_KEY || 'goldchain-internal-secret-key' },
           body: JSON.stringify({
             orderId: ordId,
             pdfHash: pdfHashBuy,
             goldAmount: Number((qtyVal * 3.75).toFixed(4)),
             userWallet: window.localStorage.getItem('meta_wallet') || null
           })
+        }).then(r => r.json()).then(r => {
+          if (!r.success) console.warn('[Blockchain] Mint BUY failed:', r.error);
         }).catch(err => console.error("Lỗi Transaction Web3:", err));
 
         // 4. Tạo lịch sử giao dịch local
@@ -571,10 +580,10 @@ export default function Trade() {
           transactions: [newTxn, ...state.transactions]
         }));
 
-        // Cập nhật lại kho của shop
+        // Cập nhật lại kho của shop (storeStock đơn vị grams, qtyVal đơn vị chỉ)
         setStoreStock(prev => ({
           ...prev,
-          [selectedGoldKey]: Math.max(0, Number((prev[selectedGoldKey] - qtyVal).toFixed(2)))
+          [selectedGoldKey]: Math.max(0, Number((prev[selectedGoldKey] - qtyVal * 3.75).toFixed(2)))
         }));
 
         setInvoiceDetails(invoiceInfo);
@@ -616,6 +625,26 @@ export default function Trade() {
           .from('gold_wallets')
           .update({ quantity_grams: newGrams })
           .eq('id', wallets[0].id);
+
+        // 2.5. Cộng lại tồn kho vật lý (vault_inventory) — khách bán vàng = kho cửa hàng nhận lại
+        const sellGrams = Number((qtyVal * 3.75).toFixed(4));
+        const sellSerial = 'SELL-' + ordId.replace('ORD-', '');
+        await supabase
+          .from('vault_inventory')
+          .insert({
+            gold_serial: sellSerial,
+            gold_type: exactGoldType,
+            weight_grams: sellGrams,
+            status: 'AVAILABLE',
+            order_id: ordId,
+            import_source: `Khách bán lại - ${dbUser.full_name || session.user.email}`
+          });
+
+        // Cập nhật lại storeStock local
+        setStoreStock(prev => ({
+          ...prev,
+          [selectedGoldKey]: (prev[selectedGoldKey] || 0) + sellGrams
+        }));
 
         // 3. Ghi log order hoàn thành lập tức lên Supabase
         const payloadStrSell = `${ordId}|SELL|${dbUser.id}|${exactGoldType}|${qtyVal}|${amountVal}|${new Date().toISOString()}`;
@@ -665,13 +694,15 @@ export default function Trade() {
         // Call Blockchain Mint API (Chạy ngầm)
         fetch((import.meta.env.VITE_WORKER_URL || 'http://localhost:3001') + '/api/mint', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', 'x-api-key': import.meta.env.VITE_MINT_API_KEY || 'goldchain-internal-secret-key' },
           body: JSON.stringify({
             orderId: ordId,
             pdfHash: pdfHashSell,
             goldAmount: Number((qtyVal * 3.75).toFixed(4)),
             userWallet: window.localStorage.getItem('meta_wallet') || null
           })
+        }).then(r => r.json()).then(r => {
+          if (!r.success) console.warn('[Blockchain] Mint SELL failed:', r.error);
         }).catch(err => console.error("Lỗi Transaction Web3:", err));
 
         // 4. Giao dịch local
@@ -717,6 +748,34 @@ export default function Trade() {
             message: `Số dư ví vàng tích lũy không đủ để thực hiện yêu cầu rút. Khả dụng: ${availableGold.toFixed(3)} chỉ.` 
           });
           return;
+        }
+
+        // Kiểm tra server-side: tổng các đơn rút đang chờ xử lý trong DB
+        const { data: pendingOrders, error: pendingErr } = await supabase
+          .schema('financial_ledgers')
+          .from('orders')
+          .select('quantity_grams')
+          .eq('user_id', dbUser.id)
+          .eq('gold_type', exactGoldType)
+          .eq('order_type', 'WITHDRAW_PHYSICAL')
+          .eq('order_status', 'WAITING_PICKUP');
+
+        if (!pendingErr && pendingOrders) {
+          const totalPendingGrams = pendingOrders.reduce((sum, o) => sum + Number(o.quantity_grams), 0);
+          const walletGrams = currentGrams; // currentGrams đã được query ở trên
+          const requestGrams = qtyVal * 3.75;
+          const remainingGrams = walletGrams - totalPendingGrams;
+
+          if (requestGrams > remainingGrams) {
+            const remainingChi = (remainingGrams / 3.75).toFixed(3);
+            const pendingChi = (totalPendingGrams / 3.75).toFixed(3);
+            setOrderStatus({ 
+              show: true, 
+              success: false, 
+              message: `Không thể tạo thêm yêu cầu rút. Bạn đang có ${pendingOrders.length} đơn rút chờ xử lý (tổng ${pendingChi} chỉ). Số dư khả dụng còn lại: ${remainingChi} chỉ.` 
+            });
+            return;
+          }
         }
 
         // 1 & 2: Không khấu trừ ví tại đây theo yêu cầu mới. Ví sẽ bị trừ khi O2O Admin bấm xác nhận bàn giao.
@@ -771,13 +830,15 @@ export default function Trade() {
         // Call Blockchain Mint API (Chạy ngầm)
         fetch((import.meta.env.VITE_WORKER_URL || 'http://localhost:3001') + '/api/mint', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', 'x-api-key': import.meta.env.VITE_MINT_API_KEY || 'goldchain-internal-secret-key' },
           body: JSON.stringify({
             orderId: ordId,
             pdfHash: pdfHashWithdraw,
             goldAmount: Number((qtyVal * 3.75).toFixed(4)),
             userWallet: window.localStorage.getItem('meta_wallet') || null
           })
+        }).then(r => r.json()).then(r => {
+          if (!r.success) console.warn('[Blockchain] Mint WITHDRAW failed:', r.error);
         }).catch(err => console.error("Lỗi Transaction Web3:", err));
 
         await supabase.from('notifications').insert({

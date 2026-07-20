@@ -1,8 +1,6 @@
 import React, { useState } from 'react';
 import { ShieldCheck, CheckCircle2, AlertCircle, UploadCloud } from 'lucide-react';
 
-import { supabase } from '../supabaseClient';
-
 const BlockchainVerify = () => {
   const [file, setFile] = useState(null);
   const [hashResult, setHashResult] = useState('');

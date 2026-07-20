@@ -90,6 +90,38 @@ export default function AdminO2o() {
   const handleDispatchGold = async () => {
     if (!matchedOrder) return;
 
+    // === KIỂM TRA SỐ DƯ VÍ VÀNG TRƯỚC KHI DUYỆT ===
+    try {
+      const { data: walletCheck, error: walletCheckErr } = await supabase
+        .from('gold_wallets')
+        .select('id, quantity_grams')
+        .eq('user_id', matchedOrder.user_id)
+        .eq('gold_type', matchedOrder.gold_type)
+        .single();
+
+      const currentGrams = (!walletCheckErr && walletCheck) ? Number(walletCheck.quantity_grams) : 0;
+      const orderGrams = Number(matchedOrder.quantity_grams);
+      const orderChi = (orderGrams / 3.75).toFixed(3);
+      const currentChi = (currentGrams / 3.75).toFixed(3);
+
+      if (currentGrams < orderGrams) {
+        Swal.fire({
+          title: 'Không thể bàn giao',
+          html: `Số dư ví vàng <b>${matchedOrder.gold_type.toUpperCase()}</b> của khách hàng <b>${matchedUser.full_name}</b> không đủ để thực hiện đơn này.<br/><br/>` +
+                `Yêu cầu rút: <b>${orderChi} chỉ</b> (${orderGrams.toFixed(2)}g)<br/>` +
+                `Ví vàng hiện tại: <b>${currentChi} chỉ</b> (${currentGrams.toFixed(2)}g)<br/><br/>` +
+                `Có thể khách đã tạo nhiều đơn rút vượt quá số dư. Vui lòng từ chối đơn này hoặc yêu cầu khách hủy các đơn trùng.`,
+          icon: 'error',
+          confirmButtonText: 'Đã hiểu'
+        });
+        return;
+      }
+    } catch (checkErr) {
+      console.error('Lỗi kiểm tra ví trước khi duyệt:', checkErr);
+      Swal.fire('Lỗi', 'Không thể kiểm tra số dư ví vàng của khách hàng. Vui lòng thử lại.', 'error');
+      return;
+    }
+
     const confirmMsg = `QUẢN TRỊ VIÊN XÁC NHẬN BÀN GIAO:\n\nĐơn hàng: ${matchedOrder.id}\nSản phẩm: ${(Number(matchedOrder.quantity_grams) / 3.75).toFixed(3)} chỉ ${matchedOrder.gold_type.toUpperCase()}\nThỏi Serial: ${selectedInventoryBar || 'Hệ thống tự động chọn'}\nKhách nhận: ${matchedUser.full_name} (CCCD: ${matchedUser.id_card_number})\n\nThao tác này là CUỐI CÙNG, sẽ khấu trừ ví vàng của khách và đóng đơn vĩnh viễn. Bạn có chắc chắn muốn xác nhận bàn giao không?`;
     
     const result = await Swal.fire({
@@ -117,17 +149,44 @@ export default function AdminO2o() {
 
       if (ordErr) throw ordErr;
 
-      if (selectedInventoryBar) {
-        const { error: invErr } = await supabase
-          .from('vault_inventory')
-          .update({
-            status: 'DISPATCHED',
-            order_id: matchedOrder.id,
-            dispatched_at: new Date().toISOString()
-          })
-          .eq('gold_serial', selectedInventoryBar);
+      // Trừ tồn kho theo KHỐI LƯỢNG, không đánh DISPATCHED toàn bộ record
+      const orderGrams = Number(matchedOrder.quantity_grams);
 
-        if (invErr) throw invErr;
+      if (selectedInventoryBar) {
+        // Lấy thông tin thỏi đã chọn
+        const { data: barData, error: barFetchErr } = await supabase
+          .from('vault_inventory')
+          .select('*')
+          .eq('gold_serial', selectedInventoryBar)
+          .single();
+        
+        if (barFetchErr || !barData) throw new Error('Không tìm thấy thỏi vàng đã chọn trong kho.');
+
+        const barWeight = Number(barData.weight_grams);
+
+        if (barWeight <= orderGrams) {
+          // Toàn bộ record được tiêu thụ hết → DISPATCHED
+          const { error: invErr } = await supabase
+            .from('vault_inventory')
+            .update({
+              status: 'DISPATCHED',
+              order_id: matchedOrder.id,
+              dispatched_at: new Date().toISOString()
+            })
+            .eq('gold_serial', selectedInventoryBar);
+          if (invErr) throw invErr;
+        } else {
+          // Thỏi lớn hơn đơn hàng → chỉ trừ khối lượng, giữ AVAILABLE
+          const remainingGrams = Number((barWeight - orderGrams).toFixed(4));
+          const { error: invErr } = await supabase
+            .from('vault_inventory')
+            .update({
+              weight_grams: remainingGrams,
+              order_id: matchedOrder.id
+            })
+            .eq('gold_serial', selectedInventoryBar);
+          if (invErr) throw invErr;
+        }
       }
 
       // Trừ ví vàng của user vào lúc Admin bấm xác nhận

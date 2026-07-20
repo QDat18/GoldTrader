@@ -141,6 +141,48 @@ export default defineConfig(({ mode }) => {
                   res.end(JSON.stringify({ success: false, error: err.message }));
                 }
               });
+            } else if (url === '/api/generate-pdf' && (req.method === 'POST' || req.method === 'OPTIONS')) {
+              // PDF Contract Generator Endpoint
+              res.setHeader('Access-Control-Allow-Origin', '*');
+              res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+              res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
+              if (req.method === 'OPTIONS') {
+                res.writeHead(204);
+                res.end();
+                return;
+              }
+
+              let body = '';
+              req.on('data', chunk => { body += chunk; });
+              req.on('end', async () => {
+                try {
+                  const templateData = JSON.parse(body);
+
+                  if (!templateData.contractId) {
+                    res.writeHead(400, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ success: false, error: 'Thiếu mã hợp đồng (contractId).' }));
+                    return;
+                  }
+
+                  const { generateContractPdf } = await import('./src/utils/contractGenerator.js');
+                  const pdfBuffer = await generateContractPdf(templateData);
+
+                  const filename = `HopDong_${templateData.contractId}.pdf`;
+                  res.writeHead(200, {
+                    'Content-Type': 'application/pdf',
+                    'Content-Disposition': `attachment; filename="${filename}"`,
+                    'Content-Length': pdfBuffer.length
+                  });
+                  res.end(pdfBuffer);
+
+                  console.log(`📄 Generated PDF for contract ${templateData.contractId}`);
+                } catch (err) {
+                  console.error('❌ Error generating PDF:', err);
+                  res.writeHead(500, { 'Content-Type': 'application/json' });
+                  res.end(JSON.stringify({ success: false, error: err.message }));
+                }
+              });
             } else {
               next();
             }

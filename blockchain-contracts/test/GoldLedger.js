@@ -50,4 +50,10 @@ describe("GoldLedger", function () {
       goldLedger.mintGold(user.address, orderId, "hash", 1, "")
     ).to.be.revertedWith("Order already has a token");
   });
+
+  it("Should revert if goldAmount is zero", async function () {
+    await expect(
+      goldLedger.mintGold(user.address, "ORD-99999", "somehash", 0, "")
+    ).to.be.revertedWith("Gold amount must be greater than 0");
+  });
 });

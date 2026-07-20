@@ -293,8 +293,40 @@ export default function History() {
                               Chi tiết hoá đơn
                             </button>
                             <button 
-                              onClick={() => {
-                                Swal.fire('Thông báo', 'Tính năng xem lại Hợp đồng PDF đang được hoàn thiện.', 'info');
+                              onClick={async () => {
+                                Swal.fire({ title: 'Đang tạo hợp đồng PDF...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+                                try {
+                                  const res = await fetch('/api/generate-pdf', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({
+                                      name: currentUser?.name || 'Khách hàng',
+                                      phone: currentUser?.phone || '',
+                                      cccd: currentUser?.cccd || '',
+                                      email: currentUser?.email || '',
+                                      contractId: txn.id,
+                                      goldType: txn.goldTypeName,
+                                      quantity: `${txn.quantity.toString()} (${Number((txn.quantity * 3.75).toFixed(4))}g)`,
+                                      price: txn.price.toLocaleString('vi-VN'),
+                                      total: txn.total.toLocaleString('vi-VN'),
+                                      date: txn.time,
+                                      type: txn.type
+                                    })
+                                  });
+                                  if (!res.ok) throw new Error('Lỗi tạo PDF');
+                                  const blob = await res.blob();
+                                  const url = URL.createObjectURL(blob);
+                                  const a = document.createElement('a');
+                                  a.href = url;
+                                  a.download = `HopDong_${txn.id}.pdf`;
+                                  document.body.appendChild(a);
+                                  a.click();
+                                  document.body.removeChild(a);
+                                  URL.revokeObjectURL(url);
+                                  Swal.close();
+                                } catch (err) {
+                                  Swal.fire('Lỗi', 'Không thể tạo hợp đồng PDF. Vui lòng thử lại.', 'error');
+                                }
                               }}
                               style={{ padding: '6px 12px', fontSize: '12px', background: 'rgba(255,255,255,0.05)', color: '#fff', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', cursor: 'pointer', transition: '0.2s' }}
                             >
