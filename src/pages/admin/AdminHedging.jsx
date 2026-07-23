@@ -47,7 +47,7 @@ export default function AdminHedging() {
       const { error } = await supabaseLedger
         .from('hedge_positions')
         .insert({
-          order_id: `MANUAL-${Math.floor(100000 + Math.random() * 900000)}`,
+          id: `HDG-${Date.now()}`,
           gold_type: newHedgeGoldType,
           quantity_grams: qtyGrams,
           hedge_price_vnd: pricePerGram,

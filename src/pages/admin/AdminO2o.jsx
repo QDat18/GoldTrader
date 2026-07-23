@@ -23,7 +23,6 @@ export default function AdminO2o() {
   const [o2oError, setO2oError] = useState('');
   const [matchedOrder, setMatchedOrder] = useState(null);
   const [matchedUser, setMatchedUser] = useState(null);
-  const [selectedInventoryBar, setSelectedInventoryBar] = useState('');
   const [totpVerificationResult, setTotpVerificationResult] = useState(null);
 
 
@@ -75,16 +74,7 @@ export default function AdminO2o() {
       });
     }
 
-    // Auto select matching bar
-    const matchingBar = dbInventory.find(i => 
-      i.gold_type === order.gold_type && 
-      i.status === 'AVAILABLE'
-    );
-    if (matchingBar) {
-      setSelectedInventoryBar(matchingBar.gold_serial);
-    } else {
-      setSelectedInventoryBar('');
-    }
+    // Khong su dung auto chon thoi nua
   };
 
   const handleDispatchGold = async () => {
@@ -122,7 +112,7 @@ export default function AdminO2o() {
       return;
     }
 
-    const confirmMsg = `QUẢN TRỊ VIÊN XÁC NHẬN BÀN GIAO:\n\nĐơn hàng: ${matchedOrder.id}\nSản phẩm: ${(Number(matchedOrder.quantity_grams) / 3.75).toFixed(3)} chỉ ${matchedOrder.gold_type.toUpperCase()}\nThỏi Serial: ${selectedInventoryBar || 'Hệ thống tự động chọn'}\nKhách nhận: ${matchedUser.full_name} (CCCD: ${matchedUser.id_card_number})\n\nThao tác này là CUỐI CÙNG, sẽ khấu trừ ví vàng của khách và đóng đơn vĩnh viễn. Bạn có chắc chắn muốn xác nhận bàn giao không?`;
+    const confirmMsg = `QUẢN TRỊ VIÊN XÁC NHẬN BÀN GIAO:\n\nĐơn hàng: ${matchedOrder.id}\nSản phẩm: ${(Number(matchedOrder.quantity_grams) / 3.75).toFixed(3)} chỉ ${matchedOrder.gold_type.toUpperCase()}\nKhách nhận: ${matchedUser.full_name} (CCCD: ${matchedUser.id_card_number})\n\nThao tác này là CUỐI CÙNG, sẽ khấu trừ ví vàng của khách và đóng đơn vĩnh viễn. Bạn có chắc chắn muốn xác nhận bàn giao không?`;
     
     const result = await Swal.fire({
       title: 'Xác nhận bàn giao',
@@ -149,45 +139,7 @@ export default function AdminO2o() {
 
       if (ordErr) throw ordErr;
 
-      // Trừ tồn kho theo KHỐI LƯỢNG, không đánh DISPATCHED toàn bộ record
-      const orderGrams = Number(matchedOrder.quantity_grams);
-
-      if (selectedInventoryBar) {
-        // Lấy thông tin thỏi đã chọn
-        const { data: barData, error: barFetchErr } = await supabase
-          .from('vault_inventory')
-          .select('*')
-          .eq('gold_serial', selectedInventoryBar)
-          .single();
-        
-        if (barFetchErr || !barData) throw new Error('Không tìm thấy thỏi vàng đã chọn trong kho.');
-
-        const barWeight = Number(barData.weight_grams);
-
-        if (barWeight <= orderGrams) {
-          // Toàn bộ record được tiêu thụ hết → DISPATCHED
-          const { error: invErr } = await supabase
-            .from('vault_inventory')
-            .update({
-              status: 'DISPATCHED',
-              order_id: matchedOrder.id,
-              dispatched_at: new Date().toISOString()
-            })
-            .eq('gold_serial', selectedInventoryBar);
-          if (invErr) throw invErr;
-        } else {
-          // Thỏi lớn hơn đơn hàng → chỉ trừ khối lượng, giữ AVAILABLE
-          const remainingGrams = Number((barWeight - orderGrams).toFixed(4));
-          const { error: invErr } = await supabase
-            .from('vault_inventory')
-            .update({
-              weight_grams: remainingGrams,
-              order_id: matchedOrder.id
-            })
-            .eq('gold_serial', selectedInventoryBar);
-          if (invErr) throw invErr;
-        }
-      }
+      // Không trừ cụ thể thỏi vàng nào trong kho vault_inventory theo số Serial nữa (Logic được đơn giản hóa gộp theo khối lượng tổng).
 
       // Trừ ví vàng của user vào lúc Admin bấm xác nhận
       const { data: walletData, error: walletErr } = await supabase
@@ -211,7 +163,7 @@ export default function AdminO2o() {
         user_id: matchedOrder.user_id,
         type: 'trade',
         title: 'Khớp lệnh rút vàng vật lý thành công',
-        desc: `Đã hoàn tất bàn giao ${qtyChỉ} chỉ vàng ${matchedOrder.gold_type.toUpperCase()} tại quầy (Đơn hàng: ${matchedOrder.id}). Thỏi Serial: ${selectedInventoryBar || 'Tự động'}.`,
+        desc: `Đã hoàn tất bàn giao ${qtyChỉ} chỉ vàng ${matchedOrder.gold_type.toUpperCase()} tại quầy (Đơn hàng: ${matchedOrder.id}).`,
         unread: true,
         date: new Date().toLocaleString('vi-VN')
       });
@@ -238,14 +190,13 @@ export default function AdminO2o() {
         });
       }
 
-      Swal.fire('Thành công', `Đã bàn giao vàng vật chất thành công!\n- Đơn hàng: ${matchedOrder.id}\n- Thỏi vàng Serial: ${selectedInventoryBar || 'Tự động'}\n- Khách nhận: ${matchedUser.full_name}`, 'success');
+      Swal.fire('Thành công', `Đã bàn giao vàng vật chất thành công!\n- Đơn hàng: ${matchedOrder.id}\n- Khách nhận: ${matchedUser.full_name}`, 'success');
 
       // Reset
       setOrderIdInput('');
       setSecureTokenInput('');
       setMatchedOrder(null);
       setMatchedUser(null);
-      setSelectedInventoryBar('');
       setTotpVerificationResult(null);
 
       // Clean path search queries
@@ -261,12 +212,19 @@ export default function AdminO2o() {
 
   // Sync url order_id if redirected from Orders tab
   useEffect(() => {
+    fetchAdminOrders();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
     if (dbOrders.length > 0) {
       const params = new URLSearchParams(location.search);
       const urlOrderId = params.get('order_id');
       if (urlOrderId) {
         setOrderIdInput(urlOrderId);
-        handleVerifyO2oQr(urlOrderId, '');
+        if (!matchedOrder) {
+          handleVerifyO2oQr(urlOrderId, '');
+        }
       }
     }
   }, [location.search, dbOrders]);
@@ -384,46 +342,7 @@ export default function AdminO2o() {
               </div>
             </div>
 
-            {/* Select stock gold bar */}
-            <div className="form-group">
-              <label className="form-label" style={{ fontSize: '12px' }}>Chọn thỏi vàng vật chất bàn giao (Serial trong Kho)</label>
-              <select
-                className="form-input"
-                value={selectedInventoryBar}
-                onChange={(e) => setSelectedInventoryBar(e.target.value)}
-                style={{ background: '#121212', borderRadius: '8px' }}
-              >
-                <option value="">-- Tự động phân bổ thỏi ngẫu nhiên --</option>
-                {availableInventory
-                  .filter(i => i.gold_type === matchedOrder.gold_type)
-                  .map(i => (
-                    <option key={i.gold_serial} value={i.gold_serial}>
-                      {i.gold_serial} ({i.weight_grams}g)
-                    </option>
-                  ))
-                }
-              </select>
-            </div>
-
-            {(() => {
-              const activeBar = availableInventory.find(i => i.gold_serial === selectedInventoryBar);
-              const barWeight = activeBar ? Number(activeBar.weight_grams) : 0;
-              const orderQtyGrams = Number(matchedOrder.quantity_grams);
-              if (selectedInventoryBar && Math.abs(barWeight - orderQtyGrams) > 0.001) {
-                return (
-                  <div style={{
-                    padding: '10px 12px', borderRadius: '6px',
-                    background: 'rgba(239, 68, 68, 0.1)',
-                    border: '1px solid rgba(239, 68, 68, 0.2)',
-                    color: 'var(--ruby)', fontSize: '12px', marginTop: '8px',
-                    fontWeight: 500, lineHeight: '1.4', textAlign: 'left'
-                  }}>
-                    ⚠️ Cảnh báo: Trọng lượng thỏi vàng chọn ({barWeight.toFixed(2)}g) không khớp với số lượng yêu cầu của đơn hàng ({orderQtyGrams.toFixed(2)}g / {(orderQtyGrams / 3.75).toFixed(2)} chỉ).
-                  </div>
-                );
-              }
-              return null;
-            })()}
+            {/* Đã gỡ bỏ tính năng chọn thỏi vàng theo ID (chỉ trừ khối lượng gộp) */}
 
             <button
               onClick={handleDispatchGold}

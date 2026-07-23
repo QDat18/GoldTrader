@@ -189,7 +189,7 @@ export default function AdminKyc() {
                   const selectedItem = dbKycList.find(i => i.id === selectedKycId);
                   if (!selectedItem) return <div className="neo-card" style={{ padding: '40px', textAlign: 'center', color: 'var(--text)' }}>Không tìm thấy thông tin.</div>;
 
-                  const hasImages = !!(selectedItem.id_card_front_url || selectedItem.id_card_back_url);
+                  const hasImages = !!(selectedItem.id_card_front_url || selectedItem.id_card_back_url || selectedItem.face_image_url);
 
                   return (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
@@ -220,7 +220,7 @@ export default function AdminKyc() {
                           {/* Ảnh giấy tờ */}
                           <div>
                             <div style={{ fontSize: '13px', color: 'var(--emerald)', fontWeight: 600, letterSpacing: '0.05em', marginBottom: '16px' }}>ẢNH CUNG CẤP (ĐỐI CHIẾU)</div>
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px' }}>
                               <div>
                                 <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '8px', textAlign: 'center' }}>MẶT TRƯỚC</div>
                                 {selectedItem.id_card_front_url ? (
@@ -240,6 +240,18 @@ export default function AdminKyc() {
                                     src={selectedItem.id_card_back_url}
                                     alt="Back"
                                     style={{ width: '100%', height: '160px', objectFit: 'contain', borderRadius: '12px', background: '#111', border: '1px solid rgba(255,255,255,0.1)' }}
+                                  />
+                                ) : (
+                                  <div style={{ border: '1px dashed rgba(255,255,255,0.1)', height: '160px', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontSize: '13px' }}>Thiếu ảnh</div>
+                                )}
+                              </div>
+                              <div>
+                                <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '8px', textAlign: 'center' }}>KHUÔN MẶT</div>
+                                {selectedItem.face_image_url ? (
+                                  <img
+                                    src={selectedItem.face_image_url}
+                                    alt="Face"
+                                    style={{ width: '100%', height: '160px', objectFit: 'cover', borderRadius: '12px', background: '#111', border: '1px solid rgba(255,255,255,0.1)' }}
                                   />
                                 ) : (
                                   <div style={{ border: '1px dashed rgba(255,255,255,0.1)', height: '160px', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontSize: '13px' }}>Thiếu ảnh</div>

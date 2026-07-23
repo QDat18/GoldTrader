@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
-import { Check, ShieldCheck, UploadCloud, User, ArrowLeft } from 'lucide-react';
+import { Check, ShieldCheck, UploadCloud, User, ArrowLeft, Camera, X } from 'lucide-react';
 import BrandLogo from '../components/BrandLogo';
+import * as faceapi from '@vladmandic/face-api';
 
 export default function Register() {
   const [name, setName] = useState('');
@@ -20,6 +21,123 @@ export default function Register() {
   const [cccdBack, setCccdBack] = useState(null);
   const [ocrStatus, setOcrStatus] = useState('idle'); // idle, scanning, success
   
+  const [faceImage, setFaceImage] = useState(null);
+  const [faceImageUrl, setFaceImageUrl] = useState(null);
+  const [isCameraOpen, setIsCameraOpen] = useState(false);
+  const videoRef = useRef(null);
+  const canvasRef = useRef(null);
+
+  const [isFaceDetected, setIsFaceDetected] = useState(false);
+  const [faceModelsLoaded, setFaceModelsLoaded] = useState(false);
+
+  useEffect(() => {
+    const loadModels = async () => {
+      try {
+        await faceapi.nets.tinyFaceDetector.loadFromUri('https://vladmandic.github.io/face-api/model/');
+        setFaceModelsLoaded(true);
+      } catch (e) {
+        console.error("Lỗi tải models cho AI Face Detection:", e);
+      }
+    };
+    loadModels();
+  }, []);
+
+  const startCamera = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      setIsCameraOpen(true);
+      setTimeout(() => {
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+          videoRef.current.play();
+        }
+      }, 100);
+    } catch (err) {
+      console.error(err);
+      setError("Không thể mở camera. Vui lòng cho phép quyền truy cập.");
+    }
+  };
+
+  const handleVideoPlay = () => {
+    if (!videoRef.current || !canvasRef.current || !faceModelsLoaded) return;
+    
+    // Clear previous interval if any
+    if (videoRef.current.detectionInterval) clearInterval(videoRef.current.detectionInterval);
+
+    const detectionInterval = setInterval(async () => {
+      if (!videoRef.current || videoRef.current.paused || videoRef.current.ended) {
+        clearInterval(detectionInterval);
+        return;
+      }
+      
+      const vWidth = videoRef.current.videoWidth;
+      const vHeight = videoRef.current.videoHeight;
+      if (!vWidth || !vHeight) return;
+
+      if (canvasRef.current.width !== vWidth || canvasRef.current.height !== vHeight) {
+         faceapi.matchDimensions(canvasRef.current, { width: vWidth, height: vHeight });
+      }
+
+      try {
+        const detections = await faceapi.detectSingleFace(videoRef.current, new faceapi.TinyFaceDetectorOptions({ inputSize: 160, scoreThreshold: 0.5 }));
+        
+        const ctx = canvasRef.current.getContext('2d');
+        ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+        
+        if (detections) {
+            setIsFaceDetected(true);
+            const resizedDetections = faceapi.resizeResults(detections, { width: vWidth, height: vHeight });
+            const box = resizedDetections.box;
+            
+            ctx.strokeStyle = '#10B981'; // Emerald Color
+            ctx.lineWidth = 3;
+            ctx.strokeRect(box.x, box.y, box.width, box.height);
+            
+            // Vẽ text
+            ctx.fillStyle = '#10B981';
+            ctx.font = '16px Arial';
+            ctx.fillText("Khuôn mặt hợp lệ", box.x, box.y > 20 ? box.y - 5 : 20);
+        } else {
+            setIsFaceDetected(false);
+        }
+      } catch(e) {}
+    }, 250); 
+    
+    videoRef.current.detectionInterval = detectionInterval;
+  };
+
+  const captureFace = () => {
+    if (!videoRef.current) return;
+    if (!isFaceDetected) {
+      setError("Vui lòng đặt phần khuôn mặt của bạn vào khung hình để AI nhận diện.");
+      return;
+    }
+    
+    const canvas = document.createElement("canvas");
+    canvas.width = videoRef.current.videoWidth;
+    canvas.height = videoRef.current.videoHeight;
+    canvas.getContext("2d").drawImage(videoRef.current, 0, 0);
+    const dataUrl = canvas.toDataURL("image/jpeg");
+    setFaceImageUrl(dataUrl);
+
+    canvas.toBlob((blob) => {
+      const file = new File([blob], "face.jpg", { type: "image/jpeg" });
+      setFaceImage(file);
+    }, "image/jpeg");
+    
+    stopCamera();
+  };
+
+  const stopCamera = () => {
+    if (videoRef.current && videoRef.current.detectionInterval) {
+      clearInterval(videoRef.current.detectionInterval);
+    }
+    if (videoRef.current && videoRef.current.srcObject) {
+      videoRef.current.srcObject.getTracks().forEach(track => track.stop());
+    }
+    setIsCameraOpen(false);
+  };
+
   // Fake AI OCR Scanner
   useEffect(() => {
     if (cccdFront && cccdNumber && cccdNumber.length >= 9) {
@@ -127,8 +245,27 @@ export default function Register() {
       setError('Vui lòng cung cấp đầy đủ hình ảnh 2 mặt Giấy tờ tùy thân.');
       return;
     }
+    if (!faceImage) {
+      setError('Vui lòng chụp ảnh khuôn mặt để đối chiếu eKYC.');
+      return;
+    }
 
     setLoading(true);
+
+    // 0. Kiểm tra trùng lặp CCCD trước (vì Supabase Auth trigger trả về 500 nếu trùng khoá unique)
+    try {
+      const { data: existingCccd } = await supabase
+        .from('user_profiles')
+        .select('id_card_number')
+        .eq('id_card_number', cccdNumber)
+        .maybeSingle();
+      
+      if (existingCccd) {
+        setError('Số CCCD / Hộ chiếu này đã được liên kết với một tài khoản khác!');
+        setLoading(false);
+        return;
+      }
+    } catch(err) {}
 
     // 1. Tạo tài khoản trực tiếp qua Supabase Auth signUp, truyền kèm CCCD thật
     const { data, error: signUpError } = await supabase.auth.signUp({
@@ -166,6 +303,7 @@ export default function Register() {
       // 2. Tải ảnh lên Supabase Storage với Auth Token vừa tạo
       let frontUrl = null;
       let backUrl = null;
+      let faceUrl = null;
 
       if (cccdFront && cccdFront instanceof File) {
         const frontExt = cccdFront.name.split('.').pop();
@@ -188,11 +326,23 @@ export default function Register() {
           backUrl = supabase.storage.from('kyc-documents').getPublicUrl(backName).data.publicUrl;
         }
       }
+
+      if (faceImage && faceImage instanceof File) {
+        const faceExt = faceImage.name.split('.').pop();
+        const faceName = `${currentUserId}_face_${Date.now()}.${faceExt}`;
+        const { error: uploadError3 } = await supabase.storage.from('kyc-documents').upload(faceName, faceImage);
+        if (uploadError3) {
+          console.error("Lỗi upload khuôn mặt:", uploadError3);
+        } else {
+          faceUrl = supabase.storage.from('kyc-documents').getPublicUrl(faceName).data.publicUrl;
+        }
+      }
       
       // 3. Cập nhật links CCDC vào bảng user_profiles (Vì Trigger đã sinh bảng này rồi)
       const { data: profileRecord, error: dbError } = await supabase.from('user_profiles').update({
         id_card_front_url: frontUrl,
-        id_card_back_url: backUrl
+        id_card_back_url: backUrl,
+        face_image_url: faceUrl
       }).eq('auth_user_id', currentUserId).select().single();
       
       if (dbError) {
@@ -450,6 +600,41 @@ export default function Register() {
                    </div>
                 )}
               </label>
+
+              <div style={{ marginTop: '24px' }}>
+                <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '8px' }}>Chụp ảnh xác thực khuôn mặt (Yêu cầu có khuôn mặt)</div>
+                
+                {isCameraOpen ? (
+                  <div style={{ position: 'relative', width: '100%', borderRadius: '12px', overflow: 'hidden', background: '#000' }}>
+                    <video ref={videoRef} onPlay={handleVideoPlay} autoPlay playsInline style={{ width: '100%', display: 'block' }}></video>
+                    <canvas ref={canvasRef} style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none' }}></canvas>
+                    {!faceModelsLoaded && (
+                       <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', background: 'rgba(0,0,0,0.7)', color: 'var(--gold)', padding: '8px 16px', borderRadius: '8px', fontSize: '13px' }}>Đang tải mô hình Face-AI...</div>
+                    )}
+                    <div style={{ position: 'absolute', bottom: '16px', display: 'flex', gap: '8px', width: '100%', justifyContent: 'center', zIndex: 10 }}>
+                      <button type="button" onClick={captureFace} className="btn" disabled={!isFaceDetected} style={{ background: isFaceDetected ? '#10B981' : '#fff', color: isFaceDetected ? '#fff' : '#000', borderRadius: '50%', width: '48px', height: '48px', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.3s', opacity: (isFaceDetected && faceModelsLoaded) ? 1 : 0.5 }}>
+                        <Camera size={24} />
+                      </button>
+                      <button type="button" onClick={stopCamera} className="btn btn-outline" style={{ background: 'rgba(0,0,0,0.5)', borderColor: 'transparent', borderRadius: '50%', width: '48px', height: '48px', display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'auto' }}>
+                        <X size={24} color="#fff" />
+                      </button>
+                    </div>
+                  </div>
+                ) : faceImageUrl ? (
+                  <div style={{ background: 'var(--bg-main)', border: '1px dashed var(--border-silver)', borderRadius: '12px', padding: '16px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', cursor: 'pointer' }} onClick={startCamera}>
+                    <img src={faceImageUrl} alt="Face" style={{ width: '150px', height: '150px', objectFit: 'cover', borderRadius: '50%', border: '4px solid var(--emerald)' }} />
+                    <div style={{ color: 'var(--text-muted)', fontSize: '12px', marginTop: '8px' }}>Chạm để chụp lại</div>
+                  </div>
+                ) : (
+                  <div onClick={startCamera} style={{ background: 'var(--bg-main)', border: '1px dashed var(--border-silver)', borderRadius: '12px', padding: '32px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', cursor: 'pointer' }}>
+                     <Camera size={32} color="var(--gold)" />
+                     <div>
+                       <div style={{ fontWeight: 600, color: 'var(--text-main)', textAlign: 'center' }}>Bật Camera</div>
+                       <div style={{ fontSize: '12px', marginTop: '4px', textAlign: 'center' }}>Nhấp để mở camera và bắt ảnh khuôn mặt</div>
+                     </div>
+                  </div>
+                )}
+              </div>
             </div>
             
             {error && (

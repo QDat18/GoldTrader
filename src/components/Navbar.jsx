@@ -57,6 +57,7 @@ export function UserNavbar() {
 
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [isDepositModalOpen, setIsDepositModalOpen] = useState(false);
+  const [depositStep, setDepositStep] = useState(1);
   const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
   const [successDepositAmount, setSuccessDepositAmount] = useState(0);
   const [depositAmount, setDepositAmount] = useState('5000000');
@@ -101,6 +102,7 @@ export function UserNavbar() {
       setIsSuccessModalOpen(true);
       setIsDepositModalOpen(false);
       setDepositAmount('5000000');
+      setDepositStep(1); // Reset cho lần nạp sau
     } else {
       Swal.fire('Lỗi', 'Số tiền không hợp lệ.', 'error');
     }
@@ -340,7 +342,7 @@ export function UserNavbar() {
                             <Bell size={16} style={{ color: 'var(--gold)' }} />
                             Thông báo {unreadCount > 0 ? `(${unreadCount})` : ''}
                           </button>
-                          <button type="button" onClick={() => { setDropdownOpen(false); setIsDepositModalOpen(true); }} style={menuItemStyle} onMouseEnter={onItemEnter} onMouseLeave={onItemLeave}>
+                          <button type="button" onClick={() => { setDropdownOpen(false); setDepositStep(1); setIsDepositModalOpen(true); }} style={menuItemStyle} onMouseEnter={onItemEnter} onMouseLeave={onItemLeave}>
                             <PlusCircle size={16} style={{ color: 'var(--gold)' }} />
                             Nạp tiền vào ví
                           </button>
@@ -382,66 +384,100 @@ export function UserNavbar() {
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(10px)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px' }}>
           <div className="card" style={{ width: '100%', maxWidth: '480px', background: 'var(--bg-card)', borderRadius: '24px', border: '1px solid rgba(255,255,255,0.08)', overflow: 'hidden' }}>
             <div style={{ padding: '24px', borderBottom: '1px solid rgba(255,255,255,0.05)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div style={{ fontSize: '18px', fontWeight: 600 }}>Nạp tiền vào ví</div>
+              <div style={{ fontSize: '18px', fontWeight: 600 }}>{depositStep === 1 ? 'Nạp tiền vào ví' : 'Thanh toán qua quét mã QR'}</div>
               <button onClick={() => setIsDepositModalOpen(false)} style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>
                 <X size={24} />
               </button>
             </div>
 
-            <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
-              <div style={{ padding: '16px', background: 'rgba(212,175,55,0.05)', border: '1px solid rgba(212,175,55,0.2)', borderRadius: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div>
-                  <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '4px' }}>Số dư hiện tại</div>
-                  <div style={{ fontSize: '18px', fontWeight: 700, color: 'var(--gold)' }}>{walletStr}</div>
-                </div>
-                <Wallet size={24} color="var(--gold)" style={{ opacity: 0.5 }} />
-              </div>
+            {depositStep === 1 ? (
+              <>
+                <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                  <div style={{ padding: '16px', background: 'rgba(212,175,55,0.05)', border: '1px solid rgba(212,175,55,0.2)', borderRadius: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div>
+                      <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '4px' }}>Số dư hiện tại</div>
+                      <div style={{ fontSize: '18px', fontWeight: 700, color: 'var(--gold)' }}>{walletStr}</div>
+                    </div>
+                    <Wallet size={24} color="var(--gold)" style={{ opacity: 0.5 }} />
+                  </div>
 
-              <div>
-                <label style={{ display: 'block', fontSize: '13px', color: 'var(--text-muted)', marginBottom: '12px' }}>Chọn hoặc nhập số tiền (VNĐ)</label>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px', marginBottom: '16px' }}>
-                  {[1000000, 5000000, 10000000, 20000000, 50000000, 100000000].map(amount => (
-                    <button
-                      key={amount}
-                      onClick={() => setDepositAmount(amount.toString())}
-                      style={{
-                        padding: '12px 8px', borderRadius: '12px', fontSize: '13px', fontWeight: 600,
-                        background: depositAmount === amount.toString() ? 'var(--gold-gradient)' : 'rgba(255,255,255,0.05)',
-                        color: depositAmount === amount.toString() ? '#000' : 'var(--text-main)',
-                        border: depositAmount === amount.toString() ? 'none' : '1px solid rgba(255,255,255,0.1)',
-                        cursor: 'pointer'
-                      }}
-                    >
-                      {new Intl.NumberFormat('vi-VN').format(amount)}
+                  <div>
+                    <label style={{ display: 'block', fontSize: '13px', color: 'var(--text-muted)', marginBottom: '12px' }}>Chọn hoặc nhập số tiền (VNĐ)</label>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px', marginBottom: '16px' }}>
+                      {[1000000, 5000000, 10000000, 20000000, 50000000, 100000000].map(amount => (
+                        <button
+                          key={amount}
+                          onClick={() => setDepositAmount(amount.toString())}
+                          style={{
+                            padding: '12px 8px', borderRadius: '12px', fontSize: '13px', fontWeight: 600,
+                            background: depositAmount === amount.toString() ? 'var(--gold-gradient)' : 'rgba(255,255,255,0.05)',
+                            color: depositAmount === amount.toString() ? '#000' : 'var(--text-main)',
+                            border: depositAmount === amount.toString() ? 'none' : '1px solid rgba(255,255,255,0.1)',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          {new Intl.NumberFormat('vi-VN').format(amount)}
+                        </button>
+                      ))}
+                    </div>
+                    <input
+                      type="text"
+                      value={depositAmount ? new Intl.NumberFormat('vi-VN').format(depositAmount.toString().replace(/[^0-9]/g, '')) : ''}
+                      onChange={e => setDepositAmount(e.target.value.replace(/[^0-9]/g, ''))}
+                      className="form-input"
+                      placeholder="Nhập số tiền khác..."
+                      style={{ background: 'rgba(0,0,0,0.2)', fontSize: '18px', fontWeight: 600, letterSpacing: '1px' }}
+                    />
+                  </div>
+
+                  <div style={{ padding: '16px', background: 'rgba(0,0,0,0.2)', borderRadius: '16px', fontSize: '13px', color: 'var(--text-muted)', lineHeight: '1.6' }}>
+                    <span style={{ color: 'var(--emerald)', fontWeight: 600 }}>Miễn phí nạp tiền</span>. Hỗ trợ tất cả các ngân hàng nội địa. Tiền sẽ được cộng ngay lập tức vào ví của bạn.
+                  </div>
+                </div>
+
+                <div style={{ padding: '24px', background: 'rgba(0,0,0,0.2)', display: 'flex', gap: '12px' }}>
+                  <button className="btn" onClick={() => setIsDepositModalOpen(false)} style={{ flex: 1, background: 'rgba(255,255,255,0.05)', color: '#fff', borderRadius: '99px', padding: '14px', fontSize: '15px' }}>
+                    Hủy
+                  </button>
+                  <button className="btn btn-gold" onClick={() => setDepositStep(2)} style={{ flex: 2, borderRadius: '99px', padding: '14px', fontSize: '15px', fontWeight: 700, boxShadow: '0 8px 16px rgba(212,175,55,0.2)' }}>
+                    Tiếp tục
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px' }}>
+                  <div style={{ fontSize: '14px', color: 'var(--text-muted)', textAlign: 'center' }}>
+                    Mở ứng dụng ngân hàng bất kỳ để quét mã QR.<br/>Số tiền sẽ được cập nhật tự động trong vài giây.
+                  </div>
+                  
+                  <div style={{ background: '#fff', padding: '16px', borderRadius: '16px', display: 'flex', flexDirection: 'column', alignItems: 'center', boxShadow: '0 0 30px rgba(255,255,255,0.1)' }}>
+                    <img 
+                      src={`https://img.vietqr.io/image/970407-19036324835017-print.png?amount=${depositAmount ? depositAmount.toString().replace(/[^0-9]/g, '') : 0}&addInfo=NAP%20GOLDCHAIN&accountName=CONG%20TY%20CP%20GOLDCHAIN`}
+                      alt="VietQR"
+                      style={{ width: '220px', height: 'auto', display: 'block' }}
+                    />
+                  </div>
+
+                  <div style={{ fontSize: '18px', fontWeight: 'bold', color: 'var(--gold)', letterSpacing: '1px' }}>
+                    {new Intl.NumberFormat('vi-VN').format(depositAmount ? depositAmount.toString().replace(/[^0-9]/g, '') : 0)} VNĐ
+                  </div>
+                  <div style={{ fontSize: '13px', color: 'var(--text-muted)' }}>Cú pháp: <b style={{ color: '#fff' }}>NAP GOLDCHAIN</b></div>
+                </div>
+
+                <div style={{ padding: '24px', background: 'rgba(0,0,0,0.2)', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  <div style={{ display: 'flex', gap: '12px' }}>
+                    <button className="btn" onClick={() => setDepositStep(1)} style={{ flex: 1, background: 'rgba(255,255,255,0.05)', color: '#fff', borderRadius: '99px', padding: '14px', fontSize: '15px' }}>
+                      Quay lại
                     </button>
-                  ))}
+                    {/* Sandbox Fake Webhook Button */}
+                    <button className="btn btn-gold" onClick={submitDeposit} style={{ flex: 2, background: 'var(--emerald)', color: '#fff', borderRadius: '99px', padding: '14px', fontSize: '15px', fontWeight: 700, boxShadow: '0 8px 16px rgba(16,185,129,0.2)' }}>
+                      Giả lập Webhook (Nạp)
+                    </button>
+                  </div>
                 </div>
-                <input
-                  type="text"
-                  value={depositAmount ? new Intl.NumberFormat('vi-VN').format(depositAmount.toString().replace(/[^0-9]/g, '')) : ''}
-                  onChange={e => {
-                    const val = e.target.value.replace(/[^0-9]/g, '');
-                    setDepositAmount(val);
-                  }}
-                  className="form-input"
-                  placeholder="Nhập số tiền khác..."
-                  style={{ background: 'rgba(0,0,0,0.2)', fontSize: '18px', fontWeight: 600, letterSpacing: '1px' }}
-                />
-              </div>
-
-              <div style={{ padding: '16px', background: 'rgba(0,0,0,0.2)', borderRadius: '16px', fontSize: '13px', color: 'var(--text-muted)', lineHeight: '1.6' }}>
-                <span style={{ color: 'var(--emerald)', fontWeight: 600 }}>Miễn phí nạp tiền</span>. Hỗ trợ tất cả các ngân hàng nội địa. Tiền sẽ được cộng ngay lập tức vào ví của bạn.
-              </div>
-            </div>
-
-            <div style={{ padding: '24px', background: 'rgba(0,0,0,0.2)', display: 'flex', gap: '12px' }}>
-              <button className="btn" onClick={() => setIsDepositModalOpen(false)} style={{ flex: 1, background: 'rgba(255,255,255,0.05)', color: '#fff', borderRadius: '99px', padding: '14px', fontSize: '15px' }}>
-                Hủy
-              </button>
-              <button className="btn btn-gold" onClick={submitDeposit} style={{ flex: 2, borderRadius: '99px', padding: '14px', fontSize: '15px', fontWeight: 700, boxShadow: '0 8px 16px rgba(212,175,55,0.2)' }}>
-                Xác nhận nạp tiền
-              </button>
-            </div>
+              </>
+            )}
           </div>
         </div>
       )}
