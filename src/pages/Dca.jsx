@@ -20,9 +20,9 @@ export default function Dca() {
   const [day, setDay] = useState('Ngày 1');
 
   // Calculate aggregated stats
-  const totalAccumulated = plans.reduce((acc, p) => acc + (p.status === 'running' ? p.amount : 0), 13000000);
+  const totalAccumulated = plans.reduce((acc, p) => acc + (p.status === 'running' ? parseFloat(p.amount_vnd || 0) : 0), 0);
   const firstSellPrice = priceKeys.length > 0 ? (prices[priceKeys[0]]?.sell || 148000000) : 148000000;
-  const avgGoldEstimate = (totalAccumulated / firstSellPrice).toFixed(2);
+  const avgGoldEstimate = (totalAccumulated / firstSellPrice).toFixed(4);
 
   const handleSave = () => {
     const amt = parseInt(amount, 10);
@@ -93,25 +93,25 @@ export default function Dca() {
       <div className="grid-3" style={{ marginBottom: '32px', gap: '20px' }}>
         <div className="card" style={{ borderRadius: '24px', background: 'linear-gradient(135deg, rgba(30,30,30,0.6) 0%, rgba(20,20,20,0.8) 100%)', border: '1px solid rgba(255,255,255,0.05)', position: 'relative', overflow: 'hidden', padding: '24px' }}>
           <div style={{ position: 'absolute', top: 0, left: 0, bottom: 0, width: '4px', background: 'var(--gold-gradient)' }}></div>
-          <div style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: 600, letterSpacing: '1px' }}>TỔNG ĐÃ TÍCH LŨY</div>
+          <div style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: 600, letterSpacing: '1px' }}>TỔNG TIỀN DỰ KIẾN (CHẠY 1 KỲ)</div>
           <div style={{ fontSize: '28px', fontWeight: 700, color: 'var(--text-main)', marginTop: '8px' }}>₫{totalAccumulated.toLocaleString('vi-VN')}</div>
           <div style={{ fontSize: '13px', color: 'var(--emerald)', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
             <i className="ti ti-trending-up"></i> +{avgGoldEstimate} chỉ SJC (Ước tính)
           </div>
           <div style={{ background: 'rgba(255,255,255,0.05)', height: '6px', borderRadius: '3px', marginTop: '16px', overflow: 'hidden' }}>
-            <div style={{ width: '58%', height: '100%', background: 'var(--gold-gradient)' }}></div>
+            <div style={{ width: '0%', height: '100%', background: 'var(--gold-gradient)' }}></div>
           </div>
-          <div className="body-sm" style={{ marginTop: '6px', color: 'var(--text-muted)' }}>58% mục tiêu năm (10 chỉ)</div>
+          <div className="body-sm" style={{ marginTop: '6px', color: 'var(--text-muted)' }}>Chi tiết trong Báo cáo tháng này</div>
         </div>
         <div className="card" style={{ borderRadius: '24px', background: 'rgba(20,20,20,0.6)', border: '1px solid rgba(255,255,255,0.05)', padding: '24px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-          <div style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: 600, letterSpacing: '1px' }}>GIẢM RỦI RO</div>
-          <div style={{ fontSize: '28px', fontWeight: 700, color: 'var(--emerald)', marginTop: '8px' }}>-12.4%</div>
-          <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '4px' }}>So với mua một lần tại đỉnh</div>
+          <div style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: 600, letterSpacing: '1px' }}>GIẢM RỦI RO (DCA)</div>
+          <div style={{ fontSize: '28px', fontWeight: 700, color: 'var(--emerald)', marginTop: '8px' }}>---</div>
+          <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '4px' }}>Hệ thống đang thu thập dữ liệu giá</div>
         </div>
         <div className="card" style={{ borderRadius: '24px', background: 'rgba(20,20,20,0.6)', border: '1px solid rgba(255,255,255,0.05)', padding: '24px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-          <div style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: 600, letterSpacing: '1px' }}>LẦN THỰC HIỆN TIẾP</div>
-          <div style={{ fontSize: '28px', fontWeight: 700, color: 'var(--text-main)', marginTop: '8px' }}>01/02/2026</div>
-          <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '4px' }}>Còn 12 ngày · Hàng tháng</div>
+          <div style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: 600, letterSpacing: '1px' }}>KẾ HOẠCH ACTIVE</div>
+          <div style={{ fontSize: '28px', fontWeight: 700, color: 'var(--text-main)', marginTop: '8px' }}>{plans.filter(p => p.status === 'running').length}</div>
+          <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '4px' }}>Giao dịch tự động bởi Hệ Thống AI</div>
         </div>
       </div>
 
@@ -127,12 +127,11 @@ export default function Dca() {
               <div style={{ position: 'absolute', top: 0, left: 0, bottom: 0, width: '4px', background: isRunning ? 'var(--gold-gradient)' : 'var(--text-muted)' }}></div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <div style={{ display: 'flex', gap: '32px', flexWrap: 'wrap' }}>
-                  <div><div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '4px' }}>LOẠI VÀNG</div><div style={{ fontSize: '16px', fontWeight: 600 }}>{p.goldTypeName}</div></div>
-                  <div><div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '4px' }}>SỐ TIỀN / KỲ</div><div style={{ fontSize: '16px', fontWeight: 600 }}>₫{p.amount.toLocaleString('vi-VN')}</div></div>
+                  <div><div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '4px' }}>LOẠI VÀNG</div><div style={{ fontSize: '16px', fontWeight: 600 }}>{prices[p.gold_type]?.name || p.gold_type?.toUpperCase()}</div></div>
+                  <div><div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '4px' }}>SỐ TIỀN / KỲ</div><div style={{ fontSize: '16px', fontWeight: 600 }}>₫{parseFloat(p.amount_vnd).toLocaleString('vi-VN')}</div></div>
                   <div><div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '4px' }}>TẦN SUẤT</div><div style={{ fontSize: '16px', fontWeight: 600 }}>{p.frequency}</div></div>
-                  <div><div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '4px' }}>NGÀY CHẠY</div><div style={{ fontSize: '16px', fontWeight: 600 }}>{p.day}</div></div>
-                  <div><div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '4px' }}>ĐÃ THỰC HIỆN</div><div style={{ fontSize: '16px', fontWeight: 600 }}>{p.executedCount} lần</div></div>
-                  <div><div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '4px' }}>GIÁ VỐN TB</div><div style={{ fontSize: '16px', fontWeight: 700, color: 'var(--gold)' }}>₫{p.avgPrice.toLocaleString('vi-VN')}</div></div>
+                  <div><div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '4px' }}>NGÀY CHẠY</div><div style={{ fontSize: '16px', fontWeight: 600 }}>{p.execution_day}</div></div>
+                  <div><div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '4px' }}>TRẠNG THÁI DB</div><div style={{ fontSize: '16px', fontWeight: 600 }}>{p.status}</div></div>
                 </div>
                 <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                   {isRunning ? (
@@ -147,41 +146,15 @@ export default function Dca() {
                     <button className="btn" style={{ padding: '8px 16px', fontSize: '13px', borderRadius: '99px', background: 'var(--bg-main)', color: 'var(--gold)', border: '1px solid var(--gold)' }} onClick={() => { resumeDcaPlan(p.id); Swal.fire('Thông báo', 'Kế hoạch tích lũy đã hoạt động trở lại.', 'success'); }}>Kích hoạt</button>
                   )}
                   
-                  <button className="btn" style={{ padding: '8px 16px', fontSize: '13px', borderRadius: '99px', color: 'var(--ruby)', border: '1px solid rgba(239, 68, 68, 0.3)', background: 'rgba(239,68,68,0.05)' }} onClick={async () => { const res = await Swal.fire({title: 'Xác nhận hủy', text: 'Bạn có chắc chắn muốn hủy kế hoạch tích lũy này không?', icon: 'warning', showCancelButton: true, confirmButtonText: 'Đồng ý', cancelButtonText: 'Hủy'}); if (res.isConfirmed) { cancelDcaPlan(p.id); Swal.fire('Đã hủy', 'Đã hủy kế hoạch tích lũy.', 'success'); } }}>Huỷ</button>
+                  <button className="btn" style={{ padding: '8px 16px', fontSize: '13px', borderRadius: '99px', color: 'var(--ruby)', border: '1px solid rgba(239, 68, 68, 0.3)', background: 'rgba(239,68,68,0.05)' }} onClick={async () => { const res = await Swal.fire({title: 'Xác nhận hủy', text: 'Bạn có chắc chắn muốn hủy kế hoạch tích lũy này không?', icon: 'warning', showCancelButton: true, confirmButtonText: 'Đồng ý', cancelButtonText: 'Hủy'}); if (res.isConfirmed) { cancelDcaPlan(p.id); Swal.fire('Đã hủy', 'Đã hủy kế hoạch tích lũy khỏi hệ thống.', 'success'); } }}>Huỷ</button>
                 </div>
               </div>
               
               <div className="divider" style={{ margin: '20px 0', borderTop: '1px dashed rgba(255,255,255,0.1)' }}></div>
-              <div style={{ fontSize: '14px', fontWeight: 600, marginBottom: '12px', color: 'var(--text-muted)' }}>Lịch sử thực hiện gần nhất</div>
               
-              <div style={{ overflowX: 'auto', background: 'rgba(0,0,0,0.2)', borderRadius: '12px', padding: '8px' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                  <thead>
-                    <tr style={{ color: 'var(--text-muted)', fontSize: '13px', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                      <th style={{ padding: '12px', textAlign: 'left', fontWeight: 500 }}>Ngày</th>
-                      <th style={{ padding: '12px', textAlign: 'left', fontWeight: 500 }}>Số tiền</th>
-                      <th style={{ padding: '12px', textAlign: 'left', fontWeight: 500 }}>Số lượng</th>
-                      <th style={{ padding: '12px', textAlign: 'left', fontWeight: 500 }}>Giá mua</th>
-                      <th style={{ padding: '12px', textAlign: 'left', fontWeight: 500 }}>Trạng thái</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                      <td style={{ padding: '12px 8px' }}>01/01/2026</td>
-                      <td style={{ padding: '12px 8px' }}>₫{p.amount.toLocaleString('vi-VN')}</td>
-                      <td style={{ padding: '12px 8px' }}>{(p.amount / firstSellPrice).toFixed(4)} chỉ</td>
-                      <td style={{ padding: '12px 8px' }}>₫{firstSellPrice.toLocaleString('vi-VN')}</td>
-                      <td style={{ padding: '12px 8px' }}><span style={{ color: 'var(--emerald)', background: 'rgba(16,185,129,0.1)', padding: '4px 8px', borderRadius: '4px', fontSize: '11px' }}>Thành công</span></td>
-                    </tr>
-                    <tr>
-                      <td style={{ padding: '12px 8px' }}>01/12/2025</td>
-                      <td style={{ padding: '12px 8px' }}>₫{p.amount.toLocaleString('vi-VN')}</td>
-                      <td style={{ padding: '12px 8px' }}>{(p.amount / 8500000).toFixed(4)} chỉ</td>
-                      <td style={{ padding: '12px 8px' }}>₫8.500.000</td>
-                      <td style={{ padding: '12px 8px' }}><span style={{ color: 'var(--emerald)', background: 'rgba(16,185,129,0.1)', padding: '4px 8px', borderRadius: '4px', fontSize: '11px' }}>Thành công</span></td>
-                    </tr>
-                  </tbody>
-                </table>
+              <div style={{ overflowX: 'auto', background: 'rgba(0,0,0,0.2)', borderRadius: '12px', padding: '16px', textAlign: 'center', color: 'var(--text-muted)' }}>
+                 <p><i className="ti ti-history" style={{ fontSize: '20px', marginBottom: '8px' }}></i></p>
+                 Dữ liệu các lần thực thi giao dịch được tính toán bởi Worker và hiển thị chi tiết tại màn hình <b>Lịch sử Giao dịch</b>.
               </div>
             </div>
           );

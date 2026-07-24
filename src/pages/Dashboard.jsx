@@ -7,6 +7,7 @@ export default function Dashboard() {
   const user = useStore(state => state.currentUser);
   const prices = useStore(state => state.goldPrices);
   const balances = useStore(state => state.goldBalances);
+  const costBasis = useStore(state => state.goldCostBasis) || {};
   const wallet = useStore(state => state.walletBalance);
   const transactions = useStore(state => state.transactions);
 
@@ -16,10 +17,18 @@ export default function Dashboard() {
     ? priceKeys.reduce((sum, k) => sum + (prices[k]?.buy || 0), 0) / priceKeys.length 
     : 148000000;
   let totalGoldQty = 0;
-  Object.values(balances).forEach(qty => { totalGoldQty += qty });
+  let totalGoldCost = 0;
+  Object.keys(balances).forEach(key => { 
+    totalGoldQty += balances[key]; 
+    totalGoldCost += balances[key] * (costBasis[key] || avgBuyPrice);
+  });
   const totalGoldValue = totalGoldQty * avgBuyPrice;
 
   const totalAssetsValue = wallet + totalGoldValue;
+  const unrealizedPnl = totalGoldValue - totalGoldCost;
+  const unrealizedPercent = totalGoldCost > 0 ? (unrealizedPnl / totalGoldCost) * 100 : 0;
+  const pnlColor = unrealizedPnl >= 0 ? 'var(--emerald)' : 'var(--ruby)';
+  const pnlSign = unrealizedPnl > 0 ? '+' : '';
 
   // Lọc ra các loại sản phẩm đang được sở hữu thực sự
   const ownedGoldList = Object.keys(balances).filter(k => balances[k] > 0);
@@ -52,10 +61,23 @@ export default function Dashboard() {
         </div>
       </div>
       
-      {/* KHỐI TỔNG TÀI SẢN KHÔNG CÓ LÃI LỖ */}
+      {/* KHỐI TỔNG TÀI SẢN & LÃI LỖ PNL */}
       <div className="neo-card" style={{ marginBottom: '24px', padding: '32px' }}>
-        <div className="body-sm" style={{ color: 'var(--text-muted)', marginBottom: '12px', fontWeight: 600, letterSpacing: '1px', textTransform: 'uppercase' }}>Tổng giá trị quy đổi hiện tại (Vàng + Ví VND)</div>
-        <div style={{ fontSize: '48px', fontWeight: 600, color: 'var(--gold)', lineHeight: 1, marginBottom: '32px', letterSpacing: '-1.5px' }}>₫{totalAssetsValue.toLocaleString('vi-VN')}</div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <div>
+            <div className="body-sm" style={{ color: 'var(--text-muted)', marginBottom: '12px', fontWeight: 600, letterSpacing: '1px', textTransform: 'uppercase' }}>Tổng giá trị tài sản (Mark-to-Market)</div>
+            <div style={{ fontSize: '48px', fontWeight: 600, color: 'var(--gold)', lineHeight: 1, marginBottom: '8px', letterSpacing: '-1.5px' }}>₫{totalAssetsValue.toLocaleString('vi-VN')}</div>
+            <div style={{ fontSize: '15px', fontWeight: 600, color: pnlColor, display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '32px' }}>
+               Lãi/lỗ tạm tính: {pnlSign}₫{unrealizedPnl.toLocaleString('vi-VN')} ({unrealizedPercent > 0 ? '+' : ''}{unrealizedPercent.toFixed(2)}%)
+            </div>
+          </div>
+          {unrealizedPercent > 5 && totalGoldQty > 0 && (
+            <div style={{ background: 'rgba(16, 185, 129, 0.1)', border: '1px solid rgba(16, 185, 129, 0.3)', padding: '16px', borderRadius: '12px', maxWidth: '300px' }}>
+              <div style={{ fontSize: '12px', fontWeight: 'bold', color: 'var(--emerald)', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>🤖 Robo Advisor Warning</div>
+              <div style={{ fontSize: '13px', color: '#fff', lineHeight: 1.5 }}>Lượng vàng trong kho của bạn đang có mức sinh lời <b>+{unrealizedPercent.toFixed(2)}%</b> so với giá vốn mua vào. Ngưỡng lợi nhuận an toàn, cân nhắc chốt lời một phần!</div>
+            </div>
+          )}
+        </div>
         
         <div style={{ display: 'flex', gap: '48px', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '24px' }}>
           <div>
@@ -65,15 +87,15 @@ export default function Dashboard() {
             </div>
           </div>
           <div>
-            <div className="body-sm" style={{ color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px', fontSize: '12px' }}>Trị giá vàng tích lũy quy đổi</div>
+            <div className="body-sm" style={{ color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px', fontSize: '12px' }}>Trị giá vàng quy đổi</div>
             <div style={{ fontSize: '18px', color: '#fff', marginTop: '4px', fontWeight: 600 }}>
               ₫{totalGoldValue.toLocaleString('vi-VN')}
             </div>
           </div>
           <div>
-            <div className="body-sm" style={{ color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px', fontSize: '12px' }}>Tổng khối lượng sở hữu</div>
+            <div className="body-sm" style={{ color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px', fontSize: '12px' }}>Tổng Vốn Đầu Tư (Vàng)</div>
             <div style={{ fontSize: '18px', color: '#fff', marginTop: '4px', fontWeight: 600 }}>
-              {totalGoldQty.toFixed(3)} chỉ
+              ₫{totalGoldCost.toLocaleString('vi-VN')}
             </div>
           </div>
         </div>

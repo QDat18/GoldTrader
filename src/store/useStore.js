@@ -46,6 +46,14 @@ const initialState = {
       return { sjc: 0, pnj: 0, doji: 0 };
     }
   })(),
+  goldCostBasis: (() => {
+    try {
+      const cached = localStorage.getItem('cached_gold_cost_basis');
+      return cached ? JSON.parse(cached) : {};
+    } catch {
+      return {};
+    }
+  })(),
   goldPrices: (() => {
     try {
       const cached = localStorage.getItem('cached_gold_prices');
@@ -211,6 +219,7 @@ const useStore = create((set, get) => ({
     localStorage.removeItem('cached_admin_users_map');
     localStorage.removeItem('cached_admin_inventory');
     localStorage.removeItem('cached_admin_hedges');
+    localStorage.removeItem('cached_gold_cost_basis');
     set((state) => ({
       currentUser: {
         name: '',
@@ -223,7 +232,9 @@ const useStore = create((set, get) => ({
       },
       walletBalance: 0,
       goldBalances: {},
+      goldCostBasis: {},
       transactions: [],
+      dcaPlans: [],
       orders: [],
       adminKycList: [],
       adminOrders: [],
@@ -330,12 +341,20 @@ const useStore = create((set, get) => ({
       });
     }
 
+    const oldQty = state.goldBalances[goldType] || 0;
+    const oldAvg = state.goldCostBasis[goldType] || price;
+    const newQty = quantity;
+    const newAvg = ((oldQty * oldAvg) + (newQty * price)) / (oldQty + newQty);
+    const nextGoldCostBasis = { ...state.goldCostBasis, [goldType]: newAvg };
+    localStorage.setItem('cached_gold_cost_basis', JSON.stringify(nextGoldCostBasis));
+
     set({
       walletBalance: state.walletBalance - totalCost,
       goldBalances: {
         ...state.goldBalances,
         [goldType]: parseFloat(((state.goldBalances[goldType] || 0) + quantity).toFixed(4))
       },
+      goldCostBasis: nextGoldCostBasis,
       orders: [newOrder, ...state.orders],
       transactions: [newTxn, ...state.transactions],
       inventory: newInventory
@@ -355,6 +374,10 @@ const useStore = create((set, get) => ({
 
     const totalRevenue = quantity * price;
 
+    const avgCost = state.goldCostBasis[goldType] || price;
+    const realizedPnl = Math.round((price - avgCost) * quantity);
+    const pnlStr = realizedPnl > 0 ? `+ ₫${realizedPnl.toLocaleString('vi-VN')}` : realizedPnl < 0 ? `- ₫${Math.abs(realizedPnl).toLocaleString('vi-VN')}` : '0';
+
     const timeNow = new Date();
     const dateStr = timeNow.getFullYear() + String(timeNow.getMonth() + 1).padStart(2, '0') + String(timeNow.getDate()).padStart(2, '0');
     const txnId = `TXN-${dateStr}${Math.floor(1000 + Math.random() * 9000)}`;
@@ -366,7 +389,7 @@ const useStore = create((set, get) => ({
       quantity: quantity,
       price: price,
       total: totalRevenue,
-      pnl: '—',
+      pnl: pnlStr,
       time: `${String(timeNow.getHours()).padStart(2, '0')}:${String(timeNow.getMinutes()).padStart(2, '0')} hôm nay`,
       status: 'OK'
     };
@@ -403,31 +426,70 @@ const useStore = create((set, get) => ({
     });
   },
 
-  createDcaPlan: (goldType, amount, frequency, day) => {
-    const state = get();
-    const item = state.goldPrices[goldType];
-    const newPlan = {
-      id: state.dcaPlans.length + 1,
-      goldType: goldType,
-      goldTypeName: item.name,
-      amount: amount,
-      frequency: frequency,
-      day: day,
-      executedCount: 0,
-      avgPrice: item.buy,
-      status: 'running'
-    };
-    set({ dcaPlans: [...state.dcaPlans, newPlan] });
+  fetchDcaPlans: async (userId) => {
+    try {
+      const { data, error } = await supabase.from('dca_plans').select('*').eq('user_id', userId).order('created_at', { ascending: false });
+      if (!error && data) {
+        set({ dcaPlans: data });
+      }
+    } catch(err) {
+      console.warn("Table dca_plans might not exist yet:", err);
+    }
   },
 
-  pauseDcaPlan: (id) =>
-    set((state) => ({ dcaPlans: state.dcaPlans.map(p => p.id === id ? { ...p, status: 'paused' } : p) })),
+  createDcaPlan: async (goldType, amount, frequency, day) => {
+    const state = get();
+    if (!state.currentUser?.id) return;
+    try {
+      const newPlan = {
+        user_id: state.currentUser.id,
+        gold_type: goldType,
+        amount_vnd: amount,
+        frequency: frequency,
+        execution_day: day,
+        status: 'running'
+      };
+      const { data, error } = await supabase.from('dca_plans').insert([newPlan]).select('*').single();
+      if (!error && data) {
+        set({ dcaPlans: [data, ...state.dcaPlans] });
+      }
+    } catch(err) {
+      console.error(err);
+    }
+  },
 
-  resumeDcaPlan: (id) =>
-    set((state) => ({ dcaPlans: state.dcaPlans.map(p => p.id === id ? { ...p, status: 'running' } : p) })),
+  pauseDcaPlan: async (id) => {
+    try {
+      const { error } = await supabase.from('dca_plans').update({ status: 'paused' }).eq('id', id);
+      if (!error) {
+        set((state) => ({ dcaPlans: state.dcaPlans.map(p => p.id === id ? { ...p, status: 'paused' } : p) }));
+      }
+    } catch(err) {
+      console.error(err);
+    }
+  },
 
-  cancelDcaPlan: (id) =>
-    set((state) => ({ dcaPlans: state.dcaPlans.filter(p => p.id !== id) })),
+  resumeDcaPlan: async (id) => {
+    try {
+      const { error } = await supabase.from('dca_plans').update({ status: 'running' }).eq('id', id);
+      if (!error) {
+        set((state) => ({ dcaPlans: state.dcaPlans.map(p => p.id === id ? { ...p, status: 'running' } : p) }));
+      }
+    } catch(err) {
+      console.error(err);
+    }
+  },
+
+  cancelDcaPlan: async (id) => {
+    try {
+      const { error } = await supabase.from('dca_plans').delete().eq('id', id);
+      if (!error) {
+        set((state) => ({ dcaPlans: state.dcaPlans.filter(p => p.id !== id) }));
+      }
+    } catch(err) {
+      console.error(err);
+    }
+  },
 
   submitKyc: (submission) =>
     set((state) => {

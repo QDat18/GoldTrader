@@ -49,7 +49,13 @@ export default function History() {
   const totalSell = filteredTxns
     .filter(t => t.type === 'sell')
     .reduce((sum, t) => sum + t.total, 0);
-  const realizedPnl = Math.round(totalSell * 0.08); // Mock dynamic PNL
+  const realizedPnl = filteredTxns
+    .filter(t => t.type === 'sell' && t.pnl && t.pnl !== '—')
+    .reduce((sum, t) => {
+      const strVal = t.pnl.toString().replace(/[^0-9]/g, '');
+      const num = parseInt(strVal, 10) || 0;
+      return t.pnl.includes('-') ? sum - num : sum + num;
+    }, 0);
 
   const handleExport = () => {
     Swal.fire('Thành công', 'Tải xuống báo cáo giao dịch (CSV) thành công!', 'success');
@@ -183,6 +189,12 @@ export default function History() {
             <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600, letterSpacing: '1px' }}>TỔNG BÁN RA</div>
             <div style={{ fontSize: '24px', fontWeight: 600, color: 'var(--text-main)', marginTop: '8px' }}>₫{totalSell.toLocaleString('vi-VN')}</div>
           </div>
+          <div className="card" style={{ borderRadius: '24px', background: 'rgba(20,20,20,0.6)', border: '1px solid rgba(255,255,255,0.05)', padding: '24px' }}>
+            <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600, letterSpacing: '1px' }}>LÃI CHỐT THỰC TẾ (REALIZED)</div>
+            <div style={{ fontSize: '24px', fontWeight: 600, color: realizedPnl > 0 ? 'var(--emerald)' : realizedPnl < 0 ? 'var(--ruby)' : 'var(--text-main)', marginTop: '8px' }}>
+               {realizedPnl > 0 ? '+' : ''}{realizedPnl.toLocaleString('vi-VN')}
+            </div>
+          </div>
         </div>
 
         {/* Pending Withdrawals O2O */}
@@ -229,6 +241,7 @@ export default function History() {
                   <th style={{ padding: '16px 24px', textAlign: 'right', fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>Đơn giá</th>
                   <th style={{ padding: '16px 24px', textAlign: 'right', fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>Tổng tiền</th>
                   <th style={{ padding: '16px 24px', textAlign: 'left', fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>Thời gian</th>
+                  <th style={{ padding: '16px 24px', textAlign: 'right', fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>Lãi / Lỗ</th>
                   <th style={{ padding: '16px 24px', textAlign: 'left', fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>Trạng thái</th>
                   <th style={{ padding: '16px 24px', textAlign: 'right', fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>Hành động</th>
                 </tr>
@@ -268,6 +281,11 @@ export default function History() {
                         {txn.type === 'deposit' ? <span style={{ color: 'var(--emerald)' }}>+ ₫{txn.total.toLocaleString('vi-VN')}</span> : `₫${txn.total.toLocaleString('vi-VN')}`}
                       </td>
                       <td style={{ padding: '16px 24px', fontSize: '13px', color: 'var(--text-muted)' }}>{txn.time}</td>
+                      <td style={{ padding: '16px 24px', textAlign: 'right', fontWeight: 600 }}>
+                        {txn.type === 'sell' ? (
+                           <span style={{ color: txn.pnl?.includes('+') ? 'var(--emerald)' : txn.pnl?.includes('-') ? 'var(--ruby)' : 'var(--text-muted)' }}>{txn.pnl}</span>
+                        ) : '—'}
+                      </td>
                       <td style={{ padding: '16px 24px' }}>
                         <span style={{ fontSize: '11px', padding: '4px 8px', borderRadius: '4px', background: 'rgba(16, 185, 129, 0.1)', color: 'var(--emerald)', fontWeight: 600 }}>{txn.status}</span>
                       </td>

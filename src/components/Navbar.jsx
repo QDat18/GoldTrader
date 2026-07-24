@@ -78,7 +78,7 @@ export function UserNavbar() {
     const val = parseInt(depositAmount.toString().replace(/[^0-9]/g, ''), 10);
     if (!Number.isNaN(val) && val > 0) {
       depositMoney(val);
-      
+
       if (user?.id) {
         supabase.schema('financial_ledgers').from('fiat_deposits').insert({
           user_id: user.id,
@@ -212,7 +212,7 @@ export function UserNavbar() {
                       {user.role === 'admin' ? (
                         <span style={{ fontSize: '10px', color: '#fff', background: '#3b82f6', borderRadius: '9999px', padding: '2px 7px', whiteSpace: 'nowrap', fontWeight: 600 }}>Quản trị hệ thống</span>
                       ) : (
-                        <span 
+                        <span
                           title={user.kycStatus === 'verified' ? 'Tài khoản đã xác minh (KYC Verified)\nBạn đã được phê duyệt nhận vàng vật chất. Bạn có thể đến bất kỳ chi nhánh nào để rút vàng thật.' : ''}
                           style={{ fontSize: '10px', color: kycMeta.color, background: kycMeta.bg, borderRadius: '9999px', padding: '2px 7px', whiteSpace: 'nowrap', cursor: 'help' }}
                         >
@@ -448,12 +448,12 @@ export function UserNavbar() {
               <>
                 <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px' }}>
                   <div style={{ fontSize: '14px', color: 'var(--text-muted)', textAlign: 'center' }}>
-                    Mở ứng dụng ngân hàng bất kỳ để quét mã QR.<br/>Số tiền sẽ được cập nhật tự động trong vài giây.
+                    Mở ứng dụng ngân hàng bất kỳ để quét mã QR.<br />Số tiền sẽ được cập nhật tự động trong vài giây.
                   </div>
-                  
+
                   <div style={{ background: '#fff', padding: '16px', borderRadius: '16px', display: 'flex', flexDirection: 'column', alignItems: 'center', boxShadow: '0 0 30px rgba(255,255,255,0.1)' }}>
-                    <img 
-                      src={`https://img.vietqr.io/image/970407-19036324835017-print.png?amount=${depositAmount ? depositAmount.toString().replace(/[^0-9]/g, '') : 0}&addInfo=NAP%20GOLDCHAIN&accountName=CONG%20TY%20CP%20GOLDCHAIN`}
+                    <img
+                      src={`https://img.vietqr.io/image/vietinbank-0364335411-print.png?amount=${depositAmount ? depositAmount.toString().replace(/[^0-9]/g, '') : 0}&addInfo=NAP%20GOLDCHAIN&accountName=QUY%20DTVC`}
                       alt="VietQR"
                       style={{ width: '220px', height: 'auto', display: 'block' }}
                     />
@@ -472,7 +472,7 @@ export function UserNavbar() {
                     </button>
                     {/* Sandbox Fake Webhook Button */}
                     <button className="btn btn-gold" onClick={submitDeposit} style={{ flex: 2, background: 'var(--emerald)', color: '#fff', borderRadius: '99px', padding: '14px', fontSize: '15px', fontWeight: 700, boxShadow: '0 8px 16px rgba(16,185,129,0.2)' }}>
-                      Giả lập Webhook (Nạp)
+                      Xác Nhận Nạp Tiền
                     </button>
                   </div>
                 </div>
@@ -485,22 +485,22 @@ export function UserNavbar() {
       {isSuccessModalOpen && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(10px)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px', animation: 'fadeIn 0.2s ease-out' }}>
           <div className="card" style={{ width: '100%', maxWidth: '400px', background: 'var(--bg-card)', borderRadius: '24px', border: '1px solid rgba(16, 185, 129, 0.4)', overflow: 'hidden', textAlign: 'center', padding: '40px 24px', position: 'relative', boxShadow: '0 20px 60px rgba(16, 185, 129, 0.15)', animation: 'slideUp 0.3s ease-out' }}>
-             <button onClick={() => setIsSuccessModalOpen(false)} style={{ position: 'absolute', top: 16, right: 16, background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', transition: 'color 0.2s' }} onMouseEnter={(e) => e.currentTarget.style.color = 'var(--text-main)'} onMouseLeave={(e) => e.currentTarget.style.color = 'var(--text-muted)'}>
-               <X size={24} />
-             </button>
-             <div style={{ width: '80px', height: '80px', borderRadius: '50%', background: 'rgba(16, 185, 129, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 24px', boxShadow: '0 0 30px rgba(16, 185, 129, 0.2)', border: '1px solid rgba(16, 185, 129, 0.3)' }}>
-                <Check size={40} color="var(--emerald)" />
-             </div>
-             <h2 className="h2" style={{ color: 'var(--emerald)', marginBottom: '8px' }}>Nạp Tiền Thành Công!</h2>
-             <div style={{ fontSize: '32px', fontWeight: 'bold', color: 'var(--text-main)', marginBottom: '16px', letterSpacing: '-0.5px' }}>
-               +{new Intl.NumberFormat('vi-VN').format(successDepositAmount)} <span style={{fontSize: '20px', color: 'var(--text-muted)'}}>VNĐ</span>
-             </div>
-             <p className="body-sm" style={{ marginBottom: '32px' }}>
-               Số tiền đã được cộng ngay lập tức vào Ví GoldChain của bạn. Bạn đã có thể bắt đầu giao dịch ngay.
-             </p>
-             <button className="btn btn-gold" onClick={() => setIsSuccessModalOpen(false)} style={{ width: '100%', borderRadius: '99px', padding: '14px', fontSize: '15px', fontWeight: 700, boxShadow: '0 8px 16px rgba(212,175,55,0.2)' }}>
-               Tuyệt vời, tiếp tục
-             </button>
+            <button onClick={() => setIsSuccessModalOpen(false)} style={{ position: 'absolute', top: 16, right: 16, background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', transition: 'color 0.2s' }} onMouseEnter={(e) => e.currentTarget.style.color = 'var(--text-main)'} onMouseLeave={(e) => e.currentTarget.style.color = 'var(--text-muted)'}>
+              <X size={24} />
+            </button>
+            <div style={{ width: '80px', height: '80px', borderRadius: '50%', background: 'rgba(16, 185, 129, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 24px', boxShadow: '0 0 30px rgba(16, 185, 129, 0.2)', border: '1px solid rgba(16, 185, 129, 0.3)' }}>
+              <Check size={40} color="var(--emerald)" />
+            </div>
+            <h2 className="h2" style={{ color: 'var(--emerald)', marginBottom: '8px' }}>Nạp Tiền Thành Công!</h2>
+            <div style={{ fontSize: '32px', fontWeight: 'bold', color: 'var(--text-main)', marginBottom: '16px', letterSpacing: '-0.5px' }}>
+              +{new Intl.NumberFormat('vi-VN').format(successDepositAmount)} <span style={{ fontSize: '20px', color: 'var(--text-muted)' }}>VNĐ</span>
+            </div>
+            <p className="body-sm" style={{ marginBottom: '32px' }}>
+              Số tiền đã được cộng ngay lập tức vào Ví GoldChain của bạn. Bạn đã có thể bắt đầu giao dịch ngay.
+            </p>
+            <button className="btn btn-gold" onClick={() => setIsSuccessModalOpen(false)} style={{ width: '100%', borderRadius: '99px', padding: '14px', fontSize: '15px', fontWeight: 700, boxShadow: '0 8px 16px rgba(212,175,55,0.2)' }}>
+              Tuyệt vời, tiếp tục
+            </button>
           </div>
         </div>
       )}

@@ -168,30 +168,31 @@ function App() {
             kycRejectionReason: dbUser.kyc_rejection_reason || ''
           });
  
-          // Kiểm tra và khởi tạo các ví vàng trong CSDL nếu chưa có
-          const { data: existingWallets, error: ewErr } = await supabase
+          // Kiểm tra và khởi tạo các ví vàng trong CSDL nếu chưa có (Chạy ngầm không block UI)
+          supabase
             .from('gold_wallets')
-            .select('*')
-            .eq('user_id', dbUser.id);
-          
-          if (!ewErr && (!existingWallets || existingWallets.length === 0)) {
-            await supabase.from('gold_wallets').insert([
-              { user_id: dbUser.id, gold_type: 'sjc', quantity_grams: 0.0 },
-              { user_id: dbUser.id, gold_type: 'pnj', quantity_grams: 0.0 },
-              { user_id: dbUser.id, gold_type: 'doji', quantity_grams: 0.0 }
-            ]);
-          }
+            .select('id')
+            .eq('user_id', dbUser.id)
+            .then(({ data: existingWallets, error: ewErr }) => {
+              if (!ewErr && (!existingWallets || existingWallets.length === 0)) {
+                supabase.from('gold_wallets').insert([
+                  { user_id: dbUser.id, gold_type: 'sjc', quantity_grams: 0.0 },
+                  { user_id: dbUser.id, gold_type: 'pnj', quantity_grams: 0.0 },
+                  { user_id: dbUser.id, gold_type: 'doji', quantity_grams: 0.0 }
+                ]).then();
+              }
+            });
  
           // Đồng bộ số dư ví VND của người dùng từ CSDL vào Zustand Store
           const balanceVal = Number(dbUser.wallet_balance_vnd) || 0;
           localStorage.setItem('cached_wallet_balance', String(balanceVal));
           useStore.setState({ walletBalance: balanceVal });
-          // Đồng bộ số dư vàng của người dùng từ CSDL vào Zustand Store
-          await fetchUserBalances(dbUser.id);
-          // Tải thông báo từ CSDL
-          await fetchNotifications(dbUser.id);
-          // Tải lịch sử giao dịch từ CSDL
-          await fetchTransactions(dbUser.id);
+          
+          // Tải các dữ liệu nền không theo dạng tuần tự (Parallel/Background fetching)
+          fetchUserBalances(dbUser.id).catch(console.error);
+          fetchNotifications(dbUser.id).catch(console.error);
+          fetchTransactions(dbUser.id).catch(console.error);
+          useStore.getState().fetchDcaPlans(dbUser.id);
         } else {
           // Fallback nếu chưa kịp tạo bản ghi ở user_profiles
           setCurrentUser(createFallbackUser(authUser));
