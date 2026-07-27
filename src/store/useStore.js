@@ -352,7 +352,7 @@ const useStore = create((set, get) => ({
       walletBalance: state.walletBalance - totalCost,
       goldBalances: {
         ...state.goldBalances,
-        [goldType]: parseFloat(((state.goldBalances[goldType] || 0) + quantity).toFixed(4))
+        [goldType]: parseFloat(((state.goldBalances[goldType] || 0) + quantity).toFixed(6))
       },
       goldCostBasis: nextGoldCostBasis,
       orders: [newOrder, ...state.orders],
@@ -420,7 +420,7 @@ const useStore = create((set, get) => ({
       walletBalance: state.walletBalance + totalRevenue,
       goldBalances: {
         ...state.goldBalances,
-        [goldType]: parseFloat((userBalance - quantity).toFixed(4))
+        [goldType]: parseFloat((userBalance - quantity).toFixed(6))
       },
       transactions: [newTxn, ...state.transactions]
     });
@@ -718,25 +718,26 @@ const useStore = create((set, get) => ({
           const date = new Date(order.created_at);
           const timeStr = `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')} ${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear()}`;
 
-          const qty = Number((Number(order.quantity_grams) / 3.75).toFixed(4));
+          const qty = Number((Number(order.quantity_grams) / 3.75).toFixed(6));
           const price = Math.round(Number(order.unit_price_vnd) * 3.75);
 
           let mappedStatus = order.order_status || 'OK';
           if (mappedStatus === 'WAITING_PICKUP') mappedStatus = 'PENDING';
 
-          return {
-            id: order.id,
-            type: type,
-            goldTypeName: get().goldPrices[order.gold_type]?.name || order.gold_type,
-            quantity: qty,
-            price: price,
-            total: Number(order.total_amount_vnd),
-            pnl: '—',
-            time: timeStr,
-            status: mappedStatus,
-            rawTime: date.getTime()
-          };
-        });
+            return {
+              id: order.id,
+              type: type,
+              goldTypeKey: order.gold_type,
+              goldTypeName: get().goldPrices[order.gold_type]?.name || order.gold_type,
+              quantity: qty,
+              price: price,
+              total: Number(order.total_amount_vnd),
+              pnl: '—',
+              time: timeStr,
+              status: mappedStatus,
+              rawTime: date.getTime()
+            };
+          });
 
         // 2. Tải lịch sử nạp tiền từ fiat_deposits
         try {
@@ -769,10 +770,43 @@ const useStore = create((set, get) => ({
           console.warn('Bạn chưa tạo bảng fiat_deposits', e);
         }
 
+        loadedTxns.sort((a, b) => a.rawTime - b.rawTime); // ascending for time traveling
+
+        const computedCostBasis = {};
+        loadedTxns.forEach(txn => {
+          if (txn.type === 'buy') {
+            const oldAvg = computedCostBasis[txn.goldTypeKey] || txn.price;
+            const oldQty = get().goldBalances[txn.goldTypeKey] || 0; // note: approximation
+            // To be accurate we need full ledger, but for now we just do simple avg
+            // A more accurate retroactive:
+            const curAvg = computedCostBasis[txn.goldTypeKey] || 0;
+            const curQty = computedCostBasis[`${txn.goldTypeKey}_qty`] || 0;
+            const newQty = curQty + txn.quantity;
+            const newAvg = newQty === 0 ? 0 : ((curQty * curAvg) + (txn.quantity * txn.price)) / newQty;
+            computedCostBasis[txn.goldTypeKey] = newAvg;
+            computedCostBasis[`${txn.goldTypeKey}_qty`] = newQty;
+          } else if (txn.type === 'sell') {
+            const avgCost = computedCostBasis[txn.goldTypeKey] || txn.price;
+            const realizedPnl = Math.round((txn.price - avgCost) * txn.quantity);
+            txn.pnl = realizedPnl > 0 ? `+ ₫${realizedPnl.toLocaleString('vi-VN')}` : realizedPnl < 0 ? `- ₫${Math.abs(realizedPnl).toLocaleString('vi-VN')}` : '0';
+            
+            const curQty = computedCostBasis[`${txn.goldTypeKey}_qty`] || 0;
+            computedCostBasis[`${txn.goldTypeKey}_qty`] = Math.max(0, curQty - txn.quantity);
+          }
+        });
+
+        // Store the freshly calculated state
+        const finalCostBasis = {};
+        Object.keys(computedCostBasis).filter(k => !k.endsWith('_qty')).forEach(k => {
+          finalCostBasis[k] = computedCostBasis[k];
+        });
+        localStorage.setItem('cached_gold_cost_basis', JSON.stringify(finalCostBasis));
+        get().goldCostBasis = finalCostBasis;
+
         loadedTxns.sort((a, b) => b.rawTime - a.rawTime);
 
         localStorage.setItem('cached_transactions', JSON.stringify(loadedTxns));
-        set({ transactions: loadedTxns });
+        set({ transactions: loadedTxns, goldCostBasis: finalCostBasis });
       }
     } catch (err) {
       console.error("Lỗi khi tải lịch sử giao dịch:", err);

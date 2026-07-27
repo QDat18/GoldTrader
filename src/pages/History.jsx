@@ -452,8 +452,8 @@ export default function History() {
                       <td style={{ padding: '16px 24px', textAlign: 'right', fontSize: '14px', fontVariantNumeric: 'tabular-nums' }}>
                         {txn.type === 'deposit' ? <span style={{ opacity: 0.5 }}>—</span> : (
                           <>
-                            {txn.quantity.toFixed(4)} chỉ
-                            <span style={{ fontSize: '12px', color: 'var(--text-muted)', marginLeft: '4px', display: 'inline-block' }}>({Number((txn.quantity * 3.75).toFixed(4))}g)</span>
+                            {txn.quantity.toFixed(6)} chỉ
+                            <span style={{ fontSize: '12px', color: 'var(--text-muted)', marginLeft: '4px', display: 'inline-block' }}>({Number((txn.quantity * 3.75).toFixed(6))}g)</span>
                           </>
                         )}
                       </td>
@@ -482,7 +482,7 @@ export default function History() {
                                   name: currentUser?.name || 'Khách hàng',
                                   contractId: txn.id,
                                   goldType: txn.goldTypeName,
-                                  quantity: `${txn.quantity.toString()} (${Number((txn.quantity * 3.75).toFixed(4))}g)`,
+                                  quantity: `${txn.quantity.toString()} (${Number((txn.quantity * 3.75).toFixed(6))}g)`,
                                   price: txn.price.toLocaleString('vi-VN'),
                                   total: txn.total.toLocaleString('vi-VN'),
                                   date: txn.time,
@@ -509,7 +509,7 @@ export default function History() {
                                       email: currentUser?.email || '',
                                       contractId: txn.id,
                                       goldType: txn.goldTypeName,
-                                      quantity: `${txn.quantity.toString()} (${Number((txn.quantity * 3.75).toFixed(4))}g)`,
+                                      quantity: `${txn.quantity.toString()} (${Number((txn.quantity * 3.75).toFixed(6))}g)`,
                                       price: txn.price.toLocaleString('vi-VN'),
                                       total: txn.total.toLocaleString('vi-VN'),
                                       date: txn.time,

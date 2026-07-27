@@ -16,9 +16,9 @@ export default function Dashboard() {
 
   // Tính giá trị quy đổi vàng ra tiền mặt theo giá Cửa hàng mua vào hiện tại
   const priceKeys = Object.keys(prices);
-  const avgBuyPrice = priceKeys.length > 0 
-    ? priceKeys.reduce((sum, k) => sum + (prices[k]?.buy || 0), 0) / priceKeys.length 
-    : 148000000;
+  const avgBuyPricePerChi = priceKeys.length > 0 
+    ? (priceKeys.reduce((sum, k) => sum + (prices[k]?.buy || 0), 0) / priceKeys.length) / 10
+    : 14800000;
   let totalGoldQty = 0;
   let totalGoldCost = 0;
   let totalGoldValue = 0;
@@ -27,8 +27,8 @@ export default function Dashboard() {
     const qty = balances[key];
     if (qty > 0) {
       totalGoldQty += qty; 
-      // Giá mua vào của tiệm cho loại vàng này
-      const currentBuyPrice = prices[key]?.buy || avgBuyPrice;
+      // Giá mua vào của tiệm cho loại vàng này (tính theo Chỉ)
+      const currentBuyPrice = prices[key]?.buy ? prices[key].buy / 10 : avgBuyPricePerChi;
       totalGoldCost += qty * (costBasis[key] || currentBuyPrice);
       totalGoldValue += qty * currentBuyPrice;
     }
@@ -87,7 +87,7 @@ export default function Dashboard() {
         ownedGoldList={ownedGoldList} 
         balances={balances} 
         prices={prices} 
-        avgBuyPrice={avgBuyPrice} 
+        avgBuyPrice={avgBuyPricePerChi * 10} 
       />
 
       <div className="grid-2" style={{ gap: '16px' }}>

@@ -22,7 +22,7 @@ export default function Dca() {
   // Calculate aggregated stats
   const totalAccumulated = plans.reduce((acc, p) => acc + (p.status === 'running' ? parseFloat(p.amount_vnd || 0) : 0), 0);
   const firstSellPrice = priceKeys.length > 0 ? (prices[priceKeys[0]]?.sell || 148000000) : 148000000;
-  const avgGoldEstimate = (totalAccumulated / firstSellPrice).toFixed(4);
+  const avgGoldEstimate = (totalAccumulated / firstSellPrice).toFixed(6);
 
   const handleSave = () => {
     const amt = parseInt(amount, 10);

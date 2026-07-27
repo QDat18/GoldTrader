@@ -101,7 +101,7 @@ export default function AdminInventory() {
   // ==== SỬA TRỌNG LƯỢNG / NGUỒN NHẬP ====
   const handleStartEdit = (item) => {
     setEditingId(item.id);
-    setEditWeight((Number(item.weight_grams) / 3.75).toFixed(4));
+    setEditWeight((Number(item.weight_grams) / 3.75).toFixed(6));
     setEditSource(item.import_source || '');
     setEditCostPrice(item.cost_price_vnd ? String(item.cost_price_vnd) : '');
   };
@@ -124,7 +124,7 @@ export default function AdminInventory() {
       const { error } = await supabase
         .from('vault_inventory')
         .update({
-          weight_grams: Number((weightVal * 3.75).toFixed(4)),
+          weight_grams: Number((weightVal * 3.75).toFixed(6)),
           import_source: editSource || item.import_source,
           cost_price_vnd: editCostPrice ? parseFloat(editCostPrice) : item.cost_price_vnd
         })
@@ -383,7 +383,7 @@ export default function AdminInventory() {
                   Trọng lượng (chỉ)
                   {newInvWeight && !isNaN(newInvWeight) && parseFloat(newInvWeight) > 0 && (
                     <span style={{ color: 'var(--gold)', fontWeight: 400, marginLeft: '8px' }}>
-                      = {(parseFloat(newInvWeight) * 3.75).toFixed(4)}g
+                      = {(parseFloat(newInvWeight) * 3.75).toFixed(6)}g
                     </span>
                   )}
                 </label>
@@ -508,7 +508,7 @@ export default function AdminInventory() {
                               style={{ width: '100px', padding: '4px 8px', fontSize: '12px', height: '30px' }}
                             />
                             <span style={{ fontSize: '10px', color: 'var(--gold)' }}>
-                              = {editWeight && !isNaN(editWeight) ? (parseFloat(editWeight) * 3.75).toFixed(4) : 0}g
+                              = {editWeight && !isNaN(editWeight) ? (parseFloat(editWeight) * 3.75).toFixed(6) : 0}g
                             </span>
                           </div>
                         ) : (

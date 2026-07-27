@@ -9,7 +9,7 @@ export default function OwnedGoldList({ ownedGoldList, balances, prices, avgBuyP
         const qty = balances[key];
         const targetPrice = prices[key];
         const currentBuyPrice = targetPrice ? targetPrice.buy : avgBuyPrice;
-        const val = qty * currentBuyPrice;
+        const val = qty * (currentBuyPrice / 10);
         const name = targetPrice ? targetPrice.name : key;
         return (
           <div key={key} className="neo-card" style={{ padding: '0', overflow: 'hidden' }}>
@@ -25,7 +25,7 @@ export default function OwnedGoldList({ ownedGoldList, balances, prices, avgBuyP
                   {qty.toFixed(3)} <span style={{ fontSize: '16px', color: 'var(--text-muted)', fontWeight: 500, letterSpacing: '0' }}>chỉ</span>
                 </div>
                 <div style={{ fontSize: '13px', color: 'rgba(255,255,255,0.4)', marginTop: '4px' }}>
-                  Tương đương {Number((qty * 3.75).toFixed(4))}g
+                  Tương đương {Number((qty * 3.75).toFixed(6))}g
                 </div>
              </div>
              <div style={{ padding: '16px 24px', background: 'rgba(255,255,255,0.03)', borderTop: '1px solid rgba(255,255,255,0.05)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
