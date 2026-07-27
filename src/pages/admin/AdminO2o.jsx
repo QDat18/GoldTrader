@@ -52,6 +52,21 @@ export default function AdminO2o() {
       return;
     }
 
+    if (order.order_status === 'CANCELLED') {
+      setO2oError('Đơn hàng này đã bị hủy bởi người dùng, không thể bàn giao.');
+      return;
+    }
+
+    if (order.order_status === 'COMPLETED') {
+      setO2oError('Đơn hàng này đã được bàn giao xong trước đó.');
+      return;
+    }
+
+    if (order.order_status !== 'PENDING' && order.order_status !== 'WAITING_PICKUP' && order.order_status !== 'pending') {
+      setO2oError(`Đơn hàng này đang ở trạng thái không hợp lệ (${order.order_status}) để bàn giao.`);
+      return;
+    }
+
     const client = usersMap[order.user_id] || { full_name: 'Khách hàng', phone: '—', id_card_number: '—' };
 
     if (!otp) {
