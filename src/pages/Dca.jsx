@@ -19,10 +19,70 @@ export default function Dca() {
   const [frequency, setFrequency] = useState('Hàng tháng');
   const [day, setDay] = useState('Ngày 1');
 
+  const [executionTime, setExecutionTime] = useState('09:00');
+  const [selectedDates, setSelectedDates] = useState([]);
+  const [currentMonth, setCurrentMonth] = useState(new Date());
+
   // Calculate aggregated stats
   const totalAccumulated = plans.reduce((acc, p) => acc + (p.status === 'running' ? parseFloat(p.amount_vnd || 0) : 0), 0);
   const firstSellPrice = priceKeys.length > 0 ? (prices[priceKeys[0]]?.sell || 148000000) : 148000000;
   const avgGoldEstimate = (totalAccumulated / firstSellPrice).toFixed(6);
+
+  const toggleDate = (dateStr) => {
+    setSelectedDates(prev => prev.includes(dateStr) ? prev.filter(d => d !== dateStr) : [...prev, dateStr]);
+  };
+
+  const renderCalendar = () => {
+    const year = currentMonth.getFullYear();
+    const month = currentMonth.getMonth();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const firstDay = new Date(year, month, 1).getDay();
+    const startOffset = firstDay === 0 ? 6 : firstDay - 1; // Mon = 0
+
+    const days = [];
+    for (let i = 0; i < startOffset; i++) days.push(null);
+    for (let i = 1; i <= daysInMonth; i++) days.push(new Date(year, month, i));
+
+    const weeks = [];
+    while (days.length) weeks.push(days.splice(0, 7));
+
+    return (
+      <div style={{ background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '12px', padding: '16px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+          <button className="btn" onClick={() => setCurrentMonth(new Date(year, month - 1, 1))} style={{ padding: '6px 12px' }}>&lt;</button>
+          <div style={{ fontWeight: 'bold', color: 'var(--gold)' }}>Tháng {month + 1}, {year}</div>
+          <button className="btn" onClick={() => setCurrentMonth(new Date(year, month + 1, 1))} style={{ padding: '6px 12px' }}>&gt;</button>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '8px', textAlign: 'center', marginBottom: '8px' }}>
+          {['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'].map(d => <div key={d} style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{d}</div>)}
+        </div>
+        <div>
+          {weeks.map((week, wIdx) => (
+            <div key={wIdx} style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '8px', marginBottom: '8px' }}>
+              {week.map((dateObj, dIdx) => {
+                if (!dateObj) return <div key={`empty-${dIdx}`}></div>;
+                const dateStr = `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, '0')}-${String(dateObj.getDate()).padStart(2, '0')}`;
+                const isSelected = selectedDates.includes(dateStr);
+                return (
+                  <div
+                    key={dateStr}
+                    onClick={() => toggleDate(dateStr)}
+                    style={{
+                      padding: '8px 0', textAlign: 'center', borderRadius: '8px', cursor: 'pointer', fontSize: '14px',
+                      background: isSelected ? 'var(--gold-gradient)' : 'rgba(255,255,255,0.05)',
+                      color: isSelected ? '#000' : '#fff', fontWeight: isSelected ? 600 : 400
+                    }}
+                  >
+                    {dateObj.getDate()}
+                  </div>
+                );
+              })}
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
 
   const handleSave = () => {
     const amt = parseInt(amount, 10);
@@ -30,7 +90,18 @@ export default function Dca() {
       Swal.fire('Lỗi', 'Số tiền tích lũy tối thiểu là ₫100.000', 'error');
       return;
     }
-    createDcaPlan(goldType, amt, frequency, day);
+    let finalExecutionDay = day;
+    if (frequency === 'Tùy chỉnh (Chọn ngày)') {
+      if (selectedDates.length === 0) {
+        Swal.fire('Lỗi', 'Vui lòng chọn ít nhất một ngày trên lịch', 'error');
+        return;
+      }
+      finalExecutionDay = `${executionTime}|${selectedDates.sort().join(',')}`;
+    } else {
+      finalExecutionDay = `${executionTime}|${day}`;
+    }
+    
+    createDcaPlan(goldType, amt, frequency, finalExecutionDay);
     setShowCreateForm(false);
     Swal.fire('Thành công', 'Đã tạo kế hoạch DCA tích lũy vàng định kỳ mới!', 'success');
   };
@@ -54,7 +125,7 @@ export default function Dca() {
             <i className="ti ti-sparkles" style={{ fontSize: '20px' }}></i>
             Tạo kế hoạch tích lũy định kỳ mới
           </div>
-          <div className="grid-4" style={{ gap: '20px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px' }}>
             <div className="form-group">
               <label className="form-label" style={{ color: 'var(--text-muted)' }}>Chọn Loại Vàng</label>
               <select className="form-input" value={goldType} onChange={(e) => setGoldType(e.target.value)} style={{ borderRadius: '12px', padding: '14px', background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.05)', color: '#fff' }}>
@@ -68,20 +139,45 @@ export default function Dca() {
               <input className="form-input" type="number" placeholder="₫1.000.000" min="100000" step="100000" value={amount} onChange={(e) => setAmount(e.target.value)} style={{ borderRadius: '12px', padding: '14px', background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.05)' }} />
             </div>
             <div className="form-group">
-              <label className="form-label" style={{ color: 'var(--text-muted)' }}>Tần Suất</label>
+              <label className="form-label" style={{ color: 'var(--text-muted)' }}>Tần Suất / Kiểu mua</label>
               <select className="form-input" value={frequency} onChange={(e) => setFrequency(e.target.value)} style={{ borderRadius: '12px', padding: '14px', background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.05)', color: '#fff' }}>
                 <option value="Hàng tuần" style={{ background: '#272729', color: '#fff' }}>Hàng tuần</option>
                 <option value="Hàng tháng" style={{ background: '#272729', color: '#fff' }}>Hàng tháng</option>
+                <option value="Tùy chỉnh (Chọn ngày)" style={{ background: '#272729', color: '#fff' }}>Tùy chỉnh (Chọn ngày)</option>
               </select>
             </div>
             <div className="form-group">
-              <label className="form-label" style={{ color: 'var(--text-muted)' }}>Ngày thực hiện</label>
-              <select className="form-input" value={day} onChange={(e) => setDay(e.target.value)} style={{ borderRadius: '12px', padding: '14px', background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.05)', color: '#fff' }}>
-                <option value="Thứ Hai" style={{ background: '#272729', color: '#fff' }}>Thứ Hai (Hàng tuần)</option>
-                <option value="Ngày 1" style={{ background: '#272729', color: '#fff' }}>Ngày 1 (Hàng tháng)</option>
-                <option value="Ngày 15" style={{ background: '#272729', color: '#fff' }}>Ngày 15 (Hàng tháng)</option>
-              </select>
+              <label className="form-label" style={{ color: 'var(--gold)' }}>Giờ thực hiện</label>
+              <input type="time" className="form-input" value={executionTime} onChange={(e) => setExecutionTime(e.target.value)} style={{ borderRadius: '12px', padding: '14px', background: 'rgba(212,175,55,0.05)', border: '1px solid rgba(212,175,55,0.3)', color: '#fff' }} />
             </div>
+          </div>
+          
+          <div style={{ marginTop: '20px' }}>
+            {frequency === 'Tùy chỉnh (Chọn ngày)' ? (
+              <div className="form-group">
+                <label className="form-label" style={{ color: 'var(--text-muted)' }}>Bảng lịch thực hiện kép (Click để chọn nhiều ngày)</label>
+                {renderCalendar()}
+              </div>
+            ) : (
+              <div className="form-group" style={{ maxWidth: '300px' }}>
+                <label className="form-label" style={{ color: 'var(--text-muted)' }}>Ngày kích hoạt tự động</label>
+                <select className="form-input" value={day} onChange={(e) => setDay(e.target.value)} style={{ borderRadius: '12px', padding: '14px', background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.05)', color: '#fff' }}>
+                  {frequency === 'Hàng tuần' ? (
+                    <>
+                      <option value="Thứ Hai">Thứ Hai</option>
+                      <option value="Thứ Tư">Thứ Tư</option>
+                      <option value="Thứ Sáu">Thứ Sáu</option>
+                    </>
+                  ) : (
+                    <>
+                      <option value="Ngày 1">Ngày 1</option>
+                      <option value="Ngày 15">Ngày 15</option>
+                      <option value="Ngày 28">Ngày 28</option>
+                    </>
+                  )}
+                </select>
+              </div>
+            )}
           </div>
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '24px' }}>
             <button className="btn" onClick={() => setShowCreateForm(false)} style={{ borderRadius: '99px', padding: '10px 24px' }}>Hủy</button>

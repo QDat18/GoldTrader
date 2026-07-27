@@ -37,11 +37,13 @@ async function runDcaCron() {
   const dayOfWeekNumber = today.getDay(); // 0(Sun) -> 6(Sat)
   const mapVnDays = ['Chủ Nhật', 'Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', 'Thứ Bảy'];
   const todayDayOfWeek = mapVnDays[dayOfWeekNumber];
-  const todayDate = `Ngày ${today.getDate()}`; // Ví dụ: Ngày 1, Ngày 15
+  const todayDate = `Ngày ${today.getDate()}`;
+  const todayYYYYMMDD = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+  const currentHourMin = `${String(today.getHours()).padStart(2, '0')}:${String(today.getMinutes()).padStart(2, '0')}`;
 
-  console.log(`[DCA CRON] Hôm nay là: ${todayDayOfWeek}, ${todayDate}`);
+  console.log(`[DCA CRON] Hôm nay là: ${todayDayOfWeek}, ${todayDate} (${todayYYYYMMDD}) - Bất kỳ Plan nào đặt lịch vào ${currentHourMin} sẽ chuẩn bị thực thi.`);
 
-  // 2. Tìm các Plan đang chạy ('running') có 'execution_day' thuộc hôm nay
+  // 2. Tìm các Plan đang chạy ('running')
   const { data: plans, error: planErr } = await supabase
     .from('dca_plans')
     .select('*, user_profiles(id, wallet_balance_vnd, full_name)')
@@ -52,11 +54,31 @@ async function runDcaCron() {
     return;
   }
 
-  // Lọc ra các Plan đúng hẹn (Weekly == todayDayOfWeek Hoặc Monthly == todayDate)
-  // Ghi chú: Có thể tối ưu bằng câu truy vấn SQL (OR) nhưng JS array filter cho nhanh và an toàn
-  const targetPlans = plans.filter(p => p.execution_day === todayDayOfWeek || p.execution_day === todayDate);
+  // 3. Lọc ra các Plan khớp giờ và ngày
+  const targetPlans = plans.filter(p => {
+    const rawVal = p.execution_day;
+    let targetTime = '09:00'; // Default backward compat
+    let targetDaysStr = rawVal;
+    
+    if (rawVal.includes('|')) {
+      const parts = rawVal.split('|');
+      targetTime = parts[0];
+      targetDaysStr = parts.slice(1).join('|');
+    }
+    
+    // Nếu khác giờ thì bỏ qua (cron chạy mỗi phút)
+    if (currentHourMin !== targetTime) return false;
+    
+    const daysArr = targetDaysStr.split(',');
+    return daysArr.includes(todayDayOfWeek) || daysArr.includes(todayDate) || daysArr.includes(todayYYYYMMDD);
+  });
   
-  console.log(`[DCA CRON] Tìm thấy ${targetPlans.length} kế hoạch DCA đến hạn hôm nay.`);
+  if (targetPlans.length > 0) {
+    console.log(`[DCA CRON] Tìm thấy ${targetPlans.length} kế hoạch DCA đến hạn vào đúng ${currentHourMin} hôm nay.`);
+  } else {
+    // Không hiện log liên tục mỗi phút nếu không có gì để chạy
+    return;
+  }
 
   // 3. Duyệt và Thực thi từng Plan
   for (const plan of targetPlans) {
@@ -156,8 +178,8 @@ async function runDcaCron() {
   }
 }
 
-// Lập lịch Cron (Giả sử: Chạy vào lúc 09:00 AM hàng ngày)
-cron.schedule('0 9 * * *', () => {
+// Lập lịch Cron (Chạy mỗi phút để support mọi mốc thời gian tùy chọn của user)
+cron.schedule('* * * * *', () => {
   runDcaCron();
 });
 
