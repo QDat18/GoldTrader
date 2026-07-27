@@ -22,7 +22,7 @@ export default function AssetOverview({ totalAssetsValue, unrealizedPnl, unreali
             }}>
                <TrendingUp size={16} color={pnlColor} style={{ transform: unrealizedPnl < 0 ? 'scaleY(-1)' : 'none' }} />
                <span style={{ fontSize: '15px', fontWeight: 600, color: pnlColor }}>
-                 Lãi/lỗ tạm tính: {pnlSign}₫{unrealizedPnl.toLocaleString('vi-VN')} ({unrealizedPercent > 0 ? '+' : ''}{unrealizedPercent.toFixed(2)}%)
+                 LÃI/LỖ TẠM TÍNH (UNREALIZED): {unrealizedPnl < 0 ? '-' : (unrealizedPnl > 0 ? '+' : '')}{Math.round(Math.abs(unrealizedPnl)).toLocaleString('vi-VN')} ({unrealizedPercent > 0 ? '+' : ''}{unrealizedPercent.toFixed(2)}%)
                </span>
             </div>
           </div>

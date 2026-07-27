@@ -488,7 +488,8 @@ export default function Trade() {
           for (const bar of availableBars) {
             if (gramsToDeduct <= 0) break;
             const barWeight = Number(bar.weight_grams);
-            if (barWeight <= gramsToDeduct) {
+            // Allow 0.0001 gram tolerance to avoid leaving a 0.0000 bar that violates Postgres CHECK(weight_grams > 0)
+            if (barWeight <= gramsToDeduct + 0.0001) {
               gramsToDeduct -= barWeight;
               const { error: updErr } = await supabase
                 .from('vault_inventory')
