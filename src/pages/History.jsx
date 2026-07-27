@@ -8,6 +8,11 @@ export default function History() {
   const [searchQuery, setSearchQuery] = useState('');
   const [invoiceDetails, setInvoiceDetails] = useState(null);
   const [showInvoiceOpen, setShowInvoiceOpen] = useState(false);
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [exportConfig, setExportConfig] = useState({
+    format: 'csv',
+    timeframe: 'all'
+  });
 
   const transactions = useStore(state => state.transactions);
   const currentUser = useStore(state => state.currentUser);
@@ -57,14 +62,107 @@ export default function History() {
       return t.pnl.includes('-') ? sum - num : sum + num;
     }, 0);
 
+  const executeExport = () => {
+    let toExport = filteredTxns;
+    
+    // time filtering (mock / simple parsing)
+    if (exportConfig.timeframe !== 'all') {
+      const now = new Date();
+      toExport = filteredTxns.filter(t => {
+        let txnDate = new Date(); // assume today by default for "hôm nay"
+        if (t.time && !t.time.includes('hôm nay')) {
+          // Attempt to parse standard formats if they exist. (E.g. DD/MM/YYYY)
+          // Simple fallback for actual stored dates
+          let parts = t.time.split('/');
+          if (parts.length >= 3) {
+            let year = parseInt(parts[2].substring(0,4));
+            let month = parseInt(parts[1]) - 1;
+            let day = parseInt(parts[0]);
+            if (!isNaN(year) && !isNaN(month) && !isNaN(day)) {
+              txnDate = new Date(year, month, day);
+            }
+          }
+        }
+        
+        if (exportConfig.timeframe === 'this_month') {
+          return txnDate.getMonth() === now.getMonth() && txnDate.getFullYear() === now.getFullYear();
+        } else if (exportConfig.timeframe === 'last_3_months') {
+          const threeMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 3, now.getDate());
+          return txnDate >= threeMonthsAgo;
+        }
+        return true; 
+      });
+    }
+
+    if (exportConfig.format === 'csv') {
+      const headers = ['Mã GD', 'Loại', 'Sản phẩm vàng', 'Số lượng', 'Đơn giá', 'Tổng tiền (VND)', 'Lãi/Lỗ', 'Thời gian', 'Trạng thái'];
+      const rows = toExport.map(t => {
+        let typeStr = t.type === 'buy' ? 'Mua' : t.type === 'sell' ? 'Bán' : t.type === 'withdraw' ? 'Rút vàng' : 'Khác';
+        
+        let pnlVal = t.pnl;
+        if (pnlVal === '—' || !pnlVal) pnlVal = '';
+        else if (typeof pnlVal === 'string') pnlVal = pnlVal.replace(/[^0-9.-]/g, '');
+
+        let statusStr = t.status === 'Chờ nhận tại quầy' ? 'Chờ nhận vàng' : 
+                        (t.status === 'COMPLETED' ? 'Hoàn tất' : t.status);
+
+        let timeStr = t.time || '';
+        timeStr = timeStr.replace(' hôm nay', '');
+        const matchA = timeStr.match(/^(\d{1,2}:\d{2})\s+(\d{1,2}\/\d{1,2}\/\d{4})$/);
+        const matchB = timeStr.match(/^(\d{1,2}\/\d{1,2}\/\d{4})\s+(\d{1,2}:\d{2})$/);
+        if (matchA) {
+          timeStr = `${matchA[2]} ${matchA[1]}`; // DD/MM/YYYY HH:mm
+        } else if (matchB) {
+          timeStr = `${matchB[1]} ${matchB[2]}`; // DD/MM/YYYY HH:mm
+        }
+
+        // Output raw numbers for Excel so they can format it themselves
+        let numQty = parseFloat(t.quantity || 0);
+        let numPrice = parseFloat(t.price || 0);
+        let numTotal = parseFloat(t.total || 0);
+
+        return [
+          `"${t.id}"`,
+          `"${typeStr}"`,
+          `"${t.goldTypeName}"`,
+          `"${numQty}"`,
+          `"${numPrice}"`,
+          `"${numTotal}"`,
+          `"${pnlVal}"`,
+          `"${timeStr}"`,
+          `"${statusStr}"`
+        ];
+      });
+      const csvStr = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+      const blob = new Blob(["\uFEFF" + csvStr], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement("a");
+      const url = URL.createObjectURL(blob);
+      link.setAttribute("href", url);
+      link.setAttribute("download", `GoldTrader_History_${new Date().getTime()}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+
+    setShowExportModal(false);
+    Swal.fire({
+      icon: 'success',
+      title: 'Xuất dữ liệu thành công',
+      text: 'File của bạn đã được tải xuống.',
+      background: 'var(--bg-card)',
+      color: 'white',
+      confirmButtonColor: 'var(--emerald)'
+    });
+  };
+
   const handleExport = () => {
-    Swal.fire('Thành công', 'Tải xuống báo cáo giao dịch (CSV) thành công!', 'success');
+    setShowExportModal(true);
   };
 
   return (
     <div style={{ display: 'flex', minHeight: 'calc(100vh - 64px)', background: 'var(--bg-main)' }}>
       {/* Sidebar Filter */}
-      <div style={{ width: '260px', borderRight: '1px solid rgba(255,255,255,0.05)', background: 'rgba(20,20,20,0.4)', padding: '24px 16px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
+      <div style={{ width: '280px', borderRight: '1px solid rgba(255,255,255,0.12)', background: 'rgba(20,20,20,0.4)', padding: '24px 20px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
         
         <div>
           <div style={{ fontSize: '11px', color: 'var(--text-muted)', letterSpacing: '0.06em', fontWeight: 600, marginBottom: '12px', paddingLeft: '8px' }}>BỘ LỌC GIAO DỊCH</div>
@@ -81,14 +179,14 @@ export default function History() {
               onClick={() => setSelectedType('buy')}
               style={{ background: selectedType === 'buy' ? 'rgba(255,255,255,0.1)' : 'transparent', textAlign: 'left', padding: '10px 16px', borderRadius: '12px', color: selectedType === 'buy' ? 'var(--text-main)' : 'var(--text-muted)' }}
             >
-              <i className="ti ti-arrow-down" style={{ marginRight: '8px', color: 'var(--emerald)' }}></i> Lệnh mua
+              <i className="ti ti-arrow-down" style={{ marginRight: '8px', color: 'var(--emerald)' }}></i> Mua vào / Tích lũy
             </button>
             <button 
               className="btn" 
               onClick={() => setSelectedType('sell')}
               style={{ background: selectedType === 'sell' ? 'rgba(255,255,255,0.1)' : 'transparent', textAlign: 'left', padding: '10px 16px', borderRadius: '12px', color: selectedType === 'sell' ? 'var(--text-main)' : 'var(--text-muted)' }}
             >
-              <i className="ti ti-arrow-up" style={{ marginRight: '8px', color: 'var(--ruby)' }}></i> Lệnh bán
+              <i className="ti ti-arrow-up" style={{ marginRight: '8px', color: 'var(--ruby)' }}></i> Bán trực tuyến
             </button>
             <button 
               className="btn" 
@@ -169,14 +267,71 @@ export default function History() {
                 style={{ padding: '10px 16px 10px 36px', borderRadius: '99px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(0,0,0,0.2)', color: 'white', width: '240px' }}
               />
             </div>
-            <button className="btn" onClick={handleExport} style={{ borderRadius: '99px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)' }}>
-              <i className="ti ti-download" style={{ marginRight: '6px' }}></i> Xuất CSV
+            <button className="btn" onClick={handleExport} style={{ borderRadius: '99px', background: 'var(--gold-gradient)', color: '#000', fontWeight: 'bold', padding: '10px 20px', border: 'none', boxShadow: '0 4px 15px rgba(212, 175, 55, 0.2)' }}>
+              <i className="ti ti-download" style={{ marginRight: '6px' }}></i> Xuất dữ liệu
             </button>
           </div>
         </div>
 
+        {/* Modal xuất CSV */}
+        {showExportModal && (
+          <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(5px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1200 }}>
+            <div className="neo-card" style={{ background: '#0A0A0A', border: '1px solid rgba(212, 175, 55, 0.3)', padding: '28px', width: '420px', borderRadius: '16px', boxShadow: '0 10px 40px rgba(0,0,0,0.5)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                <div className="h3" style={{ fontSize: '18px', color: '#fff' }}>Xuất Dữ Liệu Lịch Sử</div>
+                <button onClick={() => setShowExportModal(false)} style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '20px' }}>&times;</button>
+              </div>
+
+              <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '20px' }}>
+                Hệ thống sẽ trích xuất dựa trên bộ lọc ({filteredTxns.length} dòng). Bạn có thể cấu hình thêm để tối ưu file trích xuất:
+              </div>
+              
+              <div className="form-group" style={{ marginBottom: '16px' }}>
+                <label style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '8px', display: 'block' }}>Chu kỳ thời gian xuất</label>
+                <select 
+                  value={exportConfig.timeframe} 
+                  onChange={e => setExportConfig({...exportConfig, timeframe: e.target.value})}
+                  style={{ width: '100%', padding: '12px 16px', borderRadius: '8px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', outline: 'none' }}
+                >
+                  <option value="all" style={{ background: '#1E1E1E', color: 'white' }}>Bất kỳ thời gian nào (như trên màn hình)</option>
+                  <option value="this_month" style={{ background: '#1E1E1E', color: 'white' }}>Chỉ trong Tháng Này</option>
+                  <option value="last_3_months" style={{ background: '#1E1E1E', color: 'white' }}>3 tháng gần nhất</option>
+                </select>
+              </div>
+
+              <div className="form-group" style={{ marginBottom: '32px' }}>
+                <label style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '8px', display: 'block' }}>Định dạng file</label>
+                <select 
+                  value={exportConfig.format} 
+                  onChange={e => setExportConfig({...exportConfig, format: e.target.value})}
+                  style={{ width: '100%', padding: '12px 16px', borderRadius: '8px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', outline: 'none' }}
+                >
+                  <option value="csv" style={{ background: '#1E1E1E', color: 'white' }}>Microsoft Excel (.csv - Khuyên dùng)</option>
+                </select>
+              </div>
+
+              <div style={{ display: 'flex', gap: '12px' }}>
+                <button 
+                  className="btn" 
+                  onClick={() => setShowExportModal(false)} 
+                  style={{ flex: 1, padding: '12px', background: 'rgba(255,255,255,0.05)', color: 'white', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px' }}
+                >
+                  Đóng
+                </button>
+                <button 
+                  className="btn" 
+                  onClick={executeExport} 
+                  style={{ flex: 1, padding: '12px', background: 'var(--gold-gradient)', color: '#000', fontWeight: 'bold', border: 'none', borderRadius: '8px' }}
+                >
+                  Bắt đầu tải xuống
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Stats */}
-        <div className="grid-3" style={{ marginBottom: '32px', gap: '16px' }}>
+        <div className="grid-4" style={{ marginBottom: '32px', gap: '16px' }}>
           <div className="card" style={{ borderRadius: '24px', background: 'rgba(20,20,20,0.6)', border: '1px solid rgba(255,255,255,0.05)', padding: '24px' }}>
             <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600, letterSpacing: '1px' }}>TỔNG GIAO DỊCH</div>
             <div style={{ fontSize: '24px', fontWeight: 600, color: 'var(--text-main)', marginTop: '8px' }}>{totalTransactions}</div>
@@ -256,43 +411,46 @@ export default function History() {
                       <td style={{ padding: '16px 24px', fontFamily: 'SF Mono, monospace', fontSize: '12px', color: 'var(--text-muted)' }}>{txn.id}</td>
                       <td style={{ padding: '16px 24px' }}>
                         {txn.type === 'buy' ? (
-                          <span style={{ fontSize: '11px', padding: '4px 8px', borderRadius: '4px', background: 'rgba(16, 185, 129, 0.1)', color: 'var(--emerald)', fontWeight: 600 }}>Mua</span>
+                          <span style={{ fontSize: '11px', padding: '4px 12px', borderRadius: '4px', background: 'rgba(16, 185, 129, 0.1)', color: 'var(--emerald)', fontWeight: 600, whiteSpace: 'nowrap' }}>Mua</span>
                         ) : txn.type === 'deposit' ? (
-                          <span style={{ fontSize: '11px', padding: '4px 8px', borderRadius: '4px', background: 'rgba(59, 130, 246, 0.1)', color: '#3b82f6', fontWeight: 600 }}>Nạp tiền</span>
+                          <span style={{ fontSize: '11px', padding: '4px 12px', borderRadius: '4px', background: 'rgba(59, 130, 246, 0.1)', color: '#3b82f6', fontWeight: 600, whiteSpace: 'nowrap' }}>Nạp</span>
                         ) : txn.type === 'dca' ? (
-                          <span style={{ fontSize: '11px', padding: '4px 8px', borderRadius: '4px', background: 'var(--gold-gradient)', color: '#000', fontWeight: 600 }}>DCA</span>
+                          <span style={{ fontSize: '11px', padding: '4px 12px', borderRadius: '4px', background: 'var(--gold-gradient)', color: '#000', fontWeight: 600, whiteSpace: 'nowrap' }}>DCA</span>
                         ) : txn.type === 'withdraw' ? (
-                          <span style={{ fontSize: '11px', padding: '4px 8px', borderRadius: '4px', background: 'rgba(234, 179, 8, 0.1)', color: '#eab308', fontWeight: 600 }}>Rút</span>
+                          <span style={{ fontSize: '11px', padding: '4px 12px', borderRadius: '4px', background: 'rgba(234, 179, 8, 0.1)', color: '#eab308', fontWeight: 600, whiteSpace: 'nowrap' }}>Rút</span>
                         ) : (
-                          <span style={{ fontSize: '11px', padding: '4px 8px', borderRadius: '4px', background: 'rgba(239, 68, 68, 0.1)', color: 'var(--ruby)', fontWeight: 600 }}>Bán</span>
+                          <span style={{ fontSize: '11px', padding: '4px 12px', borderRadius: '4px', background: 'rgba(239, 68, 68, 0.1)', color: 'var(--ruby)', fontWeight: 600, whiteSpace: 'nowrap' }}>Bán</span>
                         )}
                       </td>
                       <td style={{ padding: '16px 24px', fontWeight: 500, fontSize: '14px' }}>{txn.type === 'deposit' ? 'Nạp tiền VNĐ' : txn.goldTypeName}</td>
-                      <td style={{ padding: '16px 24px', textAlign: 'right', fontSize: '14px' }}>
-                        {txn.type === 'deposit' ? '—' : (
+                      <td style={{ padding: '16px 24px', textAlign: 'right', fontSize: '14px', fontVariantNumeric: 'tabular-nums' }}>
+                        {txn.type === 'deposit' ? <span style={{ opacity: 0.5 }}>—</span> : (
                           <>
                             {txn.quantity.toFixed(4)} chỉ
-                            <span style={{ fontSize: '12px', color: 'var(--text-muted)', marginLeft: '4px' }}>({Number((txn.quantity * 3.75).toFixed(4))}g)</span>
+                            <span style={{ fontSize: '12px', color: 'var(--text-muted)', marginLeft: '4px', display: 'inline-block' }}>({Number((txn.quantity * 3.75).toFixed(4))}g)</span>
                           </>
                         )}
                       </td>
-                      <td style={{ padding: '16px 24px', textAlign: 'right', fontSize: '14px', color: 'var(--text-muted)' }}>{txn.type === 'deposit' ? '—' : `₫${txn.price.toLocaleString('vi-VN')}`}</td>
-                      <td style={{ padding: '16px 24px', textAlign: 'right', fontSize: '14px', fontWeight: 500 }}>
+                      <td style={{ padding: '16px 24px', textAlign: 'right', fontSize: '14px', color: 'var(--text-muted)', fontVariantNumeric: 'tabular-nums' }}>
+                        {txn.type === 'deposit' ? <span style={{ opacity: 0.5 }}>—</span> : `₫${txn.price.toLocaleString('vi-VN')}`}
+                      </td>
+                      <td style={{ padding: '16px 24px', textAlign: 'right', fontSize: '14px', fontWeight: 500, fontVariantNumeric: 'tabular-nums' }}>
                         {txn.type === 'deposit' ? <span style={{ color: 'var(--emerald)' }}>+ ₫{txn.total.toLocaleString('vi-VN')}</span> : `₫${txn.total.toLocaleString('vi-VN')}`}
                       </td>
                       <td style={{ padding: '16px 24px', fontSize: '13px', color: 'var(--text-muted)' }}>{txn.time}</td>
-                      <td style={{ padding: '16px 24px', textAlign: 'right', fontWeight: 600 }}>
+                      <td style={{ padding: '16px 24px', textAlign: 'right', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>
                         {txn.type === 'sell' ? (
                            <span style={{ color: txn.pnl?.includes('+') ? 'var(--emerald)' : txn.pnl?.includes('-') ? 'var(--ruby)' : 'var(--text-muted)' }}>{txn.pnl}</span>
-                        ) : '—'}
+                        ) : <span style={{ opacity: 0.5 }}>—</span>}
                       </td>
                       <td style={{ padding: '16px 24px' }}>
                         <span style={{ fontSize: '11px', padding: '4px 8px', borderRadius: '4px', background: 'rgba(16, 185, 129, 0.1)', color: 'var(--emerald)', fontWeight: 600 }}>{txn.status}</span>
                       </td>
                       <td style={{ padding: '16px 24px', textAlign: 'right' }}>
                         {txn.type !== 'deposit' && (
-                          <div style={{ display: 'inline-flex', gap: '8px' }}>
+                          <div style={{ display: 'inline-flex', gap: '8px', justifyContent: 'flex-end', width: '100%' }}>
                             <button 
+                              title="Chi tiết hoá đơn"
                               onClick={() => {
                                 setInvoiceDetails({
                                   name: currentUser?.name || 'Khách hàng',
@@ -306,11 +464,12 @@ export default function History() {
                                 });
                                 setShowInvoiceOpen(true);
                               }}
-                              style={{ padding: '6px 12px', fontSize: '12px', background: 'rgba(212,175,55,0.1)', color: 'var(--gold)', border: '1px solid var(--gold)', borderRadius: '6px', cursor: 'pointer', transition: '0.2s', fontWeight: 600 }}
+                              style={{ width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px', background: 'rgba(212,175,55,0.1)', color: 'var(--gold)', border: '1px solid rgba(212,175,55,0.3)', borderRadius: '8px', cursor: 'pointer', transition: '0.2s', padding: 0 }}
                             >
-                              Chi tiết hoá đơn
+                              <i className="ti ti-eye"></i>
                             </button>
                             <button 
+                              title="Tải Hợp đồng (PDF)"
                               onClick={async () => {
                                 Swal.fire({ title: 'Đang tạo hợp đồng PDF...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
                                 try {
@@ -346,9 +505,9 @@ export default function History() {
                                   Swal.fire('Lỗi', 'Không thể tạo hợp đồng PDF. Vui lòng thử lại.', 'error');
                                 }
                               }}
-                              style={{ padding: '6px 12px', fontSize: '12px', background: 'rgba(255,255,255,0.05)', color: '#fff', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', cursor: 'pointer', transition: '0.2s' }}
+                              style={{ width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px', background: 'rgba(255,255,255,0.05)', color: '#fff', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', cursor: 'pointer', transition: '0.2s', padding: 0 }}
                             >
-                              Hợp đồng (PDF)
+                              <i className="ti ti-file-text"></i>
                             </button>
                           </div>
                         )}

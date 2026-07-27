@@ -256,6 +256,18 @@ export default function Prices() {
     const ma9Points = [];
     const ma21Points = [];
 
+    const gridLines = [];
+    for (let j = 1; j < 5; j++) {
+      const yL = padding + (j / 5) * (height - padding * 2);
+      const valL = maxP - (range * (j / 5));
+      gridLines.push(
+        <g key={`grid-${j}`}>
+          <line x1={padding} y1={yL} x2={width - padding} y2={yL} stroke="rgba(255,255,255,0.04)" strokeWidth="1" strokeDasharray="4 4" />
+          <text x={width - 5} y={yL + 3} fill="rgba(255, 255, 255, 0.3)" fontSize="9" textAnchor="end" fontVariantNumeric="tabular-nums">{valL.toLocaleString('vi-VN', {maximumFractionDigits:0})}</text>
+        </g>
+      );
+    }
+
     const nodes = visibleData.map((d, i) => {
       const x = padding + (i / (visibleData.length - 1)) * (width - padding * 2);
       const yOpen = height - padding - ((d.open - minP) / range) * (height - padding * 2);
@@ -293,6 +305,14 @@ export default function Prices() {
 
     return (
       <>
+        <defs>
+          <linearGradient id="ma9grad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="rgba(245, 158, 11, 0.15)" />
+            <stop offset="100%" stopColor="rgba(245, 158, 11, 0)" />
+          </linearGradient>
+        </defs>
+        {ma9Points.length > 1 && <path d={`M ${ma9Points.join(' L ')} L ${width - padding},${height - padding} L ${padding},${height - padding} Z`} fill="url(#ma9grad)" opacity="0.5" />}
+        {gridLines}
         {nodes}
         {ma9Points.length > 1 && <path d={`M ${ma9Points.join(' L ')}`} fill="none" stroke="#F59E0B" strokeWidth="1.2" opacity="0.8" />}
         {ma21Points.length > 1 && <path d={`M ${ma21Points.join(' L ')}`} fill="none" stroke="#EC4899" strokeWidth="1.2" opacity="0.8" />}
@@ -347,13 +367,19 @@ export default function Prices() {
 
                   // Xu hướng
                   let trendText = "Ổn định";
-                  let trendColor = "gray";
+                  let trendColor = "var(--text-muted)";
+                  let trendIcon = "–";
+                  let trendBg = "rgba(255,255,255,0.06)";
                   if (buyChange > 0 || sellChange > 0) {
                     trendText = "Tăng";
                     trendColor = "var(--emerald)";
+                    trendIcon = "↗";
+                    trendBg = "rgba(16,185,129,0.12)";
                   } else if (buyChange < 0 || sellChange < 0) {
                     trendText = "Giảm";
                     trendColor = "var(--ruby)";
+                    trendIcon = "↘";
+                    trendBg = "rgba(239,68,68,0.12)";
                   }
 
                   const timeStr = item.recordedAt 
@@ -375,41 +401,44 @@ export default function Prices() {
                         style={{ 
                           cursor: 'pointer', 
                           borderBottom: '1px solid rgba(255,255,255,0.04)',
-                          background: isSelected ? 'rgba(212,175,55,0.05)' : 'transparent',
+                          background: isSelected ? 'rgba(212,175,55,0.08)' : 'transparent',
                           transition: '0.15s ease background'
                         }}
-                        onMouseEnter={(e) => { if (!isSelected) e.currentTarget.style.background = 'rgba(255,255,255,0.02)' }}
+                        onMouseEnter={(e) => { if (!isSelected) e.currentTarget.style.background = 'rgba(255,255,255,0.03)' }}
                         onMouseLeave={(e) => { if (!isSelected) e.currentTarget.style.background = 'transparent' }}
                       >
                         <td style={{ padding: '14px 16px', verticalAlign: 'middle' }}>
                           <div style={{ fontWeight: '600', color: isSelected ? 'var(--gold)' : '#fff', fontSize: '14px' }}>{item.name}</div>
                           <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>{key}</div>
                         </td>
-                        <td style={{ padding: '14px 16px', verticalAlign: 'middle' }}>
+                        <td style={{ padding: '20px 16px', verticalAlign: 'middle', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
                           <div style={{ fontWeight: '700', fontSize: '15px' }}>{buyVal.toLocaleString('vi-VN')}₫</div>
-                          <div style={{ fontSize: '11px', color: buyChange > 0 ? 'var(--emerald)' : buyChange < 0 ? 'var(--ruby)' : 'var(--text-muted)', marginTop: '2px', display: 'flex', alignItems: 'center' }}>
-                            {buyChange > 0 ? `↑ +${buyChange.toLocaleString('vi-VN')}` : buyChange < 0 ? `↓ -${Math.abs(buyChange).toLocaleString('vi-VN')}` : '-'}
+                          <div style={{ fontSize: '11px', color: buyChange > 0 ? 'var(--emerald)' : buyChange < 0 ? 'var(--ruby)' : 'var(--text-muted)', marginTop: '4px', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '4px' }}>
+                            {buyChange > 0 ? `▲ +${buyChange.toLocaleString('vi-VN')}` : buyChange < 0 ? `▼ -${Math.abs(buyChange).toLocaleString('vi-VN')}` : '-'}
                           </div>
                         </td>
-                        <td style={{ padding: '14px 16px', verticalAlign: 'middle' }}>
+                        <td style={{ padding: '20px 16px', verticalAlign: 'middle', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
                           <div style={{ fontWeight: '700', fontSize: '15px' }}>{sellVal.toLocaleString('vi-VN')}₫</div>
-                          <div style={{ fontSize: '11px', color: sellChange > 0 ? 'var(--emerald)' : sellChange < 0 ? 'var(--ruby)' : 'var(--text-muted)', marginTop: '2px', display: 'flex', alignItems: 'center' }}>
-                            {sellChange > 0 ? `↑ +${sellChange.toLocaleString('vi-VN')}` : sellChange < 0 ? `↓ -${Math.abs(sellChange).toLocaleString('vi-VN')}` : '-'}
+                          <div style={{ fontSize: '11px', color: sellChange > 0 ? 'var(--emerald)' : sellChange < 0 ? 'var(--ruby)' : 'var(--text-muted)', marginTop: '4px', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '4px' }}>
+                            {sellChange > 0 ? `▲ +${sellChange.toLocaleString('vi-VN')}` : sellChange < 0 ? `▼ -${Math.abs(sellChange).toLocaleString('vi-VN')}` : '-'}
                           </div>
                         </td>
-                        <td style={{ padding: '14px 16px', verticalAlign: 'middle' }}>
+                        <td style={{ padding: '20px 16px', verticalAlign: 'middle' }}>
                           <span style={{ 
                             fontSize: '11px', 
-                            fontWeight: 500,
-                            padding: '3px 8px', 
-                            borderRadius: '12px', 
-                            background: trendText === 'Tăng' ? 'rgba(16,185,129,0.12)' : trendText === 'Giảm' ? 'rgba(239,68,68,0.12)' : 'rgba(255,255,255,0.06)',
+                            fontWeight: 600,
+                            padding: '4px 12px', 
+                            borderRadius: '99px',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            background: trendBg,
                             color: trendColor
                           }}>
-                            {trendText}
+                            {trendIcon} {trendText}
                           </span>
                         </td>
-                        <td style={{ padding: '14px 16px', verticalAlign: 'middle', textAlign: 'right', color: 'var(--text-muted)' }}>
+                        <td style={{ padding: '20px 16px', verticalAlign: 'middle', textAlign: 'right', color: 'var(--text-muted)' }}>
                           {timeStr}
                         </td>
                       </tr>
@@ -424,28 +453,28 @@ export default function Prices() {
                                   <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>Biểu đồ phân tích kỹ thuật và bảng chi tiết giao dịch khớp lệnh</div>
                                 </div>
 
-                                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                                <div style={{ display: 'flex', gap: '4px', background: 'rgba(255,255,255,0.03)', padding: '4px', borderRadius: '8px', alignItems: 'center' }}>
                                   <button 
                                     onClick={(e) => { e.stopPropagation(); setActiveTab('chart'); }}
                                     style={{ 
-                                      display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', padding: '6px 14px', borderRadius: '6px', cursor: 'pointer', transition: '0.2s all',
-                                      background: activeTab === 'chart' ? 'rgba(212,175,55,0.15)' : 'rgba(255,255,255,0.02)',
-                                      color: activeTab === 'chart' ? 'var(--gold)' : 'var(--text-muted)',
-                                      border: activeTab === 'chart' ? '1px solid var(--gold)' : '1px solid rgba(255,255,255,0.08)'
+                                      display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', fontWeight: 600, padding: '8px 16px', borderRadius: '6px', cursor: 'pointer', transition: '0.2s all',
+                                      background: activeTab === 'chart' ? 'rgba(255,255,255,0.1)' : 'transparent',
+                                      color: activeTab === 'chart' ? '#fff' : 'var(--text-muted)',
+                                      border: 'none', boxShadow: activeTab === 'chart' ? '0 2px 8px rgba(0,0,0,0.2)' : 'none'
                                     }}
                                   >
-                                    <AreaChart size={14} /> Chart
+                                    <AreaChart size={16} /> Chart
                                   </button>
                                   <button 
                                     onClick={(e) => { e.stopPropagation(); setActiveTab('detail'); }}
                                     style={{ 
-                                      display: 'flex', alignItems: 'center', gap: '4px', fontSize: '12px', padding: '6px 14px', borderRadius: '6px', cursor: 'pointer', transition: '0.2s all',
-                                      background: activeTab === 'detail' ? 'rgba(59,130,246,0.15)' : 'rgba(255,255,255,0.02)',
-                                      color: activeTab === 'detail' ? '#3b82f6' : 'var(--text-muted)',
-                                      border: activeTab === 'detail' ? '1px solid #3b82f6' : '1px solid rgba(255,255,255,0.08)'
+                                      display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', fontWeight: 600, padding: '8px 16px', borderRadius: '6px', cursor: 'pointer', transition: '0.2s all',
+                                      background: activeTab === 'detail' ? 'rgba(255,255,255,0.1)' : 'transparent',
+                                      color: activeTab === 'detail' ? '#fff' : 'var(--text-muted)',
+                                      border: 'none', boxShadow: activeTab === 'detail' ? '0 2px 8px rgba(0,0,0,0.2)' : 'none'
                                     }}
                                   >
-                                    <Eye size={14} /> Detail
+                                    <Eye size={16} /> Detail
                                   </button>
                                 </div>
                               </div>
@@ -463,9 +492,9 @@ export default function Prices() {
                                           key={tf} 
                                           onClick={(e) => { e.stopPropagation(); setTimeframe(tf); }}
                                           style={{ 
-                                            fontSize: '11px', padding: '4px 10px', borderRadius: '4px', cursor: 'pointer', border: '1px solid rgba(255,255,255,0.08)',
-                                            background: timeframe === tf ? 'var(--gold)' : 'rgba(255,255,255,0.02)',
-                                            color: timeframe === tf ? '#000' : 'var(--text-main)'
+                                            fontSize: '12px', fontWeight: 600, padding: '4px 12px', borderRadius: '4px', cursor: 'pointer', transition: '0.2s all', border: 'none',
+                                            background: timeframe === tf ? 'rgba(212,175,55,0.15)' : 'transparent',
+                                            color: timeframe === tf ? 'var(--gold)' : 'var(--text-muted)'
                                           }}
                                         >
                                           {tf}
@@ -494,10 +523,10 @@ export default function Prices() {
                                   <table className="table" style={{ width: '100%', fontSize: '13px', borderCollapse: 'collapse', textAlign: 'left' }}>
                                     <thead>
                                       <tr style={{ color: 'var(--text-muted)', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-                                        <th style={{ padding: '8px 12px' }}>Ngày</th>
-                                        <th style={{ padding: '8px 12px' }}>Mua vào</th>
-                                        <th style={{ padding: '8px 12px' }}>Bán ra</th>
-                                        <th style={{ padding: '8px 12px', textAlign: 'right' }}>Cập nhật</th>
+                                        <th style={{ padding: '12px 16px' }}>Ngày</th>
+                                        <th style={{ padding: '12px 16px', textAlign: 'right' }}>Mua vào</th>
+                                        <th style={{ padding: '12px 16px', textAlign: 'right' }}>Bán ra</th>
+                                        <th style={{ padding: '12px 16px', textAlign: 'right' }}>Cập nhật</th>
                                       </tr>
                                     </thead>
                                     <tbody>
@@ -529,25 +558,25 @@ export default function Prices() {
                                                 cursor: hasSubRows ? 'pointer' : 'default'
                                               }}
                                             >
-                                              <td style={{ padding: '12px 12px', fontWeight: '600', color: 'var(--gold)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                              <td style={{ padding: '16px 16px', fontWeight: '600', color: 'var(--gold)', display: 'flex', alignItems: 'center', gap: '8px' }}>
                                                 {hasSubRows && (
                                                   <span style={{ fontSize: '10px', transition: '0.15s ease transform', transform: isExpanded ? 'rotate(0deg)' : 'rotate(-90deg)' }}>▼</span>
                                                 )}
                                                 <span>{group.displayDate}</span>
                                               </td>
-                                              <td style={{ padding: '12px 12px' }}>
-                                                <div style={{ fontWeight: '500' }}>{latestRow.buy.toLocaleString('vi-VN')}₫</div>
-                                                <div style={{ fontSize: '10px', color: parentChangeBuy > 0 ? 'var(--emerald)' : parentChangeBuy < 0 ? 'var(--ruby)' : 'var(--text-muted)', marginTop: '2px' }}>
-                                                  {parentChangeBuy > 0 ? `↑ +${parentChangeBuy.toLocaleString('vi-VN')}` : parentChangeBuy < 0 ? `↓ -${Math.abs(parentChangeBuy).toLocaleString('vi-VN')}` : '-'}
+                                              <td style={{ padding: '16px 16px', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+                                                <div style={{ fontWeight: '600', fontSize: '14px' }}>{latestRow.buy.toLocaleString('vi-VN')}₫</div>
+                                                <div style={{ fontSize: '11px', color: parentChangeBuy > 0 ? 'var(--emerald)' : parentChangeBuy < 0 ? 'var(--ruby)' : 'var(--text-muted)', marginTop: '4px' }}>
+                                                  {parentChangeBuy > 0 ? `▲ +${parentChangeBuy.toLocaleString('vi-VN')}` : parentChangeBuy < 0 ? `▼ -${Math.abs(parentChangeBuy).toLocaleString('vi-VN')}` : '-'}
                                                 </div>
                                               </td>
-                                              <td style={{ padding: '12px 12px' }}>
-                                                <div style={{ fontWeight: '500' }}>{latestRow.sell.toLocaleString('vi-VN')}₫</div>
-                                                <div style={{ fontSize: '10px', color: parentChangeSell > 0 ? 'var(--emerald)' : parentChangeSell < 0 ? 'var(--ruby)' : 'var(--text-muted)', marginTop: '2px' }}>
-                                                  {parentChangeSell > 0 ? `↑ +${parentChangeSell.toLocaleString('vi-VN')}` : parentChangeSell < 0 ? `↓ -${Math.abs(parentChangeSell).toLocaleString('vi-VN')}` : '-'}
+                                              <td style={{ padding: '16px 16px', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+                                                <div style={{ fontWeight: '600', fontSize: '14px' }}>{latestRow.sell.toLocaleString('vi-VN')}₫</div>
+                                                <div style={{ fontSize: '11px', color: parentChangeSell > 0 ? 'var(--emerald)' : parentChangeSell < 0 ? 'var(--ruby)' : 'var(--text-muted)', marginTop: '4px' }}>
+                                                  {parentChangeSell > 0 ? `▲ +${parentChangeSell.toLocaleString('vi-VN')}` : parentChangeSell < 0 ? `▼ -${Math.abs(parentChangeSell).toLocaleString('vi-VN')}` : '-'}
                                                 </div>
                                               </td>
-                                              <td style={{ padding: '12px 12px', textAlign: 'right', color: 'var(--text-muted)' }}>
+                                              <td style={{ padding: '16px 16px', textAlign: 'right', color: 'var(--text-muted)' }}>
                                                 {latestUpdateStr}
                                               </td>
                                             </tr>
@@ -569,22 +598,24 @@ export default function Prices() {
                                                     color: 'rgba(255,255,255,0.6)'
                                                   }}
                                                 >
-                                                  <td style={{ padding: '10px 12px 10px 24px', fontStyle: 'italic', color: 'var(--text-muted)' }}>
+                                                  <td style={{ padding: '12px 16px 12px 32px', fontStyle: 'italic', color: 'var(--text-muted)', position: 'relative' }}>
+                                                    <div style={{ position: 'absolute', left: '16px', top: '0', bottom: '50%', width: '1px', background: 'rgba(255,255,255,0.1)' }}></div>
+                                                    <div style={{ position: 'absolute', left: '16px', top: '50%', width: '8px', height: '1px', background: 'rgba(255,255,255,0.1)' }}></div>
                                                     {subTime}
                                                   </td>
-                                                  <td style={{ padding: '10px 12px' }}>
-                                                    <div>{Number(row.buy_price_vnd).toLocaleString('vi-VN')}₫</div>
-                                                    <div style={{ fontSize: '9px', color: row.changeBuyVal > 0 ? 'var(--emerald)' : row.changeBuyVal < 0 ? 'var(--ruby)' : 'var(--text-muted)' }}>
-                                                      {row.changeBuyVal > 0 ? `↑ +${Number(row.changeBuyVal).toLocaleString('vi-VN')}` : row.changeBuyVal < 0 ? `↓ -${Math.abs(Number(row.changeBuyVal)).toLocaleString('vi-VN')}` : '-'}
+                                                  <td style={{ padding: '12px 16px', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+                                                    <div style={{ fontSize: '13px' }}>{Number(row.buy_price_vnd).toLocaleString('vi-VN')}₫</div>
+                                                    <div style={{ fontSize: '10px', color: row.changeBuyVal > 0 ? 'var(--emerald)' : row.changeBuyVal < 0 ? 'var(--ruby)' : 'var(--text-muted)' }}>
+                                                      {row.changeBuyVal > 0 ? `▲ +${Number(row.changeBuyVal).toLocaleString('vi-VN')}` : row.changeBuyVal < 0 ? `▼ -${Math.abs(Number(row.changeBuyVal)).toLocaleString('vi-VN')}` : '-'}
                                                     </div>
                                                   </td>
-                                                  <td style={{ padding: '10px 12px' }}>
-                                                    <div>{Number(row.sell_price_vnd).toLocaleString('vi-VN')}₫</div>
-                                                    <div style={{ fontSize: '9px', color: row.changeSellVal > 0 ? 'var(--emerald)' : row.changeSellVal < 0 ? 'var(--ruby)' : 'var(--text-muted)' }}>
-                                                      {row.changeSellVal > 0 ? `↑ +${Number(row.changeSellVal).toLocaleString('vi-VN')}` : row.changeSellVal < 0 ? `↓ -${Math.abs(Number(row.changeSellVal)).toLocaleString('vi-VN')}` : '-'}
+                                                  <td style={{ padding: '12px 16px', textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
+                                                    <div style={{ fontSize: '13px' }}>{Number(row.sell_price_vnd).toLocaleString('vi-VN')}₫</div>
+                                                    <div style={{ fontSize: '10px', color: row.changeSellVal > 0 ? 'var(--emerald)' : row.changeSellVal < 0 ? 'var(--ruby)' : 'var(--text-muted)' }}>
+                                                      {row.changeSellVal > 0 ? `▲ +${Number(row.changeSellVal).toLocaleString('vi-VN')}` : row.changeSellVal < 0 ? `▼ -${Math.abs(Number(row.changeSellVal)).toLocaleString('vi-VN')}` : '-'}
                                                     </div>
                                                   </td>
-                                                  <td style={{ padding: '10px 12px', textAlign: 'right', fontFamily: 'monospace', fontSize: '11px', color: changeCode === '+/+' ? 'var(--emerald)' : changeCode === '-/-' ? 'var(--ruby)' : 'var(--text-muted)' }}>
+                                                  <td style={{ padding: '12px 16px', textAlign: 'right', fontFamily: 'monospace', fontSize: '12px', color: changeCode === '+/+' ? 'var(--emerald)' : changeCode === '-/-' ? 'var(--ruby)' : 'var(--text-muted)' }}>
                                                     {changeCode}
                                                   </td>
                                                 </tr>

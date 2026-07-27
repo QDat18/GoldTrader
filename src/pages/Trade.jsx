@@ -932,6 +932,18 @@ export default function Trade() {
     const ma9Points = [];
     const ma21Points = [];
 
+    const gridLines = [];
+    for (let j = 1; j < 5; j++) {
+      const yL = padding + (j / 5) * (height - padding * 2);
+      const valL = maxP - (range * (j / 5));
+      gridLines.push(
+        <g key={`grid-${j}`}>
+          <line x1={padding} y1={yL} x2={width - padding} y2={yL} stroke="rgba(255,255,255,0.04)" strokeWidth="1" strokeDasharray="4 4" />
+          <text x={width - 5} y={yL + 3} fill="rgba(255, 255, 255, 0.3)" fontSize="9" textAnchor="end" fontVariantNumeric="tabular-nums">{valL.toLocaleString('vi-VN', {maximumFractionDigits:0})}</text>
+        </g>
+      );
+    }
+
     const nodes = visibleData.map((d, i) => {
       const x = padding + (i / (visibleData.length - 1)) * (width - padding * 2);
       const yOpen = height - padding - ((d.open - minP) / range) * (height - padding * 2);
@@ -969,6 +981,14 @@ export default function Trade() {
 
     return (
       <>
+        <defs>
+          <linearGradient id="ma9grad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="rgba(245, 158, 11, 0.15)" />
+            <stop offset="100%" stopColor="rgba(245, 158, 11, 0)" />
+          </linearGradient>
+        </defs>
+        {ma9Points.length > 1 && <path d={`M ${ma9Points.join(' L ')} L ${width - padding},${height - padding} L ${padding},${height - padding} Z`} fill="url(#ma9grad)" opacity="0.5" />}
+        {gridLines}
         {nodes}
         {ma9Points.length > 1 && <path d={`M ${ma9Points.join(' L ')}`} fill="none" stroke="#F59E0B" strokeWidth="1.2" opacity="0.8" />}
         {ma21Points.length > 1 && <path d={`M ${ma21Points.join(' L ')}`} fill="none" stroke="#EC4899" strokeWidth="1.2" opacity="0.8" />}
@@ -998,7 +1018,17 @@ export default function Trade() {
         <div style={{ width: '1px', height: '30px', background: 'rgba(255,255,255,0.08)' }}></div>
         <div>
           <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Biến động 24h</span>
-          <div style={{ fontWeight: 'bold', fontSize: '14px', color: activeItem.up ? 'var(--emerald)' : 'var(--ruby)', marginTop: '2px' }}>
+          <div style={{ 
+            marginTop: '4px',
+            fontSize: '11px', 
+            fontWeight: 600,
+            padding: '4px 10px', 
+            borderRadius: '99px',
+            display: 'inline-flex',
+            alignItems: 'center',
+            background: activeItem.up ? 'rgba(16,185,129,0.12)' : (activeItem.change.includes('0.00') ? 'rgba(255,255,255,0.06)' : 'rgba(239,68,68,0.12)'),
+            color: activeItem.up ? 'var(--emerald)' : (activeItem.change.includes('0.00') ? 'var(--text-muted)' : 'var(--ruby)')
+          }}>
             {activeItem.change}
           </div>
         </div>
@@ -1070,12 +1100,12 @@ export default function Trade() {
             <div style={{ overflowX: 'auto' }}>
               <table className="table" style={{ width: '100%', fontSize: '12px' }}>
                 <thead>
-                  <tr>
-                    <th>Sản phẩm vàng</th>
-                    <th>Cửa hàng Mua vào</th>
-                    <th>Cửa hàng Bán ra</th>
-                    <th>Biến động 24h</th>
-                    <th style={{ width: '60px', textAlign: 'center' }}>Chọn</th>
+                  <tr style={{ color: 'var(--text-muted)', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                    <th style={{ padding: '12px 16px', fontWeight: 600 }}>Sản phẩm vàng</th>
+                    <th style={{ padding: '12px 16px', fontWeight: 600, textAlign: 'right' }}>Cửa hàng Mua vào</th>
+                    <th style={{ padding: '12px 16px', fontWeight: 600, textAlign: 'right' }}>Cửa hàng Bán ra</th>
+                    <th style={{ padding: '12px 16px', fontWeight: 600 }}>Biến động 24h</th>
+                    <th style={{ padding: '12px 16px', fontWeight: 600, width: '60px', textAlign: 'center' }}>Chọn</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1083,13 +1113,36 @@ export default function Trade() {
                     const item = prices[key];
                     if (!item) return null;
                     const isSelected = selectedGoldKey === key;
+                    
+                    const changeVal = parseFloat((item.change || '0').replace(/[^0-9.-]/g, ''));
+                    const isUp = changeVal > 0;
+                    const isDown = changeVal < 0;
+                    const trendText = isUp ? "Tăng" : (isDown ? "Giảm" : "Ổn định");
+                    const trendIcon = isUp ? "↗" : (isDown ? "↘" : "–");
+                    const trendColor = isUp ? "var(--emerald)" : (isDown ? "var(--ruby)" : "var(--text-muted)");
+                    const trendBg = isUp ? "rgba(16,185,129,0.12)" : (isDown ? "rgba(239,68,68,0.12)" : "rgba(255,255,255,0.06)");
+
                     return (
-                      <tr key={key} onClick={() => setSelectedGoldKey(key)} style={{ cursor: 'pointer', background: isSelected ? 'rgba(212, 175, 55, 0.05)' : 'transparent' }}>
-                        <td style={{ fontWeight: '600', color: isSelected ? 'var(--gold)' : '#fff' }}>{item.name}</td>
-                        <td className="price-dn">₫{item.buy.toLocaleString('vi-VN')}</td>
-                        <td className="price-up">₫{item.sell.toLocaleString('vi-VN')}</td>
-                        <td style={{ color: item.up ? 'var(--emerald)' : 'var(--ruby)', fontWeight: '500' }}>{item.change}</td>
-                        <td style={{ textAlign: 'center', verticalAlign: 'middle' }}>
+                      <tr key={key} onClick={() => setSelectedGoldKey(key)} style={{ cursor: 'pointer', background: isSelected ? 'rgba(212, 175, 55, 0.08)' : 'transparent', transition: '0.15s ease background', borderBottom: '1px solid rgba(255,255,255,0.04)' }} onMouseEnter={(e) => { if (!isSelected) e.currentTarget.style.background = 'rgba(255,255,255,0.03)' }} onMouseLeave={(e) => { if (!isSelected) e.currentTarget.style.background = 'transparent' }}>
+                        <td style={{ padding: '16px', fontWeight: '600', color: isSelected ? 'var(--gold)' : '#fff' }}>{item.name}</td>
+                        <td style={{ padding: '16px', textAlign: 'right', fontVariantNumeric: 'tabular-nums', fontWeight: '700', fontSize: '14px' }}>₫{item.buy.toLocaleString('vi-VN')}</td>
+                        <td style={{ padding: '16px', textAlign: 'right', fontVariantNumeric: 'tabular-nums', fontWeight: '700', fontSize: '14px' }}>₫{item.sell.toLocaleString('vi-VN')}</td>
+                        <td style={{ padding: '16px', verticalAlign: 'middle' }}>
+                          <span style={{ 
+                            fontSize: '11px', 
+                            fontWeight: 600,
+                            padding: '4px 12px', 
+                            borderRadius: '99px',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            background: trendBg,
+                            color: trendColor
+                          }}>
+                            {trendIcon} {trendText}
+                          </span>
+                        </td>
+                        <td style={{ padding: '16px', textAlign: 'center', verticalAlign: 'middle' }}>
                           <div style={{
                             width: '14px', height: '14px', borderRadius: '50%',
                             border: isSelected ? '1.5px solid var(--gold)' : '1.5px solid rgba(255, 255, 255, 0.3)',
@@ -1261,7 +1314,7 @@ export default function Trade() {
             </button>
           </div>
 
-          <div style={{ fontSize: '11px', color: 'var(--text-muted)', background: 'rgba(255,255,255,0.02)', padding: '8px 12px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.04)' }}>
+          <div style={{ fontSize: '12px', color: 'var(--text-muted)', background: 'rgba(255,255,255,0.02)', padding: '16px 20px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.04)', lineHeight: '1.5' }}>
             {activeTab === 'buy' && <span><strong>Thao tác:</strong> Trừ tiền Ví VND, cộng Ví vàng online tức thì.</span>}
             {activeTab === 'sell' && <span><strong>Thao tác:</strong> Trừ Ví vàng online, cộng tiền Ví VND trực tuyến.</span>}
             {activeTab === 'withdraw' && <span><strong>Thao tác:</strong> Đóng băng Ví vàng online. Bạn phải đến quầy quét mã QR để lấy vàng vật chất.</span>}
@@ -1274,7 +1327,7 @@ export default function Trade() {
               className="form-input" 
               value={selectedGoldKey} 
               onChange={(e) => { setSelectedGoldKey(e.target.value); setQuantity(''); setAmount(''); }}
-              style={{ background: '#000', color: '#fff', border: '1px solid rgba(255,255,255,0.1)', fontSize: '13px' }}
+              style={{ background: 'rgba(255,255,255,0.03)', color: '#fff', border: '1px solid rgba(255,255,255,0.1)', fontSize: '13px', padding: '0 16px', borderRadius: '8px', minHeight: '48px', outline: 'none' }}
               disabled={availableGoldListKeys.length === 0}
             >
               {availableGoldListKeys.map((key) => {
@@ -1301,7 +1354,7 @@ export default function Trade() {
                 className="form-input"
                 value={quantity}
                 onChange={(e) => handleQuantityChange(e.target.value)}
-                style={{ background: '#000', color: '#fff', border: '1px solid rgba(255,255,255,0.1)' }}
+                style={{ background: 'rgba(255,255,255,0.03)', color: '#fff', border: '1px solid rgba(255,255,255,0.1)', padding: '0 16px', borderRadius: '8px', minHeight: '48px', outline: 'none' }}
               >
                 <option value="">Chọn định mức thỏi/nhẫn vàng...</option>
                 <option value="0.5">0.5 chỉ (1.875g)</option>
@@ -1319,7 +1372,7 @@ export default function Trade() {
                 step="0.01" 
                 value={quantity}
                 onChange={(e) => handleQuantityChange(e.target.value)}
-                style={{ background: '#000', color: '#fff', border: '1px solid rgba(255,255,255,0.1)' }}
+                style={{ background: 'rgba(255,255,255,0.03)', color: '#fff', border: '1px solid rgba(255,255,255,0.1)', padding: '0 16px', borderRadius: '8px', fontSize: '15px', fontWeight: 600, minHeight: '48px', outline: 'none' }}
               />
             )}
             {activeTab === 'withdraw' && (
@@ -1329,7 +1382,7 @@ export default function Trade() {
                   className="form-input"
                   value={pickupStore}
                   onChange={(e) => setPickupStore(e.target.value)}
-                  style={{ background: '#000', color: '#fff', border: '1px solid rgba(255,255,255,0.1)' }}
+                  style={{ background: 'rgba(255,255,255,0.03)', color: '#fff', border: '1px solid rgba(255,255,255,0.1)', padding: '0 16px', borderRadius: '8px', minHeight: '48px', outline: 'none' }}
                 >
                   <option value="">Chọn chi nhánh gần khối bạn...</option>
                   <option value="HN_123_THAIHA">Hà Nội: 123 Thái Hà, Quận Đống Đa</option>
@@ -1381,7 +1434,7 @@ export default function Trade() {
                 step="1000"
                 value={amount}
                 onChange={(e) => handleAmountChange(e.target.value)}
-                style={{ background: '#000', color: '#fff', border: '1px solid rgba(255,255,255,0.1)' }}
+                style={{ background: 'rgba(255,255,255,0.03)', color: '#fff', border: '1px solid rgba(255,255,255,0.1)', padding: '0 16px', borderRadius: '8px', fontSize: '15px', fontWeight: 600, minHeight: '48px', outline: 'none' }}
               />
               <div className="form-hint" style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px' }}>
                 {activeTab === 'buy'

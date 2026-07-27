@@ -195,7 +195,7 @@ export function UserNavbar() {
                     border: '1px solid rgba(212, 175, 55, 0.24)',
                     cursor: 'pointer',
                     userSelect: 'none',
-                    minWidth: '238px',
+                    maxWidth: '300px',
                   }}
                 >
                   <div style={{ width: 34, height: 34, borderRadius: '50%', background: 'var(--gold-gradient)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--bg-main)', fontSize: 12, fontWeight: 'bold', flexShrink: 0 }}>
@@ -221,7 +221,7 @@ export function UserNavbar() {
                       )}
                     </div>
                     <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '3px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {user.role === 'admin' ? `AD-${user.id?.substring(0, 5).toUpperCase() || '001'} · ${user.email}` : `${walletStr} · ${user.email}`}
+                      {user.role === 'admin' ? `AD-${user.id?.substring(0, 5).toUpperCase() || '001'}` : `ID: GC-${user.id?.substring(0, 5).toUpperCase() || 'USR'}`}
                     </div>
                   </div>
                   <ChevronDown size={15} style={{ color: 'var(--text-muted)', transform: dropdownOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s', flexShrink: 0 }} />

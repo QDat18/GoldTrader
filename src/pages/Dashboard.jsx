@@ -1,7 +1,10 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
 import useStore from '../store/useStore';
-import { Clock, ShieldCheck, Wallet, ArrowRightLeft, MapPin, QrCode, FileText } from 'lucide-react';
+import { Clock } from 'lucide-react';
+import AssetOverview from '../components/dashboard/AssetOverview';
+import OwnedGoldList from '../components/dashboard/OwnedGoldList';
+import O2OGuide from '../components/dashboard/O2OGuide';
+import RecentTransactions from '../components/dashboard/RecentTransactions';
 
 export default function Dashboard() {
   const user = useStore(state => state.currentUser);
@@ -18,11 +21,18 @@ export default function Dashboard() {
     : 148000000;
   let totalGoldQty = 0;
   let totalGoldCost = 0;
-  Object.keys(balances).forEach(key => { 
-    totalGoldQty += balances[key]; 
-    totalGoldCost += balances[key] * (costBasis[key] || avgBuyPrice);
+  let totalGoldValue = 0;
+
+  Object.keys(balances).forEach(key => {
+    const qty = balances[key];
+    if (qty > 0) {
+      totalGoldQty += qty; 
+      // Giá mua vào của tiệm cho loại vàng này
+      const currentBuyPrice = prices[key]?.buy || avgBuyPrice;
+      totalGoldCost += qty * (costBasis[key] || currentBuyPrice);
+      totalGoldValue += qty * currentBuyPrice;
+    }
   });
-  const totalGoldValue = totalGoldQty * avgBuyPrice;
 
   const totalAssetsValue = wallet + totalGoldValue;
   const unrealizedPnl = totalGoldValue - totalGoldCost;
@@ -51,8 +61,6 @@ export default function Dashboard() {
           </div>
         </div>
       )}
-      
-
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
         <div className="h2" style={{ letterSpacing: '-1px' }}>Tổng quan tài sản tại cửa hàng</div>
@@ -62,163 +70,32 @@ export default function Dashboard() {
       </div>
       
       {/* KHỐI TỔNG TÀI SẢN & LÃI LỖ PNL */}
-      <div className="neo-card" style={{ marginBottom: '24px', padding: '32px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-          <div>
-            <div className="body-sm" style={{ color: 'var(--text-muted)', marginBottom: '12px', fontWeight: 600, letterSpacing: '1px', textTransform: 'uppercase' }}>Tổng giá trị tài sản (Mark-to-Market)</div>
-            <div style={{ fontSize: '48px', fontWeight: 600, color: 'var(--gold)', lineHeight: 1, marginBottom: '8px', letterSpacing: '-1.5px' }}>₫{totalAssetsValue.toLocaleString('vi-VN')}</div>
-            <div style={{ fontSize: '15px', fontWeight: 600, color: pnlColor, display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '32px' }}>
-               Lãi/lỗ tạm tính: {pnlSign}₫{unrealizedPnl.toLocaleString('vi-VN')} ({unrealizedPercent > 0 ? '+' : ''}{unrealizedPercent.toFixed(2)}%)
-            </div>
-          </div>
-          {unrealizedPercent > 5 && totalGoldQty > 0 && (
-            <div style={{ background: 'rgba(16, 185, 129, 0.1)', border: '1px solid rgba(16, 185, 129, 0.3)', padding: '16px', borderRadius: '12px', maxWidth: '300px' }}>
-              <div style={{ fontSize: '12px', fontWeight: 'bold', color: 'var(--emerald)', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>🤖 Robo Advisor Warning</div>
-              <div style={{ fontSize: '13px', color: '#fff', lineHeight: 1.5 }}>Lượng vàng trong kho của bạn đang có mức sinh lời <b>+{unrealizedPercent.toFixed(2)}%</b> so với giá vốn mua vào. Ngưỡng lợi nhuận an toàn, cân nhắc chốt lời một phần!</div>
-            </div>
-          )}
-        </div>
-        
-        <div style={{ display: 'flex', gap: '48px', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '24px' }}>
-          <div>
-            <div className="body-sm" style={{ color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px', fontSize: '12px' }}>Số dư ví VND</div>
-            <div style={{ fontSize: '18px', color: '#fff', marginTop: '4px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Wallet size={16} color="var(--gold)" /> ₫{wallet.toLocaleString('vi-VN')}
-            </div>
-          </div>
-          <div>
-            <div className="body-sm" style={{ color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px', fontSize: '12px' }}>Trị giá vàng quy đổi</div>
-            <div style={{ fontSize: '18px', color: '#fff', marginTop: '4px', fontWeight: 600 }}>
-              ₫{totalGoldValue.toLocaleString('vi-VN')}
-            </div>
-          </div>
-          <div>
-            <div className="body-sm" style={{ color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px', fontSize: '12px' }}>Tổng Vốn Đầu Tư (Vàng)</div>
-            <div style={{ fontSize: '18px', color: '#fff', marginTop: '4px', fontWeight: 600 }}>
-              ₫{totalGoldCost.toLocaleString('vi-VN')}
-            </div>
-          </div>
-        </div>
-      </div>
+      <AssetOverview
+        totalAssetsValue={totalAssetsValue}
+        unrealizedPnl={unrealizedPnl}
+        unrealizedPercent={unrealizedPercent}
+        pnlColor={pnlColor}
+        pnlSign={pnlSign}
+        wallet={wallet}
+        totalGoldValue={totalGoldValue}
+        totalGoldCost={totalGoldCost}
+        totalGoldQty={totalGoldQty}
+      />
 
       {/* CHI TIẾT TỪNG LOẠI VÀNG ĐANG SỞ HỮU */}
-      {ownedGoldList.length > 0 && (
-        <div className="grid-3" style={{ marginBottom: '24px', gap: '16px' }}>
-          {ownedGoldList.map(key => {
-            const qty = balances[key];
-            const val = qty * avgBuyPrice;
-            const targetPrice = prices[key];
-            const name = targetPrice ? targetPrice.name : key;
-            return (
-              <div key={key} className="neo-card" style={{ padding: '20px 24px' }}>
-                <div className="body-sm" style={{ color: 'var(--gold)', fontWeight: 600, textTransform: 'uppercase' }}>{name}</div>
-                <div style={{ fontSize: '24px', fontWeight: 600, color: '#fff', marginTop: '8px' }}>
-                  {qty.toFixed(3)} chỉ
-                  <span style={{ fontSize: '14px', color: 'var(--text-muted)', marginLeft: '8px', fontWeight: 'normal' }}>({Number((qty * 3.75).toFixed(4))}g)</span>
-                </div>
-                <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '8px' }}>
-                  Trị giá tham khảo: <span style={{ color: 'var(--emerald)', fontWeight: '500' }}>₫{val.toLocaleString('vi-VN')}</span>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
+      <OwnedGoldList 
+        ownedGoldList={ownedGoldList} 
+        balances={balances} 
+        prices={prices} 
+        avgBuyPrice={avgBuyPrice} 
+      />
 
       <div className="grid-2" style={{ gap: '16px' }}>
-        
         {/* HƯỚNG DẪN RÚT VÀNG VẬT CHẤT (O2O PROCESS) */}
-        <div className="neo-card" style={{ padding: '24px' }}>
-          <div className="h3" style={{ marginBottom: '20px', letterSpacing: '-0.5px' }}>Hướng dẫn nhận Vàng vật chất tại quầy</div>
-          
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            
-            <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
-              <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: 'rgba(212,175,55,0.1)', border: '1.5px solid var(--gold)', display: 'flex', alignItems: 'center', justifyItems: 'center', justifyContent: 'center', color: 'var(--gold)', fontSize: '12px', fontWeight: 'bold', flexShrink: 0, marginTop: '2px' }}>
-                1
-              </div>
-              <div>
-                <div style={{ fontSize: '13px', fontWeight: 'bold', color: '#fff' }}>Mua tích lũy trực tuyến</div>
-                <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '2px' }}>
-                  Sử dụng số dư ví VND để mua vàng trực tuyến theo giá chốt niêm yết bất cứ lúc nào.
-                </div>
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
-              <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: 'rgba(212,175,55,0.1)', border: '1.5px solid var(--gold)', display: 'flex', alignItems: 'center', justifyItems: 'center', justifyContent: 'center', color: 'var(--gold)', fontSize: '12px', fontWeight: 'bold', flexShrink: 0, marginTop: '2px' }}>
-                2
-              </div>
-              <div>
-                <div style={{ fontSize: '13px', fontWeight: 'bold', color: '#fff' }}>Yêu cầu tạo hợp đồng & Hóa đơn số</div>
-                <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '2px' }}>
-                  Hệ thống tự động sinh Hợp đồng điện tử ký số và mã QR xác thực động (TOTP) thay đổi mỗi 30 giây.
-                </div>
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
-              <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: 'rgba(212,175,55,0.1)', border: '1.5px solid var(--gold)', display: 'flex', alignItems: 'center', justifyItems: 'center', justifyContent: 'center', color: 'var(--gold)', fontSize: '12px', fontWeight: 'bold', flexShrink: 0, marginTop: '2px' }}>
-                3
-              </div>
-              <div>
-                <div style={{ fontSize: '13px', fontWeight: 'bold', color: '#fff' }}>Nhận vàng vật chất tại tiệm</div>
-                <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '2px' }}>
-                  Đến trực tiếp cửa hàng, xuất trình mã QR và CCCD trùng khớp với hồ sơ để nhận vàng thật 100%.
-                </div>
-              </div>
-            </div>
-
-          </div>
-
-          <div style={{ marginTop: '20px', padding: '12px', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.04)', borderRadius: '8px', display: 'flex', gap: '10px', alignItems: 'center' }}>
-            <MapPin size={18} color="var(--gold)" />
-            <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-              <strong>Địa chỉ nhận vàng:</strong> Trụ sở chính GoldChain, Q.1, TP. Hồ Chí Minh.
-            </span>
-          </div>
-        </div>
+        <O2OGuide />
 
         {/* LỊCH SỬ GIAO DỊCH GẦN NHẤT */}
-        <div className="neo-card" style={{ padding: '24px' }}>
-          <div className="h3" style={{ marginBottom: '16px' }}>Các giao dịch gần đây</div>
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <thead>
-                <tr style={{ borderBottom: '1px solid var(--border-silver)', color: 'var(--text-muted)', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '1px' }}>
-                  <th style={{ padding: '12px 8px', textAlign: 'left', fontWeight: 500 }}>Loại giao dịch</th>
-                  <th style={{ padding: '12px 8px', textAlign: 'left', fontWeight: 500 }}>Sản phẩm</th>
-                  <th style={{ padding: '12px 8px', textAlign: 'left', fontWeight: 500 }}>Số lượng</th>
-                  <th style={{ padding: '12px 8px', textAlign: 'left', fontWeight: 500 }}>Tổng tiền</th>
-                  <th style={{ padding: '12px 8px', textAlign: 'right', fontWeight: 500 }}>Thời gian</th>
-                </tr>
-              </thead>
-              <tbody>
-                {recentTxns.length > 0 ? recentTxns.map((txn, index) => (
-                  <tr key={index} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                    <td style={{ padding: '16px 8px' }}>
-                      {txn.type === 'buy' ? <span style={{ background: 'rgba(16, 185, 129, 0.1)', color: 'var(--emerald)', padding: '4px 10px', borderRadius: '4px', fontSize: '12px', fontWeight: 600 }}>Mua vào</span> :
-                       txn.type === 'dca' ? <span style={{ background: 'rgba(212, 175, 55, 0.1)', color: 'var(--gold)', padding: '4px 10px', borderRadius: '4px', fontSize: '12px', fontWeight: 600 }}>Tích lũy DCA</span> :
-                       <span style={{ background: 'rgba(239, 68, 68, 0.1)', color: 'var(--ruby)', padding: '4px 10px', borderRadius: '4px', fontSize: '12px', fontWeight: 600 }}>Bán ra</span>}
-                    </td>
-                    <td style={{ padding: '16px 8px', fontWeight: 500, color: '#fff' }}>{txn.goldTypeName}</td>
-                    <td style={{ padding: '16px 8px', color: '#fff' }}>{txn.quantity.toFixed(3)} chỉ</td>
-                    <td style={{ padding: '16px 8px', color: 'var(--gold)', fontWeight: 500 }}>₫{txn.total.toLocaleString('vi-VN')}</td>
-                    <td style={{ padding: '16px 8px', textAlign: 'right', color: 'var(--text-muted)', fontSize: '13px' }}>{txn.time}</td>
-                  </tr>
-                )) : (
-                  <tr>
-                    <td colSpan="5" style={{ padding: '32px', textAlign: 'center', color: 'var(--text-muted)' }}>Chưa có giao dịch mua bán nào</td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-          <Link to="/history" className="btn btn-outline" style={{ width: '100%', marginTop: '24px', padding: '12px', borderRadius: '99px', textDecoration: 'none', justifyContent: 'center', fontWeight: 600 }}>
-            Xem toàn bộ lịch sử
-          </Link>
-        </div>
-
+        <RecentTransactions recentTxns={recentTxns} />
       </div>
     </div>
   );
