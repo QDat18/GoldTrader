@@ -2,11 +2,11 @@ const cron = require('node-cron');
 const { createClient } = require('@supabase/supabase-js');
 require('dotenv').config();
 
-// Khởi tạo Supabase Admin Client để vượt rào (bypass RLS) khi chạy cron
+// Khởi tạo Supabase Admin Client
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL || 'YOUR_SUPABASE_URL';
-const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || 'YOUR_SERVICE_KEY'; // Ở server cần Service Key thay vì Anon key
+const SUPABASE_KEY = process.env.VITE_SUPABASE_ANON_KEY || 'YOUR_SERVICE_KEY';
 
-const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
+const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 // Công thức lấy giá vàng gần nhất (Giả lập giống trên Web)
 async function getLatestGoldPrices() {
@@ -183,6 +183,6 @@ cron.schedule('* * * * *', () => {
   runDcaCron();
 });
 
-// Hàm hỗ trợ chạy chay một lần (Môi trường Dev)
-// runDcaCron();
+// Chạy một lần ngay khi vừa khởi động Server để User không phải chờ sang phút tiếp theo
+runDcaCron();
 module.exports = runDcaCron;
