@@ -103,7 +103,7 @@ export default function History() {
         if (pnlVal === '—' || !pnlVal) pnlVal = '';
         else if (typeof pnlVal === 'string') pnlVal = pnlVal.replace(/[^0-9.-]/g, '');
 
-        let statusStr = t.status === 'Chờ nhận tại quầy' ? 'Chờ nhận vàng' : 
+        let statusStr = t.status === 'PENDING' ? 'Chờ nhận vàng' : 
                         (t.status === 'COMPLETED' ? 'Hoàn tất' : t.status);
 
         let timeStr = t.time || '';
@@ -354,7 +354,7 @@ export default function History() {
 
         {/* Pending Withdrawals O2O */}
         {(() => {
-          const pendingWithdrawals = transactions.filter(t => t.type === 'withdraw' && t.status === 'Chờ nhận tại quầy');
+          const pendingWithdrawals = transactions.filter(t => t.type === 'withdraw' && t.status === 'PENDING');
           if (pendingWithdrawals.length === 0) return null;
           return (
             <div style={{ marginBottom: '32px' }}>
@@ -373,7 +373,33 @@ export default function History() {
                       </div>
                       <div style={{ textAlign: 'right' }}>
                         <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{new Date(req.time).toLocaleString('vi-VN')}</div>
-                        <div style={{ padding: '6px 12px', background: 'rgba(212,175,55,0.1)', color: 'var(--gold)', borderRadius: '99px', fontSize: '12px', fontWeight: 600, marginTop: '12px', display: 'inline-block' }}>Chờ xác thực tại quầy</div>
+                        <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', marginTop: '12px' }}>
+                          <div style={{ padding: '6px 12px', background: 'rgba(212,175,55,0.1)', color: 'var(--gold)', borderRadius: '99px', fontSize: '12px', fontWeight: 600, display: 'inline-block' }}>Chờ xác thực tại quầy</div>
+                          <button 
+                            onClick={async () => {
+                              const conf = await Swal.fire({
+                                title: 'Hủy lệnh rút vàng?',
+                                text: 'Bạn có chắc chắn muốn hủy lệnh này không?',
+                                icon: 'warning',
+                                showCancelButton: true,
+                                confirmButtonText: 'Đồng ý',
+                                cancelButtonText: 'Không',
+                              });
+                              if (conf.isConfirmed) {
+                                try {
+                                  await useStore.getState().cancelWithdrawalOrder(req.id);
+                                  Swal.fire({ icon: 'success', title: 'Thành công', text: 'Lệnh rút vàng đã được hủy' });
+                                  fetchTransactions(currentUser.id);
+                                } catch (e) {
+                                  Swal.fire({ icon: 'error', title: 'Lỗi', text: 'Không thể hủy lệnh rút vàng' });
+                                }
+                              }
+                            }}
+                            style={{ padding: '6px 12px', background: 'rgba(239, 68, 68, 0.1)', color: 'var(--ruby)', borderRadius: '99px', fontSize: '12px', fontWeight: 600, display: 'inline-block', border: '1px solid rgba(239, 68, 68, 0.3)', cursor: 'pointer' }}
+                          >
+                            Hủy lệnh
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </div>

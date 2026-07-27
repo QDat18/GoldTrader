@@ -491,6 +491,20 @@ const useStore = create((set, get) => ({
     }
   },
 
+  cancelWithdrawalOrder: async (orderId) => {
+    try {
+      const { error } = await supabase
+        .schema('financial_ledgers')
+        .from('orders')
+        .update({ order_status: 'CANCELLED' })
+        .eq('id', orderId);
+      if (error) throw error;
+    } catch(err) {
+      console.error(err);
+      throw err;
+    }
+  },
+
   submitKyc: (submission) =>
     set((state) => {
       const newSub = {

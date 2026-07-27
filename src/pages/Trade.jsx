@@ -281,7 +281,7 @@ export default function Trade() {
     // Đóng băng lượng vàng đang kẹt trong các đơn rút O2O chưa hoàn thành
     const goldName = prices[key]?.name || key;
     const pendingWithdrawalChi = transactions
-      .filter(t => t.type === 'withdraw' && t.status === 'Chờ nhận tại quầy' && t.goldTypeName === goldName)
+      .filter(t => t.type === 'withdraw' && t.status === 'PENDING' && t.goldTypeName === goldName)
       .reduce((sum, t) => sum + Number(t.quantity), 0);
       
     return Math.max(0, balance - pendingWithdrawalChi);
