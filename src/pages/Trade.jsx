@@ -1422,25 +1422,79 @@ export default function Trade() {
           </div>
 
           {/* Nút phần trăm */}
-          {activeTab !== 'withdraw' && (
-            <div style={{ display: 'flex', gap: '6px' }}>
-              {[0.25, 0.50, 0.75, 1.0].map((p) => (
-                <button
-                  key={p}
-                  type="button"
-                  onClick={() => handlePercentClick(p)}
-                  style={{
-                    flex: 1, padding: '6px 0', background: 'rgba(255,255,255,0.03)',
-                    border: '1px solid rgba(255,255,255,0.08)', borderRadius: '4px',
-                    color: 'var(--text-muted)', fontSize: '11px', cursor: 'pointer'
-                  }}
-                  className="hover-highlight"
-                >
-                  {p * 100}%
-                </button>
-              ))}
+          {activeTab === 'buy' ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{ fontSize: '11px', color: 'var(--text-muted)', width: '130px' }}>Theo Kho Cửa Hàng:</span>
+                <div style={{ display: 'flex', gap: '6px', flex: 1 }}>
+                  {[0.25, 0.50, 0.75, 1.0].map((p) => (
+                    <button
+                      key={`store-${p}`}
+                      type="button"
+                      onClick={() => {
+                        const stockQtyChi = (storeStock[selectedGoldKey] || 0) / 3.75;
+                        let targetQty = stockQtyChi * p;
+                        if (p !== 1.0) {
+                          targetQty = Math.floor(targetQty * 10000) / 10000;
+                        }
+                        setQuantity(targetQty.toString());
+                        setAmount(Math.round(targetQty * currentPrice).toString());
+                      }}
+                      style={{
+                        flex: 1, padding: '4px 0', background: 'rgba(255,255,255,0.03)',
+                        border: '1px solid rgba(255,255,255,0.08)', borderRadius: '4px',
+                        color: 'var(--text-muted)', fontSize: '11px', cursor: 'pointer'
+                      }}
+                      className="hover-highlight"
+                    >
+                      {p * 100}%
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{ fontSize: '11px', color: 'var(--text-muted)', width: '130px' }}>Theo Ví Tiền VND:</span>
+                <div style={{ display: 'flex', gap: '6px', flex: 1 }}>
+                  {[0.25, 0.50, 0.75, 1.0].map((p) => (
+                    <button
+                      key={`wallet-${p}`}
+                      type="button"
+                      onClick={() => handlePercentClick(p)}
+                      style={{
+                        flex: 1, padding: '4px 0', background: 'rgba(255,255,255,0.03)',
+                        border: '1px solid rgba(255,255,255,0.08)', borderRadius: '4px',
+                        color: 'var(--text-muted)', fontSize: '11px', cursor: 'pointer'
+                      }}
+                      className="hover-highlight"
+                    >
+                      {p * 100}%
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
-          )}
+          ) : activeTab === 'sell' ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span style={{ fontSize: '11px', color: 'var(--text-muted)', width: '130px' }}>Theo Khối Lượng Sở Hữu:</span>
+              <div style={{ display: 'flex', gap: '6px', flex: 1 }}>
+                {[0.25, 0.50, 0.75, 1.0].map((p) => (
+                  <button
+                    key={`sell-${p}`}
+                    type="button"
+                    onClick={() => handlePercentClick(p)}
+                    style={{
+                      flex: 1, padding: '4px 0', background: 'rgba(255,255,255,0.03)',
+                      border: '1px solid rgba(255,255,255,0.08)', borderRadius: '4px',
+                      color: 'var(--text-muted)', fontSize: '11px', cursor: 'pointer'
+                    }}
+                    className="hover-highlight"
+                  >
+                    {p * 100}%
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : null}
 
           {activeTab !== 'withdraw' && (
             <div className="form-group">
