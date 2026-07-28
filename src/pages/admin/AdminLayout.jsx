@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
-import { Building, QrCode, Layers, ShieldAlert, CheckCircle2, Database } from 'lucide-react';
+import { Building, QrCode, Layers, ShieldAlert, CheckCircle2, Database, LayoutDashboard } from 'lucide-react';
 
 export default function AdminLayout() {
   return (
@@ -16,6 +16,9 @@ export default function AdminLayout() {
         </div>
 
         <nav className="admin-nav-list">
+          <NavLink to="/admin/dashboard" className={({ isActive }) => `admin-nav-item ${isActive ? 'active' : ''}`}>
+            <LayoutDashboard size={16} /> Tổng quan hệ thống
+          </NavLink>
           <NavLink to="/admin/kyc" className={({ isActive }) => `admin-nav-item ${isActive ? 'active' : ''}`}>
             <ShieldAlert size={16} /> Duyệt eKYC
           </NavLink>

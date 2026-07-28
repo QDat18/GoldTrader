@@ -76,6 +76,10 @@ export function UserNavbar() {
 
   const submitDeposit = () => {
     const val = parseInt(depositAmount.toString().replace(/[^0-9]/g, ''), 10);
+    if (Number.isNaN(val) || val < 10000 || val > 10000000000) {
+      Swal.fire('Lỗi giới hạn nạp', 'Số tiền nạp phải từ 10.000 VNĐ đến tối đa 10 Tỷ VNĐ cho mỗi giao dịch.', 'error');
+      return;
+    }
     if (!Number.isNaN(val) && val > 0) {
       depositMoney(val);
 
@@ -428,6 +432,9 @@ export function UserNavbar() {
                       placeholder="Nhập số tiền khác..."
                       style={{ background: 'rgba(0,0,0,0.2)', fontSize: '18px', fontWeight: 600, letterSpacing: '1px' }}
                     />
+                    <div style={{ fontSize: '11px', color: 'var(--gold)', marginTop: '8px' }}>
+                      * Hạn mức thanh toán: Tối thiểu 10.000 đ - Tối đa 10.000.000.000 đ.
+                    </div>
                   </div>
 
                   <div style={{ padding: '16px', background: 'rgba(0,0,0,0.2)', borderRadius: '16px', fontSize: '13px', color: 'var(--text-muted)', lineHeight: '1.6' }}>

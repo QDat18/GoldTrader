@@ -184,9 +184,9 @@ export default function AdminOrders() {
   const filteredOrders = dbOrders.filter(o => {
     // 1. Filter by type
     if (orderFilterType !== 'all') {
-      if (orderFilterType === 'BUY' && o.order_type !== 'BUY_ONLINE') return false;
+      if (orderFilterType === 'BUY' && !o.order_type.includes('BUY')) return false;
       if (orderFilterType === 'SELL' && o.order_type !== 'SELL_ONLINE') return false;
-      if (orderFilterType === 'WITHDRAW' && o.order_type !== 'WITHDRAW_PHYSICAL' && o.order_type !== 'PHYSICAL_WITHDRAWAL') return false;
+      if (orderFilterType === 'WITHDRAW' && !o.order_type.includes('WITHDRAW') && !o.order_type.includes('PHYSICAL')) return false;
     }
 
     // 2. Filter by status
@@ -266,7 +266,7 @@ export default function AdminOrders() {
                 onChange={e => setOrderFilterType(e.target.value)}
               >
                 <option value="all">Tất cả loại giao dịch</option>
-                <option value="BUY">Mua trực tuyến (BUY)</option>
+                <option value="BUY">Mua / Tích lũy DCA (BUY)</option>
                 <option value="SELL">Bán trực tuyến (SELL)</option>
                 <option value="WITHDRAW">Rút vàng vật lý (WITHDRAW)</option>
               </select>

@@ -14,6 +14,7 @@ import AdminOrders from './pages/admin/AdminOrders';
 import AdminO2o from './pages/admin/AdminO2o';
 import AdminInventory from './pages/admin/AdminInventory';
 import AdminHedging from './pages/admin/AdminHedging';
+import AdminDashboard from './pages/admin/AdminDashboard';
 import Login from './pages/Login';
 import Notifications from './pages/Notifications';
 import Register from './pages/Register';
@@ -284,7 +285,8 @@ function App() {
         {/* Admin Routes */}
         <Route element={<UserLayout />}>
           <Route path="/admin" element={<AdminOnly currentUser={currentUser}><AdminLayout /></AdminOnly>}>
-            <Route index element={<Navigate to="/admin/kyc" replace />} />
+            <Route index element={<Navigate to="/admin/dashboard" replace />} />
+            <Route path="dashboard" element={<AdminDashboard />} />
             <Route path="kyc" element={<AdminKyc />} />
             <Route path="orders" element={<AdminOrders />} />
             <Route path="o2o" element={<AdminO2o />} />

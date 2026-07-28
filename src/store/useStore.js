@@ -892,10 +892,35 @@ const useStore = create((set, get) => ({
         .order('created_at', { ascending: false });
       if (ordErr) throw ordErr;
 
+      let allOrders = [];
       if (dbOrdersData) {
-        dbOrdersData.forEach(o => {
-          o.status = o.order_status === 'WAITING_PICKUP' ? 'PENDING' : (o.order_status || 'OK');
-        });
+        allOrders = dbOrdersData.map(o => ({
+          ...o,
+          status: o.order_status === 'WAITING_PICKUP' ? 'PENDING' : (o.order_status || 'OK')
+        }));
+      }
+
+      // Fetch DCA transactions
+      const { data: dcaData, error: dcaErr } = await supabase
+        .schema('financial_ledgers')
+        .from('gold_transactions')
+        .select('*')
+        .eq('tx_type', 'DCA');
+      
+      if (!dcaErr && dcaData) {
+        const dcaMapped = dcaData.map(d => ({
+          id: d.id, // DCA-...
+          user_id: d.user_id,
+          gold_type: d.gold_type,
+          order_type: 'BUY_DCA', // Custom type mapping
+          quantity_grams: d.quantity_grams,
+          total_amount_vnd: d.total_amount_vnd,
+          unit_price_vnd: d.unit_price_vnd,
+          created_at: d.created_at,
+          status: d.status === 'SUCCESS' ? 'COMPLETED' : 'CANCELLED',
+          order_status: d.status === 'SUCCESS' ? 'COMPLETED' : 'CANCELLED'
+        }));
+        allOrders = [...allOrders, ...dcaMapped].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
       }
 
       const { data: usersData, error: usrErr } = await supabase
@@ -914,13 +939,13 @@ const useStore = create((set, get) => ({
         .from('vault_inventory')
         .select('*');
 
-      localStorage.setItem('cached_admin_orders', JSON.stringify(dbOrdersData || []));
+      localStorage.setItem('cached_admin_orders', JSON.stringify(allOrders));
       localStorage.setItem('cached_admin_users_map', JSON.stringify(uMap));
       if (!invErr && invData) {
         localStorage.setItem('cached_admin_inventory', JSON.stringify(invData));
-        set({ adminOrders: dbOrdersData || [], adminUsersMap: uMap, adminInventory: invData });
+        set({ adminOrders: allOrders, adminUsersMap: uMap, adminInventory: invData });
       } else {
-        set({ adminOrders: dbOrdersData || [], adminUsersMap: uMap });
+        set({ adminOrders: allOrders, adminUsersMap: uMap });
       }
     } catch (err) {
       console.error("Lỗi tải đơn hàng admin:", err);
