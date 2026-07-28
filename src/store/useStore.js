@@ -482,9 +482,12 @@ const useStore = create((set, get) => ({
 
   cancelDcaPlan: async (id) => {
     try {
-      const { error } = await supabase.from('dca_plans').delete().eq('id', id);
+      // Thay vì delete (gây lỗi khóa ngoại với bảng executions), ta update trạng thái thành CANCELLED
+      const { data, error } = await supabase.from('dca_plans').update({ status: 'CANCELLED' }).eq('id', id).select();
       if (!error) {
         set((state) => ({ dcaPlans: state.dcaPlans.filter(p => p.id !== id) }));
+      } else {
+        console.error("Lỗi khi hủy plan:", error);
       }
     } catch(err) {
       console.error(err);
@@ -768,6 +771,40 @@ const useStore = create((set, get) => ({
           }
         } catch (e) {
           console.warn('Bạn chưa tạo bảng fiat_deposits', e);
+        }
+
+        // 3. Tải lịch sử giao dịch DCA tự động từ gold_transactions
+        try {
+          const { data: dcaTxns, error: dcaErr } = await supabaseLedger
+            .from('gold_transactions')
+            .select('*')
+            .eq('user_id', userId)
+            // Bắt tất cả các giao dịch do DCA tạo ra thông qua mã ID
+            .like('id', 'DCA-%')
+            .order('created_at', { ascending: false });
+
+          if (!dcaErr && dcaTxns) {
+            const mappedDca = dcaTxns.map(d => {
+              const date = new Date(d.created_at);
+              const timeStr = `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')} ${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear()}`;
+              return {
+                id: d.id, // tx id kiểu DCA-2026...
+                type: 'dca', // Cực kỳ quan trọng để UI History lọc bằng tab DCA
+                goldTypeKey: d.gold_type,
+                goldTypeName: get().goldPrices[d.gold_type]?.name || d.gold_type,
+                quantity: Number((Number(d.quantity_grams) / 3.75).toFixed(6)),
+                price: Math.round(Number(d.unit_price_vnd) * 3.75),
+                total: Number(d.total_amount_vnd),
+                pnl: '—',
+                time: timeStr,
+                status: d.status === 'SUCCESS' ? 'Hoàn tất (Auto DCA)' : 'Thất bại',
+                rawTime: date.getTime()
+              };
+            });
+            loadedTxns = [...loadedTxns, ...mappedDca];
+          }
+        } catch (e) {
+          console.warn('Lỗi tải Dữ liệu DCA vào History:', e);
         }
 
         loadedTxns.sort((a, b) => a.rawTime - b.rawTime); // ascending for time traveling

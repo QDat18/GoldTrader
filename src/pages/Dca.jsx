@@ -2,8 +2,74 @@ import React, { useState } from 'react';
 import Swal from 'sweetalert2';
 import useStore from '../store/useStore';
 
+const PlanExecutions = ({ planId }) => {
+  const [executions, setExecutions] = React.useState([]);
+  const [loading, setLoading] = React.useState(true);
+  const [showTable, setShowTable] = React.useState(false);
+
+  React.useEffect(() => {
+    if (showTable) {
+      import('../supabaseClient').then(({ supabase }) => {
+        supabase.schema('financial_ledgers').from('dca_executions')
+          .select('*')
+          .eq('plan_id', planId)
+          .order('executed_at', { ascending: false })
+          .limit(10)
+          .then(({ data }) => {
+            if (data) setExecutions(data);
+            setLoading(false);
+          });
+      });
+    }
+  }, [planId, showTable]);
+
+  if (!showTable) {
+    return (
+      <div style={{ textAlign: 'center', margin: '16px 0' }}>
+        <button className="btn" onClick={() => setShowTable(true)} style={{ background: 'rgba(212,175,55,0.1)', color: 'var(--gold)', border: '1px solid rgba(212,175,55,0.3)', borderRadius: '99px', padding: '8px 24px' }}>
+          <i className="ti ti-list-details" style={{ marginRight: '6px' }}></i> Xem các giao dịch của kế hoạch này
+        </button>
+      </div>
+    );
+  }
+
+  if (loading) return <div style={{textAlign: 'center', color: 'var(--text-muted)'}}>Đang tải dữ liệu...</div>;
+  if (!executions.length) return <div style={{textAlign: 'center', color: 'var(--text-muted)'}}>Chưa có lần chạy nào. Giao dịch sẽ hiện ở đây khi Bot đến giờ.</div>;
+
+  return (
+    <div style={{ background: 'rgba(0,0,0,0.3)', borderRadius: '12px', padding: '4px', overflowX: 'auto' }}>
+      <table style={{ width: '100%', fontSize: '13px', textAlign: 'left', borderCollapse: 'collapse' }}>
+        <thead>
+          <tr style={{ color: 'var(--text-muted)', borderBottom: '1px dashed rgba(255,255,255,0.1)' }}>
+            <th style={{ padding: '12px 16px' }}>Thời gian</th>
+            <th style={{ padding: '12px 16px' }}>Mã Chạy</th>
+            <th style={{ padding: '12px 16px' }}>KL Vàng Mua</th>
+            <th style={{ padding: '12px 16px' }}>Đơn giá Mua</th>
+            <th style={{ padding: '12px 16px' }}>Tổng chi (VND)</th>
+            <th style={{ padding: '12px 16px' }}>Trạng thái</th>
+          </tr>
+        </thead>
+        <tbody>
+          {executions.map(ex => (
+            <tr key={ex.id} style={{ borderBottom: '1px dashed rgba(255,255,255,0.05)' }}>
+              <td style={{ padding: '12px 16px' }}>{new Date(ex.executed_at).toLocaleString('vi-VN')}</td>
+              <td style={{ padding: '12px 16px', color: 'var(--text-muted)' }}>{ex.id.split('-')[1] || ex.id.substring(0, 8)}</td>
+              <td style={{ padding: '12px 16px', color: 'var(--gold)', fontWeight: 600 }}>+{Number(ex.quantity_grams).toFixed(4)} chỉ</td>
+              <td style={{ padding: '12px 16px' }}>{Number(ex.unit_price_vnd).toLocaleString('vi-VN')}đ</td>
+              <td style={{ padding: '12px 16px', color: 'var(--ruby)' }}>-{Number(ex.amount_vnd).toLocaleString('vi-VN')}đ</td>
+              <td style={{ padding: '12px 16px' }}>
+                {ex.status === 'SUCCESS' ? <span style={{ color: 'var(--emerald)' }}><i className="ti ti-check"></i> OK</span> : <span style={{ color: 'var(--ruby)' }}><i className="ti ti-x"></i> Failed</span>}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+};
 export default function Dca() {
   const [showCreateForm, setShowCreateForm] = useState(false);
+  const [showArchived, setShowArchived] = useState(false);
   
   const plans = useStore(state => state.dcaPlans);
   const prices = useStore(state => state.goldPrices);
@@ -211,20 +277,30 @@ export default function Dca() {
         </div>
       </div>
 
-      <div className="h3" style={{ marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-        <i className="ti ti-list-check" style={{ color: 'var(--gold)' }}></i>
-        Kế hoạch đang hoạt động
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+        <div className="h3" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <i className="ti ti-list-check" style={{ color: 'var(--gold)' }}></i>
+          {showArchived ? 'Các kế hoạch đã hủy (Lưu trữ)' : 'Kế hoạch đang hoạt động'}
+        </div>
+        <button 
+          className="btn" 
+          onClick={() => setShowArchived(!showArchived)}
+          style={{ fontSize: '14px', background: 'rgba(255,255,255,0.05)', color: 'var(--text-muted)', borderRadius: '99px', padding: '6px 16px', border: '1px solid rgba(255,255,255,0.1)' }}
+        >
+          {showArchived ? 'Quay lại danh sách' : 'Xem lịch sử kế hoạch'}
+        </button>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-        {plans.length > 0 ? plans.map(p => {
-          const isRunning = p.status === 'running';
+        {plans.filter(p => showArchived ? p.status === 'CANCELLED' : p.status !== 'CANCELLED').length > 0 ? plans.filter(p => showArchived ? p.status === 'CANCELLED' : p.status !== 'CANCELLED').map(p => {
+          const isRunning = p.status === 'running' || p.status === 'ACTIVE';
+          const isCancelled = p.status === 'CANCELLED';
           return (
-            <div key={p.id} className="card" style={{ borderRadius: '20px', padding: '24px', background: 'rgba(30,30,30,0.5)', border: '1px solid rgba(255,255,255,0.05)', position: 'relative', overflow: 'hidden' }}>
-              <div style={{ position: 'absolute', top: 0, left: 0, bottom: 0, width: '4px', background: isRunning ? 'var(--gold-gradient)' : 'var(--text-muted)' }}></div>
+            <div key={p.id} className="card" style={{ borderRadius: '20px', padding: '24px', background: 'rgba(30,30,30,0.5)', border: '1px solid rgba(255,255,255,0.05)', position: 'relative', overflow: 'hidden', opacity: isCancelled ? 0.6 : 1 }}>
+              <div style={{ position: 'absolute', top: 0, left: 0, bottom: 0, width: '4px', background: isRunning ? 'var(--gold-gradient)' : (isCancelled ? 'var(--ruby)' : 'var(--text-muted)') }}></div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <div style={{ display: 'flex', gap: '32px', flexWrap: 'wrap' }}>
                   <div><div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '4px' }}>LOẠI VÀNG</div><div style={{ fontSize: '16px', fontWeight: 600 }}>{prices[p.gold_type]?.name || p.gold_type?.toUpperCase()}</div></div>
-                  <div><div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '4px' }}>SỐ TIỀN / KỲ</div><div style={{ fontSize: '16px', fontWeight: 600 }}>₫{parseFloat(p.amount_vnd).toLocaleString('vi-VN')}</div></div>
+                  <div><div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '4px' }}>SỐ TIỀN / KỲ</div><div style={{ fontSize: '16px', fontWeight: 600 }}>₫{parseFloat(p.amount_vnd || p.amount_vnd_per_cycle).toLocaleString('vi-VN')}</div></div>
                   <div><div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '4px' }}>TẦN SUẤT</div><div style={{ fontSize: '16px', fontWeight: 600 }}>{p.frequency}</div></div>
                   <div><div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '4px' }}>NGÀY CHẠY</div><div style={{ fontSize: '16px', fontWeight: 600 }}>{p.execution_day}</div></div>
                   <div><div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '4px' }}>TRẠNG THÁI DB</div><div style={{ fontSize: '16px', fontWeight: 600 }}>{p.status}</div></div>
@@ -232,6 +308,8 @@ export default function Dca() {
                 <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                   {isRunning ? (
                     <span style={{ fontSize: '12px', padding: '6px 12px', borderRadius: '99px', background: 'rgba(16, 185, 129, 0.1)', color: 'var(--emerald)', fontWeight: 600, border: '1px solid rgba(16,185,129,0.2)' }}>Đang chạy</span>
+                  ) : isCancelled ? (
+                    <span style={{ fontSize: '12px', padding: '6px 12px', borderRadius: '99px', background: 'rgba(239, 68, 68, 0.1)', color: 'var(--ruby)', fontWeight: 600, border: '1px solid rgba(239,68,68,0.2)' }}>Đã hủy</span>
                   ) : (
                     <span style={{ fontSize: '12px', padding: '6px 12px', borderRadius: '99px', background: 'rgba(255, 255, 255, 0.05)', color: 'var(--text-muted)', fontWeight: 600, border: '1px solid rgba(255,255,255,0.1)' }}>Đã tạm dừng</span>
                   )}
@@ -239,19 +317,18 @@ export default function Dca() {
                   {isRunning ? (
                     <button className="btn" style={{ padding: '8px 16px', fontSize: '13px', borderRadius: '99px' }} onClick={() => { pauseDcaPlan(p.id); Swal.fire('Thông báo', 'Kế hoạch tích lũy đã tạm dừng.', 'info'); }}>Tạm dừng</button>
                   ) : (
-                    <button className="btn" style={{ padding: '8px 16px', fontSize: '13px', borderRadius: '99px', background: 'var(--bg-main)', color: 'var(--gold)', border: '1px solid var(--gold)' }} onClick={() => { resumeDcaPlan(p.id); Swal.fire('Thông báo', 'Kế hoạch tích lũy đã hoạt động trở lại.', 'success'); }}>Kích hoạt</button>
+                    <button className="btn" style={{ padding: '8px 16px', fontSize: '13px', borderRadius: '99px', background: 'var(--bg-main)', color: 'var(--gold)', border: '1px solid var(--gold)' }} onClick={() => { resumeDcaPlan(p.id); Swal.fire('Thông báo', isCancelled ? 'Khôi phục và kích hoạt kế hoạch thành công.' : 'Kế hoạch tích lũy đã hoạt động trở lại.', 'success'); }}>Kích hoạt (Khôi phục)</button>
                   )}
                   
-                  <button className="btn" style={{ padding: '8px 16px', fontSize: '13px', borderRadius: '99px', color: 'var(--ruby)', border: '1px solid rgba(239, 68, 68, 0.3)', background: 'rgba(239,68,68,0.05)' }} onClick={async () => { const res = await Swal.fire({title: 'Xác nhận hủy', text: 'Bạn có chắc chắn muốn hủy kế hoạch tích lũy này không?', icon: 'warning', showCancelButton: true, confirmButtonText: 'Đồng ý', cancelButtonText: 'Hủy'}); if (res.isConfirmed) { cancelDcaPlan(p.id); Swal.fire('Đã hủy', 'Đã hủy kế hoạch tích lũy khỏi hệ thống.', 'success'); } }}>Huỷ</button>
+                  {!isCancelled && (
+                    <button className="btn" style={{ padding: '8px 16px', fontSize: '13px', borderRadius: '99px', color: 'var(--ruby)', border: '1px solid rgba(239, 68, 68, 0.3)', background: 'rgba(239,68,68,0.05)' }} onClick={async () => { const res = await Swal.fire({title: 'Xác nhận hủy', text: 'Bạn có chắc chắn muốn hủy kế hoạch tích lũy này không?', icon: 'warning', showCancelButton: true, confirmButtonText: 'Đồng ý', cancelButtonText: 'Hủy'}); if (res.isConfirmed) { cancelDcaPlan(p.id); Swal.fire('Đã hủy', 'Đã hủy kế hoạch tích lũy vào khu vực lưu trữ.', 'success'); } }}>Huỷ</button>
+                  )}
                 </div>
               </div>
               
               <div className="divider" style={{ margin: '20px 0', borderTop: '1px dashed rgba(255,255,255,0.1)' }}></div>
               
-              <div style={{ overflowX: 'auto', background: 'rgba(0,0,0,0.2)', borderRadius: '12px', padding: '16px', textAlign: 'center', color: 'var(--text-muted)' }}>
-                 <p><i className="ti ti-history" style={{ fontSize: '20px', marginBottom: '8px' }}></i></p>
-                 Dữ liệu các lần thực thi giao dịch được tính toán bởi Worker và hiển thị chi tiết tại màn hình <b>Lịch sử Giao dịch</b>.
-              </div>
+              <PlanExecutions planId={p.id} />
             </div>
           );
         }) : (
