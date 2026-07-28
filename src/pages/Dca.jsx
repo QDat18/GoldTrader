@@ -392,7 +392,14 @@ export default function Dca() {
                   )}
                   
                   {isCompleted && (
-                    <button className="btn" style={{ padding: '8px 16px', fontSize: '13px', borderRadius: '99px', background: 'var(--emerald)', color: '#000', fontWeight: 600 }} onClick={() => { archiveDcaPlan(p.id); Swal.fire('Lưu trữ thành công', 'Kế hoạch đã được cất vào lịch sử lưu trữ.', 'success'); }}>Thêm vào lịch sử</button>
+                    <button className="btn" style={{ padding: '8px 16px', fontSize: '13px', borderRadius: '99px', background: 'var(--emerald)', color: '#000', fontWeight: 600 }} onClick={async () => {
+                      const ok = await archiveDcaPlan(p.id);
+                      if (ok) {
+                        Swal.fire('Lưu trữ thành công', 'Kế hoạch đã được cất vào lịch sử lưu trữ.', 'success');
+                      } else {
+                        Swal.fire('Lỗi', 'Không thể lưu trữ do xung đột Server. Vui lòng thử lại sau!', 'error');
+                      }
+                    }}>Thêm vào lịch sử</button>
                   )}
                   {isRunning && (
                     <button className="btn" style={{ padding: '8px 16px', fontSize: '13px', borderRadius: '99px' }} onClick={() => { pauseDcaPlan(p.id); Swal.fire('Thông báo', 'Kế hoạch tích lũy đã tạm dừng.', 'info'); }}>Tạm dừng</button>

@@ -494,6 +494,23 @@ const useStore = create((set, get) => ({
     }
   },
 
+  archiveDcaPlan: async (id) => {
+    try {
+      const { error } = await supabase.from('dca_plans').update({ status: 'ARCHIVED' }).eq('id', id).select();
+      if (error) {
+        console.error("Lỗi Archive Database:", error.message);
+        return false;
+      }
+      set(state => ({
+        dcaPlans: state.dcaPlans.map(p => p.id === id ? { ...p, status: 'ARCHIVED' } : p)
+      }));
+      return true;
+    } catch(err) {
+      console.error(err);
+      return false;
+    }
+  },
+
   cancelWithdrawalOrder: async (orderId) => {
     try {
       const { error } = await supabase
