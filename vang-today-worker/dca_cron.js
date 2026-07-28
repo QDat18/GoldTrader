@@ -8,12 +8,23 @@ const SUPABASE_KEY = process.env.VITE_SUPABASE_ANON_KEY || 'YOUR_SERVICE_KEY';
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
-// Công thức lấy giá vàng gần nhất (Giả lập giống trên Web)
+// Công thức lấy giá vàng gần nhất (Đã cập nhật theo schema mới financial_ledgers)
 async function getLatestGoldPrices() {
   try {
-    const { data, error } = await supabase.from('gold_prices').select('*').order('created_at', { ascending: false }).limit(1);
+    // Lấy 50 bản ghi giá vàng gần nhất để đảm bảo quét đủ các loại vàng
+    const { data, error } = await supabase.schema('financial_ledgers').from('gold_price_snapshots').select('*').order('recorded_at', { ascending: false }).limit(50);
+    
     if (!error && data && data.length > 0) {
-      return data[0].prices || {};
+      const prices = {};
+      for (const row of data) {
+        if (!prices[row.gold_type]) {
+          prices[row.gold_type] = {
+            buy: Number(row.buy_price_vnd),
+            sell: Number(row.sell_price_vnd)
+          };
+        }
+      }
+      return Object.keys(prices).length > 0 ? prices : null;
     }
   } catch (err) {
     console.error("Lỗi lấy giá vàng:", err);
