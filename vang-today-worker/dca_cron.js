@@ -50,6 +50,38 @@ async function getGoldPrice(sourceCode) {
 async function sendDcaEmail(user, plan, quantityPurchased, amountVnd, goldType, goldPriceBuy, txnId) {
   try {
     if (!user.email) return;
+
+    let attachments = [];
+    try {
+      const templateData = {
+        name: user.full_name || user.email.split('@')[0],
+        phone: user.phone || '',
+        cccd: user.id_card_number || '',
+        email: user.email || '',
+        contractId: txnId,
+        goldType: goldType.toUpperCase(),
+        quantity: `${quantityPurchased.toFixed(6)} (${Number((quantityPurchased * 3.75).toFixed(6))}g)`,
+        price: goldPriceBuy.toLocaleString('vi-VN'),
+        total: amountVnd.toLocaleString('vi-VN'),
+        date: new Date().toLocaleString('vi-VN'),
+        type: 'buy'
+      };
+
+      // Import ES module động (.mjs/.js ES module) để dùng chung với Vite Backend
+      let importPath = '../src/utils/contractGenerator.js';
+      // Fallback relative path cho windows bằng href chuẩn
+      const fileUrl = 'file://' + path.resolve(__dirname, '../src/utils/contractGenerator.js').replace(/\\/g, '/');
+      const { generateContractPdf } = await import(fileUrl);
+      
+      const pdfBuffer = await generateContractPdf(templateData);
+      attachments.push({
+        filename: `HopDongDCA_${txnId}.pdf`,
+        content: pdfBuffer
+      });
+    } catch (pdfErr) {
+      console.error('[DCA CRON] Lỗi tạo PDF hợp đồng:', pdfErr);
+    }
+
     const mailOptions = {
       from: process.env.SMTP_FROM || '"GoldChain Support" <noreply@goldchain.com>',
       to: user.email,
@@ -67,9 +99,11 @@ async function sendDcaEmail(user, plan, quantityPurchased, amountVnd, goldType, 
             <p><b>Tổng thanh toán:</b> ${amountVnd.toLocaleString('vi-VN')} VND</p>
             <p><b>Thời gian chạy:</b> ${new Date().toLocaleString('vi-VN')}</p>
           </div>
+          <p>Vui lòng xem <b>Hợp đồng giao dịch điện tử đính kèm (PDF)</b>. Cảm ơn bạn đã đồng hành.</p>
           <p>Trân trọng,<br>Ban Quản Trị Hệ thống Giao dịch vàng GoldChain 4.0</p>
         </div>
-      `
+      `,
+      attachments
     };
     await transporter.sendMail(mailOptions);
     console.log(`[DCA CRON] Đã gửi email xác nhận cho ${user.email}`);
@@ -96,7 +130,7 @@ async function runDcaCron() {
   // 2. Tìm các Plan đang chạy ('running')
   const { data: plans, error: planErr } = await supabase
     .from('dca_plans')
-    .select('*, user_profiles(id, wallet_balance_vnd, full_name, email)')
+    .select('*, user_profiles(id, wallet_balance_vnd, full_name, email, phone, id_card_number)')
     .eq('status', 'running');
 
   if (planErr || !plans) {
