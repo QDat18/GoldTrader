@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Swal from 'sweetalert2';
 import useStore from '../store/useStore';
 
@@ -77,6 +77,7 @@ export default function Dca() {
   const pauseDcaPlan = useStore(state => state.pauseDcaPlan);
   const resumeDcaPlan = useStore(state => state.resumeDcaPlan);
   const cancelDcaPlan = useStore(state => state.cancelDcaPlan);
+  const archiveDcaPlan = useStore(state => state.archiveDcaPlan);
 
   // Form State
   const priceKeys = Object.keys(prices);
@@ -88,6 +89,48 @@ export default function Dca() {
   const [executionTime, setExecutionTime] = useState('09:00');
   const [selectedDates, setSelectedDates] = useState([]);
   const [currentMonth, setCurrentMonth] = useState(new Date());
+
+  const [storeStock, setStoreStock] = useState({});
+
+  useEffect(() => {
+    const fetchStock = async () => {
+      try {
+        const { supabase } = await import('../supabaseClient');
+        const { data, error } = await supabase
+          .from('vault_inventory')
+          .select('gold_type, weight_grams')
+          .eq('status', 'AVAILABLE');
+
+        if (!error && data) {
+          const weights = {};
+          priceKeys.forEach(k => { weights[k] = 0; });
+          data.forEach(item => {
+            const key = item.gold_type;
+            const w = Number(item.weight_grams) || 0;
+            if (weights[key] !== undefined) {
+              weights[key] += w;
+            } else {
+              const typeLower = key.toLowerCase();
+              if (typeLower.includes('sjc')) weights['SJL1L10'] = (weights['SJL1L10'] || 0) + w;
+              else if (typeLower.includes('pnj')) weights['PQHNVM'] = (weights['PQHNVM'] || 0) + w;
+            }
+          });
+          setStoreStock(weights);
+        }
+      } catch(err) {
+        console.error(err);
+      }
+    };
+    fetchStock();
+  }, [priceKeys.length]); // trigger once roughly when prices load
+
+  // Auto-select first in-stock item
+  useEffect(() => {
+    const availableKeys = priceKeys.filter(k => storeStock[k] > 0);
+    if (availableKeys.length > 0 && (!storeStock[goldType] || storeStock[goldType] <= 0)) {
+      setGoldType(availableKeys[0]);
+    }
+  }, [storeStock, priceKeys, goldType]);
 
   // Calculate aggregated stats
   const totalAccumulated = plans.reduce((acc, p) => acc + (p.status === 'running' ? parseFloat(p.amount_vnd || 0) : 0), 0);
@@ -156,6 +199,16 @@ export default function Dca() {
       Swal.fire('Lỗi', 'Số tiền tích lũy tối thiểu là ₫100.000', 'error');
       return;
     }
+
+    if (prices[goldType] && storeStock[goldType] !== undefined) {
+      const estimatedChi = amt / prices[goldType].buy;
+      const stockChi = storeStock[goldType] / 3.75;
+      if (estimatedChi > stockChi) {
+        Swal.fire('Quá hạn mức', `Kho vàng hiện tại chỉ còn ${stockChi.toFixed(2)} chỉ, không đủ để đáp ứng khối lượng dự kiến (${estimatedChi.toFixed(2)} chỉ) của mức vốn này. Vui lòng giảm số tiền tích lũy hoặc chọn mã vàng khác.`, 'error');
+        return;
+      }
+    }
+
     let finalExecutionDay = day;
     if (frequency === 'Tùy chỉnh (Chọn ngày)') {
       if (selectedDates.length === 0) {
@@ -195,14 +248,32 @@ export default function Dca() {
             <div className="form-group">
               <label className="form-label" style={{ color: 'var(--text-muted)' }}>Chọn Loại Vàng</label>
               <select className="form-input" value={goldType} onChange={(e) => setGoldType(e.target.value)} style={{ borderRadius: '12px', padding: '14px', background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.05)', color: '#fff' }}>
-                {Object.keys(prices).map(key => (
-                  <option key={key} value={key} style={{ background: '#272729', color: '#fff' }}>{prices[key].name}</option>
-                ))}
+                {Object.keys(prices).filter(k => storeStock[k] > 0).length > 0 ? (
+                  Object.keys(prices).filter(k => storeStock[k] > 0).map(key => (
+                    <option key={key} value={key} style={{ background: '#272729', color: '#fff' }}>
+                      {prices[key].name} (Còn kho: {(storeStock[key] / 3.75).toFixed(2)} chỉ)
+                    </option>
+                  ))
+                ) : (
+                  <option disabled style={{ background: '#272729', color: '#999' }}>Tất cả các sản phẩm đang tạm hết hạn</option>
+                )}
               </select>
             </div>
             <div className="form-group">
               <label className="form-label">Số Tiền Tích Lũy / Kỳ</label>
               <input className="form-input" type="number" placeholder="₫1.000.000" min="100000" step="100000" value={amount} onChange={(e) => setAmount(e.target.value)} style={{ borderRadius: '12px', padding: '14px', background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.05)' }} />
+              {amount && !isNaN(amount) && prices[goldType] && storeStock[goldType] !== undefined && (() => {
+                const estAmt = (parseFloat(amount) / prices[goldType].buy);
+                const stockAmt = storeStock[goldType] / 3.75;
+                const isOver = estAmt > stockAmt;
+                return (
+                  <div style={{ fontSize: '12px', color: isOver ? 'var(--ruby)' : 'var(--emerald)', marginTop: '8px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <i className={isOver ? "ti ti-alert-triangle" : "ti ti-chart-arrows-vertical"}></i>
+                    Ước tính mua được: <b>{estAmt.toFixed(4)}</b> chỉ 
+                    {isOver && " (Vượt quá số dư kho)"}
+                  </div>
+                );
+              })()}
             </div>
             <div className="form-group">
               <label className="form-label" style={{ color: 'var(--text-muted)' }}>Tần Suất / Kiểu mua</label>
@@ -291,10 +362,12 @@ export default function Dca() {
         </button>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-        {plans.filter(p => showArchived ? (p.status === 'CANCELLED' || p.status === 'COMPLETED') : (p.status !== 'CANCELLED' && p.status !== 'COMPLETED')).length > 0 ? plans.filter(p => showArchived ? (p.status === 'CANCELLED' || p.status === 'COMPLETED') : (p.status !== 'CANCELLED' && p.status !== 'COMPLETED')).map(p => {
+        {plans.filter(p => showArchived ? (p.status === 'CANCELLED' || p.status === 'ARCHIVED') : (p.status !== 'CANCELLED' && p.status !== 'ARCHIVED')).length > 0 ? plans.filter(p => showArchived ? (p.status === 'CANCELLED' || p.status === 'ARCHIVED') : (p.status !== 'CANCELLED' && p.status !== 'ARCHIVED')).map(p => {
           const isRunning = p.status === 'running' || p.status === 'ACTIVE';
           const isCancelled = p.status === 'CANCELLED';
           const isCompleted = p.status === 'COMPLETED';
+          const isArchived = p.status === 'ARCHIVED';
+          
           return (
             <div key={p.id} className="card" style={{ borderRadius: '20px', padding: '24px', background: 'rgba(30,30,30,0.5)', border: '1px solid rgba(255,255,255,0.05)', position: 'relative', overflow: 'hidden', opacity: isCancelled ? 0.6 : 1 }}>
               <div style={{ position: 'absolute', top: 0, left: 0, bottom: 0, width: '4px', background: isRunning ? 'var(--gold-gradient)' : (isCompleted ? 'var(--emerald)' : (isCancelled ? 'var(--ruby)' : 'var(--text-muted)')) }}></div>
@@ -312,18 +385,23 @@ export default function Dca() {
                     <span style={{ fontSize: '12px', padding: '6px 12px', borderRadius: '99px', background: 'rgba(56, 189, 248, 0.1)', color: '#38bdf8', fontWeight: 600, border: '1px solid rgba(56,189,248,0.2)' }}>Hoàn Thành</span>
                   ) : isCancelled ? (
                     <span style={{ fontSize: '12px', padding: '6px 12px', borderRadius: '99px', background: 'rgba(239, 68, 68, 0.1)', color: 'var(--ruby)', fontWeight: 600, border: '1px solid rgba(239,68,68,0.2)' }}>Đã hủy</span>
+                  ) : isArchived ? (
+                    <span style={{ fontSize: '12px', padding: '6px 12px', borderRadius: '99px', background: 'rgba(255, 255, 255, 0.05)', color: 'var(--text-muted)', fontWeight: 600, border: '1px solid rgba(255,255,255,0.1)' }}>Lưu trữ</span>
                   ) : (
                     <span style={{ fontSize: '12px', padding: '6px 12px', borderRadius: '99px', background: 'rgba(255, 255, 255, 0.05)', color: 'var(--text-muted)', fontWeight: 600, border: '1px solid rgba(255,255,255,0.1)' }}>Đã tạm dừng</span>
                   )}
                   
+                  {isCompleted && (
+                    <button className="btn" style={{ padding: '8px 16px', fontSize: '13px', borderRadius: '99px', background: 'var(--emerald)', color: '#000', fontWeight: 600 }} onClick={() => { archiveDcaPlan(p.id); Swal.fire('Lưu trữ thành công', 'Kế hoạch đã được cất vào lịch sử lưu trữ.', 'success'); }}>Thêm vào lịch sử</button>
+                  )}
                   {isRunning && (
                     <button className="btn" style={{ padding: '8px 16px', fontSize: '13px', borderRadius: '99px' }} onClick={() => { pauseDcaPlan(p.id); Swal.fire('Thông báo', 'Kế hoạch tích lũy đã tạm dừng.', 'info'); }}>Tạm dừng</button>
                   )}
-                  {(!isRunning && !isCancelled && !isCompleted) && (
+                  {(!isRunning && !isCancelled && !isCompleted && !isArchived) && (
                     <button className="btn" style={{ padding: '8px 16px', fontSize: '13px', borderRadius: '99px', background: 'var(--bg-main)', color: 'var(--gold)', border: '1px solid var(--gold)' }} onClick={() => { resumeDcaPlan(p.id); Swal.fire('Thông báo', 'Kế hoạch tích lũy đã hoạt động trở lại.', 'success'); }}>Kích hoạt lại</button>
                   )}
                   
-                  {(!isCancelled && !isCompleted) && (
+                  {(!isCancelled && !isCompleted && !isArchived) && (
                     <button className="btn" style={{ padding: '8px 16px', fontSize: '13px', borderRadius: '99px', color: 'var(--ruby)', border: '1px solid rgba(239, 68, 68, 0.3)', background: 'rgba(239,68,68,0.05)' }} onClick={async () => { const res = await Swal.fire({title: 'Xác nhận hủy', text: 'Bạn có chắc chắn muốn hủy kế hoạch tích lũy này không?', icon: 'warning', showCancelButton: true, confirmButtonText: 'Đồng ý', cancelButtonText: 'Hủy'}); if (res.isConfirmed) { cancelDcaPlan(p.id); Swal.fire('Đã hủy', 'Đã hủy kế hoạch tích lũy vào khu vực lưu trữ.', 'success'); } }}>Huỷ</button>
                   )}
                 </div>

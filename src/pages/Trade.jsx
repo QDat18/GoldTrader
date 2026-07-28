@@ -369,6 +369,13 @@ export default function Trade() {
       return;
     }
 
+    if (activeTab === 'buy' || activeTab === 'sell') {
+      if (amountVal < 50000) {
+        setOrderStatus({ show: true, success: false, message: 'Giao dịch cho Mua/Bán trực tuyến phải từ 50.000 VNĐ trở lên.' });
+        return;
+      }
+    }
+
     if (activeTab === 'withdraw' && !pickupStore) {
       setOrderStatus({ show: true, success: false, message: 'Vui lòng chọn chi nhánh cửa hàng để nhận vàng.' });
       return;
@@ -1512,6 +1519,8 @@ export default function Trade() {
                 {activeTab === 'buy'
                   ? `Số dư Ví tiền khả dụng: ₫${walletBalance.toLocaleString('vi-VN')}`
                   : `Trị giá quy đổi dự kiến: ₫${amount ? Math.round(parseFloat(amount)).toLocaleString('vi-VN') : '0'}`}
+                <br />
+                <span style={{ color: 'var(--gold)', marginTop: '4px', display: 'inline-block' }}>* Mức giao dịch tối thiểu từ ₫50.000</span>
               </div>
             </div>
           )}
@@ -1563,14 +1572,14 @@ export default function Trade() {
                 handleSubmitOrder();
               }
             }}
-            disabled={!quantity || parseFloat(quantity) <= 0 || (activeTab === 'buy' && parseFloat(quantity) > (storeStock[selectedGoldKey] / 3.75 || 0))}
+            disabled={!quantity || parseFloat(quantity) <= 0 || (activeTab === 'buy' && parseFloat(quantity) > (storeStock[selectedGoldKey] / 3.75 || 0)) || (activeTab !== 'withdraw' && parseFloat(amount) < 50000)}
             style={{ 
               width: '100%', padding: '12px', fontSize: '14px', fontWeight: 'bold',
               background: activeTab === 'buy' ? 'var(--emerald)' : (activeTab === 'sell' ? 'var(--ruby)' : 'var(--gold-gradient)'),
               color: activeTab === 'sell' ? '#fff' : '#000',
               border: 'none', borderRadius: '6px',
-              cursor: (!quantity || parseFloat(quantity) <= 0 || (activeTab === 'buy' && parseFloat(quantity) > (storeStock[selectedGoldKey] / 3.75 || 0))) ? 'not-allowed' : 'pointer',
-              opacity: (!quantity || parseFloat(quantity) <= 0 || (activeTab === 'buy' && parseFloat(quantity) > (storeStock[selectedGoldKey] / 3.75 || 0))) ? 0.45 : 1
+              cursor: (!quantity || parseFloat(quantity) <= 0 || (activeTab === 'buy' && parseFloat(quantity) > (storeStock[selectedGoldKey] / 3.75 || 0)) || (activeTab !== 'withdraw' && parseFloat(amount) < 50000)) ? 'not-allowed' : 'pointer',
+              opacity: (!quantity || parseFloat(quantity) <= 0 || (activeTab === 'buy' && parseFloat(quantity) > (storeStock[selectedGoldKey] / 3.75 || 0)) || (activeTab !== 'withdraw' && parseFloat(amount) < 50000)) ? 0.45 : 1
             }}
           >
             {activeTab === 'buy' ? 'MUA VÀO VÍ VÀNG' : (activeTab === 'sell' ? 'BÁN TRỰC TUYẾN' : 'TẠO YÊU CẦU RÚT VÀNG')}
