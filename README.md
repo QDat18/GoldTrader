@@ -65,13 +65,16 @@ Sở hữu màn hình lưới kiểm soát (Dashboard) chuyên quyền tuyệt �
    SMTP_PASS=...
    ```
 
-4. **Kích hoạt Web & Background:**
+4. **Kích hoạt Web, Background Worker & Blockchain Server:**
    ```bash
-   # Mở Tab 1 (Chạy Giao diện người dùng)
+   # Mở Tab 1 (Chạy Giao diện người dùng web)
    npm run dev
 
-   # Mở Tab 2 (Chạy Cỗ máy Cron Worker xử lý ngầm DCA & Hợp Đồng)
+   # Mở Tab 2 (Chạy Cỗ máy Cron Worker xử lý ngầm DCA & E-Contract)
    node vang-today-worker/dca_cron.js
+
+   # Mở Tab 3 (Chạy Máy chủ trung chuyển Blockchain sinh chữ ký số định danh Web3 O2O)
+   node server.js
    ```
 
 ## 🛡️ Bản quyền
