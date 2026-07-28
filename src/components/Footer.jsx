@@ -29,13 +29,13 @@ export default function Footer() {
           <a href="tel:18006789">Hotline: 1800-6789</a>
           <a href="mailto:cs@goldchain.vn">Email: cs@goldchain.vn</a>
           <a href="https://web.facebook.com/tanloc240105" target="_blank" rel="noreferrer">Facebook</a>
-          <a href="https://zalo.me/18006789" target="_blank" rel="noreferrer">Zalo OA</a>
+          <a href="https://zalo.me/0367744634" target="_blank" rel="noreferrer">Zalo QuangDuy</a>
         </div>
       </div>
       <div className="footer-bottom">
-        <span style={{fontSize: '12px'}}>© 2024 GoldChain JSC. Giấy phép NHNN số 123/GP-NHNN</span>
-        <div style={{display: 'flex', gap: '12px'}}>
-          <span style={{fontSize: '12px', color: 'var(--gray-400)'}}>Được bảo vệ bởi SSL 256-bit</span>
+        <span style={{ fontSize: '12px' }}>© 2024 GoldChain JSC. Giấy phép NHNN số 123/GP-NHNN</span>
+        <div style={{ display: 'flex', gap: '12px' }}>
+          <span style={{ fontSize: '12px', color: 'var(--gray-400)' }}>Được bảo vệ bởi SSL 256-bit</span>
         </div>
       </div>
     </div>
