@@ -385,7 +385,7 @@ export function UserNavbar() {
       </div>
       {/* Deposit Modal */}
       {isDepositModalOpen && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(10px)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px' }}>
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(10px)', zIndex: 1050, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px' }}>
           <div className="card" style={{ width: '100%', maxWidth: '480px', background: 'var(--bg-card)', borderRadius: '24px', border: '1px solid rgba(255,255,255,0.08)', overflow: 'hidden' }}>
             <div style={{ padding: '24px', borderBottom: '1px solid rgba(255,255,255,0.05)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div style={{ fontSize: '18px', fontWeight: 600 }}>{depositStep === 1 ? 'Nạp tiền vào ví' : 'Thanh toán qua quét mã QR'}</div>
@@ -497,7 +497,7 @@ export function UserNavbar() {
       )}
       {/* Success Deposit Modal */}
       {isSuccessModalOpen && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(10px)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px', animation: 'fadeIn 0.2s ease-out' }}>
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(10px)', zIndex: 1050, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px', animation: 'fadeIn 0.2s ease-out' }}>
           <div className="card" style={{ width: '100%', maxWidth: '400px', background: 'var(--bg-card)', borderRadius: '24px', border: '1px solid rgba(16, 185, 129, 0.4)', overflow: 'hidden', textAlign: 'center', padding: '40px 24px', position: 'relative', boxShadow: '0 20px 60px rgba(16, 185, 129, 0.15)', animation: 'slideUp 0.3s ease-out' }}>
             <button onClick={() => setIsSuccessModalOpen(false)} style={{ position: 'absolute', top: 16, right: 16, background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', transition: 'color 0.2s' }} onMouseEnter={(e) => e.currentTarget.style.color = 'var(--text-main)'} onMouseLeave={(e) => e.currentTarget.style.color = 'var(--text-muted)'}>
               <X size={24} />
