@@ -446,7 +446,14 @@ export function UserNavbar() {
                   <button className="btn" onClick={() => setIsDepositModalOpen(false)} style={{ flex: 1, background: 'rgba(255,255,255,0.05)', color: '#fff', borderRadius: '99px', padding: '14px', fontSize: '15px' }}>
                     Hủy
                   </button>
-                  <button className="btn btn-gold" onClick={() => setDepositStep(2)} style={{ flex: 2, borderRadius: '99px', padding: '14px', fontSize: '15px', fontWeight: 700, boxShadow: '0 8px 16px rgba(212,175,55,0.2)' }}>
+                  <button className="btn btn-gold" onClick={() => {
+                    const val = parseInt(depositAmount.toString().replace(/[^0-9]/g, ''), 10);
+                    if (Number.isNaN(val) || val < 10000 || val > 10000000000) {
+                      Swal.fire('Lỗi giới hạn nạp', 'Số tiền nạp phải từ 10.000 VNĐ đến tối đa 10 Tỷ VNĐ cho mỗi giao dịch.', 'error');
+                      return;
+                    }
+                    setDepositStep(2);
+                  }} style={{ flex: 2, borderRadius: '99px', padding: '14px', fontSize: '15px', fontWeight: 700, boxShadow: '0 8px 16px rgba(212,175,55,0.2)' }}>
                     Tiếp tục
                   </button>
                 </div>
