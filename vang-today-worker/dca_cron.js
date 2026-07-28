@@ -246,6 +246,34 @@ async function runDcaCron() {
         console.error('[DCA CRON] Lỗi Insert dca_executions: ', execError);
       }
 
+      // 1.5. Trừ tồn kho vật lý trong vault_inventory (Ghi nhận tiêu thụ)
+      const { data: availableBars, error: fetchErr } = await supabase
+        .from('vault_inventory')
+        .select('*')
+        .eq('gold_type', goldType)
+        .eq('status', 'AVAILABLE')
+        .order('id', { ascending: true });
+
+      if (fetchErr) {
+        console.error('[DCA CRON] Lỗi lấy vault_inventory: ', fetchErr);
+      } else {
+        let gramsToDeduct = quantityPurchased;
+        if (availableBars && availableBars.length > 0) {
+          for (const bar of availableBars) {
+            if (gramsToDeduct <= 0) break;
+            const barWeight = Number(bar.weight_grams);
+            if (barWeight <= gramsToDeduct + 0.0001) {
+              gramsToDeduct -= barWeight;
+              await supabase.from('vault_inventory').update({ status: 'RESERVED' }).eq('id', bar.id);
+            } else {
+              const newGrams = barWeight - gramsToDeduct;
+              gramsToDeduct = 0;
+              await supabase.from('vault_inventory').update({ weight_grams: newGrams }).eq('id', bar.id);
+            }
+          }
+        }
+      }
+
       // 2. Lưu giao dịch Transaction vào gold_transactions
       const txnId = `DCA-${today.getFullYear()}${String(today.getMonth() + 1).padStart(2, '0')}${String(today.getDate()).padStart(2, '0')}-${Math.floor(1000 + Math.random() * 9000)}`;
       const { error: txErr } = await supabase.schema('financial_ledgers').from('gold_transactions').insert({
