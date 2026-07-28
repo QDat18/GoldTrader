@@ -251,21 +251,35 @@ async function runDcaCron() {
 
       // Cập nhật tăng số vòng đời (total_executions) cho Plan
       const newTotalExecutions = (plan.total_executions || 0) + 1;
+      let newStatus = plan.status;
+
+      // KIỂM TRA ĐÓNG KẾ HOẠCH NẾU LÀ GÓI "TÙY CHỈNH"
+      if (plan.frequency === 'Tùy chỉnh (Chọn ngày)') {
+        const rawVal = plan.execution_day;
+        const targetDaysStr = rawVal.includes('|') ? rawVal.split('|').slice(1).join('|') : rawVal;
+        const daysArr = targetDaysStr.split(',');
+        if (newTotalExecutions >= daysArr.length) {
+          newStatus = 'COMPLETED'; // Chốt sổ kế hoạch
+        }
+      }
+
       await supabase.from('dca_plans').update({
-        total_executions: newTotalExecutions
+        total_executions: newTotalExecutions,
+        status: newStatus
       }).eq('id', plan.id);
 
-      // Bắn thông báo giao dịch chuẩn
       await supabase.from('notifications').insert({
         user_id: user.id,
         type: 'transaction',
-        title: 'Tích lũy DCA tự động thành công',
-        desc: `Đã mua ${quantityPurchased.toFixed(4)} chỉ ${goldType.toUpperCase()} bằng ₫${amountVnd.toLocaleString('vi-VN')} (Kỳ thứ ${newTotalExecutions})`,
+        title: newStatus === 'COMPLETED' ? 'Kế hoạch DCA đã hoàn thành!' : 'Tích lũy DCA tự động thành công',
+        desc: newStatus === 'COMPLETED' 
+          ? `Chúc mừng! Kế hoạch tích lũy SJC đã chạy đủ số kỳ và chính thức khép lại.` 
+          : `Đã tự động mua ${quantityPurchased.toFixed(4)} chỉ ${goldType.toUpperCase()} bằng ₫${amountVnd.toLocaleString('vi-VN')} (Kỳ thứ ${newTotalExecutions})`,
         time: `${String(today.getHours()).padStart(2, '0')}:${String(today.getMinutes()).padStart(2, '0')}`,
         unread: true
       });
 
-      console.log(`[DCA CRON] Thành công cho User ${user.full_name}: Mua ${quantityPurchased.toFixed(4)} chỉ ${goldType} giá ${amountVnd.toLocaleString('vi-VN')} VND.`);
+      console.log(`[DCA CRON] Thành công cho User ${user.full_name}: Mua kỳ #${newTotalExecutions} - ${quantityPurchased.toFixed(4)} chỉ ${goldType}. Trạng thái plan: ${newStatus}`);
     } catch (innerErr) {
       console.error(`[DCA CRON] Lỗi thực thi Plan ${plan.id}:`, innerErr);
     }

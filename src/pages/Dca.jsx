@@ -291,36 +291,39 @@ export default function Dca() {
         </button>
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-        {plans.filter(p => showArchived ? p.status === 'CANCELLED' : p.status !== 'CANCELLED').length > 0 ? plans.filter(p => showArchived ? p.status === 'CANCELLED' : p.status !== 'CANCELLED').map(p => {
+        {plans.filter(p => showArchived ? (p.status === 'CANCELLED' || p.status === 'COMPLETED') : (p.status !== 'CANCELLED' && p.status !== 'COMPLETED')).length > 0 ? plans.filter(p => showArchived ? (p.status === 'CANCELLED' || p.status === 'COMPLETED') : (p.status !== 'CANCELLED' && p.status !== 'COMPLETED')).map(p => {
           const isRunning = p.status === 'running' || p.status === 'ACTIVE';
           const isCancelled = p.status === 'CANCELLED';
+          const isCompleted = p.status === 'COMPLETED';
           return (
             <div key={p.id} className="card" style={{ borderRadius: '20px', padding: '24px', background: 'rgba(30,30,30,0.5)', border: '1px solid rgba(255,255,255,0.05)', position: 'relative', overflow: 'hidden', opacity: isCancelled ? 0.6 : 1 }}>
-              <div style={{ position: 'absolute', top: 0, left: 0, bottom: 0, width: '4px', background: isRunning ? 'var(--gold-gradient)' : (isCancelled ? 'var(--ruby)' : 'var(--text-muted)') }}></div>
+              <div style={{ position: 'absolute', top: 0, left: 0, bottom: 0, width: '4px', background: isRunning ? 'var(--gold-gradient)' : (isCompleted ? 'var(--emerald)' : (isCancelled ? 'var(--ruby)' : 'var(--text-muted)')) }}></div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <div style={{ display: 'flex', gap: '32px', flexWrap: 'wrap' }}>
                   <div><div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '4px' }}>LOẠI VÀNG</div><div style={{ fontSize: '16px', fontWeight: 600 }}>{prices[p.gold_type]?.name || p.gold_type?.toUpperCase()}</div></div>
-                  <div><div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '4px' }}>SỐ TIỀN / KỲ</div><div style={{ fontSize: '16px', fontWeight: 600 }}>₫{parseFloat(p.amount_vnd || p.amount_vnd_per_cycle).toLocaleString('vi-VN')}</div></div>
+                  <div><div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '4px' }}>SỐ T.CHƯƠNG TRÌNH</div><div style={{ fontSize: '16px', fontWeight: 600 }}>₫{parseFloat(p.amount_vnd || p.amount_vnd_per_cycle).toLocaleString('vi-VN')} / kỳ</div></div>
                   <div><div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '4px' }}>TẦN SUẤT</div><div style={{ fontSize: '16px', fontWeight: 600 }}>{p.frequency}</div></div>
-                  <div><div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '4px' }}>NGÀY CHẠY</div><div style={{ fontSize: '16px', fontWeight: 600 }}>{p.execution_day}</div></div>
-                  <div><div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '4px' }}>TRẠNG THÁI DB</div><div style={{ fontSize: '16px', fontWeight: 600 }}>{p.status}</div></div>
+                  <div><div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '4px' }}>TIẾN ĐỘ THỰC THI</div><div style={{ fontSize: '16px', fontWeight: 600 }}>{p.total_executions || 0} kỳ</div></div>
                 </div>
                 <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                   {isRunning ? (
                     <span style={{ fontSize: '12px', padding: '6px 12px', borderRadius: '99px', background: 'rgba(16, 185, 129, 0.1)', color: 'var(--emerald)', fontWeight: 600, border: '1px solid rgba(16,185,129,0.2)' }}>Đang chạy</span>
+                  ) : isCompleted ? (
+                    <span style={{ fontSize: '12px', padding: '6px 12px', borderRadius: '99px', background: 'rgba(56, 189, 248, 0.1)', color: '#38bdf8', fontWeight: 600, border: '1px solid rgba(56,189,248,0.2)' }}>Hoàn Thành</span>
                   ) : isCancelled ? (
                     <span style={{ fontSize: '12px', padding: '6px 12px', borderRadius: '99px', background: 'rgba(239, 68, 68, 0.1)', color: 'var(--ruby)', fontWeight: 600, border: '1px solid rgba(239,68,68,0.2)' }}>Đã hủy</span>
                   ) : (
                     <span style={{ fontSize: '12px', padding: '6px 12px', borderRadius: '99px', background: 'rgba(255, 255, 255, 0.05)', color: 'var(--text-muted)', fontWeight: 600, border: '1px solid rgba(255,255,255,0.1)' }}>Đã tạm dừng</span>
                   )}
                   
-                  {isRunning ? (
+                  {isRunning && (
                     <button className="btn" style={{ padding: '8px 16px', fontSize: '13px', borderRadius: '99px' }} onClick={() => { pauseDcaPlan(p.id); Swal.fire('Thông báo', 'Kế hoạch tích lũy đã tạm dừng.', 'info'); }}>Tạm dừng</button>
-                  ) : (
-                    <button className="btn" style={{ padding: '8px 16px', fontSize: '13px', borderRadius: '99px', background: 'var(--bg-main)', color: 'var(--gold)', border: '1px solid var(--gold)' }} onClick={() => { resumeDcaPlan(p.id); Swal.fire('Thông báo', isCancelled ? 'Khôi phục và kích hoạt kế hoạch thành công.' : 'Kế hoạch tích lũy đã hoạt động trở lại.', 'success'); }}>Kích hoạt (Khôi phục)</button>
+                  )}
+                  {(!isRunning && !isCancelled && !isCompleted) && (
+                    <button className="btn" style={{ padding: '8px 16px', fontSize: '13px', borderRadius: '99px', background: 'var(--bg-main)', color: 'var(--gold)', border: '1px solid var(--gold)' }} onClick={() => { resumeDcaPlan(p.id); Swal.fire('Thông báo', 'Kế hoạch tích lũy đã hoạt động trở lại.', 'success'); }}>Kích hoạt lại</button>
                   )}
                   
-                  {!isCancelled && (
+                  {(!isCancelled && !isCompleted) && (
                     <button className="btn" style={{ padding: '8px 16px', fontSize: '13px', borderRadius: '99px', color: 'var(--ruby)', border: '1px solid rgba(239, 68, 68, 0.3)', background: 'rgba(239,68,68,0.05)' }} onClick={async () => { const res = await Swal.fire({title: 'Xác nhận hủy', text: 'Bạn có chắc chắn muốn hủy kế hoạch tích lũy này không?', icon: 'warning', showCancelButton: true, confirmButtonText: 'Đồng ý', cancelButtonText: 'Hủy'}); if (res.isConfirmed) { cancelDcaPlan(p.id); Swal.fire('Đã hủy', 'Đã hủy kế hoạch tích lũy vào khu vực lưu trữ.', 'success'); } }}>Huỷ</button>
                   )}
                 </div>
